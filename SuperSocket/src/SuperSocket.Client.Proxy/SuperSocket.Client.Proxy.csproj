@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>SuperSocket client proxy library</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SuperSocket.Client\SuperSocket.Client.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,2 +1,2 @@
 # SimpleObjectsLib
- Collection of tools for Simple.Objects app framework support
+ C# collection of tools for Simple.Objects app framework support

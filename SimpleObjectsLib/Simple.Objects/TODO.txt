@@ -1,0 +1,1 @@
+﻿Implement IpropertyModel interface on ServerPropertyInfo

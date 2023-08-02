@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0; netstandard2.1</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Simple.Compression\Simple.Compression.csproj" />
+    <ProjectReference Include="..\Simple.Datastore\Simple.Datastore.csproj" />
+  </ItemGroup>
+
+</Project>

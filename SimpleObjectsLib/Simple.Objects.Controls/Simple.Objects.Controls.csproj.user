@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Update="Controllers\CollectionControllerDevExpress.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controllers\GraphControllerDevExpress.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controllers\GraphControllerDevExpressGeneric.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controllers\SimpleObjectCollectionController.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controllers\SimpleObjectHierarchicalCollectionController.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Forms\SimpleRibbonFormTemplate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Panels\EditPanelEmpty.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\EditPanelFolder.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\EditPanelName.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\EditPanelNameDescription.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\EditPanelWithTabControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\SystemEditPanelEmpty.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\SystemEditPanelTransaction.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\SystemEditPanelTransactionActionInfo.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\SystemEditPanelWithTabControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ribbon Modules\RibbonModuleDevelopment.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ribbon Modules\SimpleRibbonModuleSplitPanelBase.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>
