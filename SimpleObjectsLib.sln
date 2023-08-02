@@ -2,33 +2,33 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "SimpleLib\Simple\Simple.csproj", "{3F6A935C-71D8-49A7-AA0E-DE026DDF3127}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "SimpleObjectsLib\Simple\Simple.csproj", "{3F6A935C-71D8-49A7-AA0E-DE026DDF3127}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F383EC26-5C73-4F1A-B404-B24745D23DDA}"
 	ProjectSection(SolutionItems) = preProject
-		SimpleLib\Solution Items\GlobalAssemblyInfo.cs = SimpleLib\Solution Items\GlobalAssemblyInfo.cs
-		SimpleLib\Solution Items\SimpleLibVersionInfo.txt = SimpleLib\Solution Items\SimpleLibVersionInfo.txt
+		SimpleObjectsLib\Solution Items\GlobalAssemblyInfo.cs = SimpleObjectsLib\Solution Items\GlobalAssemblyInfo.cs
+		SimpleObjectsLib\Solution Items\SimpleLibVersionInfo.txt = SimpleObjectsLib\Solution Items\SimpleLibVersionInfo.txt
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "SimpleLib\Simple.Collections\Simple.Collections.csproj", "{DBA25F24-8139-4B08-A7B0-017A08897F53}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "SimpleObjectsLib\Simple.Collections\Simple.Collections.csproj", "{DBA25F24-8139-4B08-A7B0-017A08897F53}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "SimpleLib\Simple.Compression\Simple.Compression.csproj", "{346F6531-A7F2-4BA4-8384-BE7FEC8F8C92}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "SimpleObjectsLib\Simple.Compression\Simple.Compression.csproj", "{346F6531-A7F2-4BA4-8384-BE7FEC8F8C92}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "SimpleLib\Simple.Datastore\Simple.Datastore.csproj", "{93CC9DF3-428A-40DC-A246-372DB8719518}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "SimpleObjectsLib\Simple.Datastore\Simple.Datastore.csproj", "{93CC9DF3-428A-40DC-A246-372DB8719518}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "SimpleLib\Simple.Modeling\Simple.Modeling.csproj", "{D8D9B32D-093C-43A6-9D03-CCAB40E9B9D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "SimpleObjectsLib\Simple.Modeling\Simple.Modeling.csproj", "{D8D9B32D-093C-43A6-9D03-CCAB40E9B9D8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "SimpleLib\Simple.Network\Simple.Network.csproj", "{88C59385-205A-49C6-822F-ED4C09227811}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "SimpleObjectsLib\Simple.Network\Simple.Network.csproj", "{88C59385-205A-49C6-822F-ED4C09227811}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "SimpleLib\Simple.Security\Simple.Security.csproj", "{D079A0F0-9E4C-44DE-ADF7-65BD8FBBE237}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "SimpleObjectsLib\Simple.Security\Simple.Security.csproj", "{D079A0F0-9E4C-44DE-ADF7-65BD8FBBE237}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "SimpleLib\Simple.Serialization\Simple.Serialization.csproj", "{76B55E58-3B39-42DE-95FF-ABB36B283DB2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "SimpleObjectsLib\Simple.Serialization\Simple.Serialization.csproj", "{76B55E58-3B39-42DE-95FF-ABB36B283DB2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Threading", "SimpleLib\Simple.Threading\Simple.Threading.csproj", "{F7AEC647-80A8-4211-B2B3-A6D53757E34F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Threading", "SimpleObjectsLib\Simple.Threading\Simple.Threading.csproj", "{F7AEC647-80A8-4211-B2B3-A6D53757E34F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects", "SimpleLib\Simple.Objects\Simple.Objects.csproj", "{0D68F731-FE61-4ED9-9A96-F8353D1C82F4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects", "SimpleObjectsLib\Simple.Objects\Simple.Objects.csproj", "{0D68F731-FE61-4ED9-9A96-F8353D1C82F4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.SocketEngine", "SimpleLib\Simple.SocketEngine\Simple.SocketEngine.csproj", "{1A56E88F-E75F-4D13-B84A-3FE7CFCB0F7F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.SocketEngine", "SimpleObjectsLib\Simple.SocketEngine\Simple.SocketEngine.csproj", "{1A56E88F-E75F-4D13-B84A-3FE7CFCB0F7F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SuperSocket", "SuperSocket", "{7CD031DE-C5AB-4C07-B868-C092470D966A}"
 EndProject
@@ -48,29 +48,29 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SuperSocket.SessionContaine
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SuperSocket.Primitives", "SuperSocket\src\SuperSocket.Primitives\SuperSocket.Primitives.csproj", "{1D25A8A1-3F45-42EA-866E-5205BE3DE585}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls", "SimpleLib\Simple.Controls\Simple.Controls.csproj", "{4DC681F8-5CB1-4DA7-ADAD-98996DE07E7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls", "SimpleObjectsLib\Simple.Controls\Simple.Controls.csproj", "{4DC681F8-5CB1-4DA7-ADAD-98996DE07E7D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls.TreeList", "SimpleLib\Simple.Controls.TreeList\Simple.Controls.TreeList.csproj", "{D58FE4D6-53C0-4AB2-AB05-42AD0323D4A0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls.TreeList", "SimpleObjectsLib\Simple.Controls.TreeList\Simple.Controls.TreeList.csproj", "{D58FE4D6-53C0-4AB2-AB05-42AD0323D4A0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.Controls", "SimpleLib\Simple.Objects.Controls\Simple.Objects.Controls.csproj", "{3B981811-1955-43E8-9E2B-6720588439B3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.Controls", "SimpleObjectsLib\Simple.Objects.Controls\Simple.Objects.Controls.csproj", "{3B981811-1955-43E8-9E2B-6720588439B3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "SimpleLib\Simple.AppContext\Simple.AppContext.csproj", "{8BC7A69A-5A79-40AE-A45A-876018D0F227}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "SimpleObjectsLib\Simple.AppContext\Simple.AppContext.csproj", "{8BC7A69A-5A79-40AE-A45A-876018D0F227}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.SqlServer", "SimpleLib\Simple.Datastore.SqlServer\Simple.Datastore.SqlServer.csproj", "{42F68145-878A-4670-88BB-F2B8E434AB66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.SqlServer", "SimpleObjectsLib\Simple.Datastore.SqlServer\Simple.Datastore.SqlServer.csproj", "{42F68145-878A-4670-88BB-F2B8E434AB66}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Console", "SimpleLib\Simple.Datastore.Console\Simple.Datastore.Console.csproj", "{DFCF3744-A454-4447-8169-0F62B0CDF207}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Console", "SimpleObjectsLib\Simple.Datastore.Console\Simple.Datastore.Console.csproj", "{DFCF3744-A454-4447-8169-0F62B0CDF207}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Controls", "SimpleLib\Simple.Datastore.Controls\Simple.Datastore.Controls.csproj", "{4ED8D7C1-DFA2-46D3-9465-B5632F218610}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Controls", "SimpleObjectsLib\Simple.Datastore.Controls\Simple.Datastore.Controls.csproj", "{4ED8D7C1-DFA2-46D3-9465-B5632F218610}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Backup", "SimpleLib\Simple.Datastore.Backup\Simple.Datastore.Backup.csproj", "{15E459F8-1BE0-4960-8A61-1278218FA1E2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Backup", "SimpleObjectsLib\Simple.Datastore.Backup\Simple.Datastore.Backup.csproj", "{15E459F8-1BE0-4960-8A61-1278218FA1E2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Restore", "SimpleLib\Simple.Datastore.Restore\Simple.Datastore.Restore.csproj", "{9C747A51-16C2-4882-BD87-5D5A65756F7B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Restore", "SimpleObjectsLib\Simple.Datastore.Restore\Simple.Datastore.Restore.csproj", "{9C747A51-16C2-4882-BD87-5D5A65756F7B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.MonitorProtocol", "SimpleLib\Simple.Objects.MonitorProtocol\Simple.Objects.MonitorProtocol.csproj", "{ACBA8AED-ECD6-4F8B-9296-C361DC696053}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.MonitorProtocol", "SimpleObjectsLib\Simple.Objects.MonitorProtocol\Simple.Objects.MonitorProtocol.csproj", "{ACBA8AED-ECD6-4F8B-9296-C361DC696053}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.SocketProtocol", "SimpleLib\Simple.Objects.SocketProtocol\Simple.Objects.SocketProtocol.csproj", "{CC79A526-3E83-4628-AC38-387D3D4DD162}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.SocketProtocol", "SimpleObjectsLib\Simple.Objects.SocketProtocol\Simple.Objects.SocketProtocol.csproj", "{CC79A526-3E83-4628-AC38-387D3D4DD162}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.ServerMonitor", "SimpleLib\Simple.Objects.ServerMonitor\Simple.Objects.ServerMonitor.csproj", "{A8B83904-F974-4C1F-AF9D-D0CE34831DCF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.ServerMonitor", "SimpleObjectsLib\Simple.Objects.ServerMonitor\Simple.Objects.ServerMonitor.csproj", "{A8B83904-F974-4C1F-AF9D-D0CE34831DCF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
