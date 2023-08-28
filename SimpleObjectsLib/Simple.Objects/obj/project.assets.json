@@ -1953,38 +1953,38 @@
     },
     "Simple/1.0.0": {
       "type": "project",
-      "path": "../Simple/Simple.csproj",
-      "msbuildProject": "../Simple/Simple.csproj"
+      "path": "../Simple.Core/Simple/Simple.csproj",
+      "msbuildProject": "../Simple.Core/Simple/Simple.csproj"
     },
     "Simple.Collections/1.0.0": {
       "type": "project",
-      "path": "../Simple.Collections/Simple.Collections.csproj",
-      "msbuildProject": "../Simple.Collections/Simple.Collections.csproj"
+      "path": "../Simple.Core/Simple.Collections/Simple.Collections.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Collections/Simple.Collections.csproj"
     },
     "Simple.Compression/1.0.0": {
       "type": "project",
-      "path": "../Simple.Compression/Simple.Compression.csproj",
-      "msbuildProject": "../Simple.Compression/Simple.Compression.csproj"
+      "path": "../Simple.Core/Simple.Compression/Simple.Compression.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Compression/Simple.Compression.csproj"
     },
     "Simple.Datastore/1.0.0": {
       "type": "project",
-      "path": "../Simple.Datastore/Simple.Datastore.csproj",
-      "msbuildProject": "../Simple.Datastore/Simple.Datastore.csproj"
+      "path": "../Simple.Core/Simple.Datastore/Simple.Datastore.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Datastore/Simple.Datastore.csproj"
     },
     "Simple.Modeling/1.0.0": {
       "type": "project",
-      "path": "../Simple.Modeling/Simple.Modeling.csproj",
-      "msbuildProject": "../Simple.Modeling/Simple.Modeling.csproj"
+      "path": "../Simple.Core/Simple.Modeling/Simple.Modeling.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Modeling/Simple.Modeling.csproj"
     },
     "Simple.Security/1.0.0": {
       "type": "project",
-      "path": "../Simple.Security/Simple.Security.csproj",
-      "msbuildProject": "../Simple.Security/Simple.Security.csproj"
+      "path": "../Simple.Core/Simple.Security/Simple.Security.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Security/Simple.Security.csproj"
     },
     "Simple.Serialization/1.0.0": {
       "type": "project",
-      "path": "../Simple.Serialization/Simple.Serialization.csproj",
-      "msbuildProject": "../Simple.Serialization/Simple.Serialization.csproj"
+      "path": "../Simple.Core/Simple.Serialization/Simple.Serialization.csproj",
+      "msbuildProject": "../Simple.Core/Simple.Serialization/Simple.Serialization.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -2004,11 +2004,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Objects\\Simple.Objects.csproj",
+      "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Objects\\Simple.Objects.csproj",
       "projectName": "Simple.Objects",
-      "projectPath": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Objects\\Simple.Objects.csproj",
+      "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Objects\\Simple.Objects.csproj",
       "packagesPath": "C:\\Users\\MisterX\\.nuget\\packages\\",
-      "outputPath": "D:\\Wild Wind\\Sources\\Simplelib\\Simple.Objects\\obj\\",
+      "outputPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Objects\\obj\\",
       "projectStyle": "PackageReference",
       "crossTargeting": true,
       "fallbackFolders": [
@@ -2032,22 +2032,22 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "projectReferences": {
-            "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Compression\\Simple.Compression.csproj": {
-              "projectPath": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Compression\\Simple.Compression.csproj"
+            "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Compression\\Simple.Compression.csproj": {
+              "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Compression\\Simple.Compression.csproj"
             },
-            "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Datastore\\Simple.Datastore.csproj": {
-              "projectPath": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Datastore\\Simple.Datastore.csproj"
+            "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Datastore\\Simple.Datastore.csproj": {
+              "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Datastore\\Simple.Datastore.csproj"
             }
           }
         },
         "netstandard2.1": {
           "targetAlias": "netstandard2.1",
           "projectReferences": {
-            "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Compression\\Simple.Compression.csproj": {
-              "projectPath": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Compression\\Simple.Compression.csproj"
+            "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Compression\\Simple.Compression.csproj": {
+              "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Compression\\Simple.Compression.csproj"
             },
-            "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Datastore\\Simple.Datastore.csproj": {
-              "projectPath": "D:\\Wild Wind\\Sources\\SimpleLib\\Simple.Datastore\\Simple.Datastore.csproj"
+            "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Datastore\\Simple.Datastore.csproj": {
+              "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Datastore\\Simple.Datastore.csproj"
             }
           }
         }
@@ -2077,7 +2077,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.306\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
       },
       "netstandard2.1": {
         "targetAlias": "netstandard2.1",
@@ -2097,7 +2097,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.306\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
       }
     }
   }

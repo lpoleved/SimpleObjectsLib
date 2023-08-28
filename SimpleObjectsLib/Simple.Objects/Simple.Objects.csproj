@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Simple.Compression\Simple.Compression.csproj" />
-    <ProjectReference Include="..\Simple.Datastore\Simple.Datastore.csproj" />
+    <ProjectReference Include="..\Simple.Core\Simple.Compression\Simple.Compression.csproj" />
+    <ProjectReference Include="..\Simple.Core\Simple.Datastore\Simple.Datastore.csproj" />
   </ItemGroup>
 
 </Project>

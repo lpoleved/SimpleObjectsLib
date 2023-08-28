@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "Simple\Simple.csproj", "{3F6A935C-71D8-49A7-AA0E-DE026DDF3127}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "Simple.Core\Simple\Simple.csproj", "{3F6A935C-71D8-49A7-AA0E-DE026DDF3127}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F383EC26-5C73-4F1A-B404-B24745D23DDA}"
 	ProjectSection(SolutionItems) = preProject
@@ -10,29 +10,29 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Solution Items\SimpleLibVersionInfo.txt = Solution Items\SimpleLibVersionInfo.txt
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "Simple.Datastore\Simple.Datastore.csproj", "{93CC9DF3-428A-40DC-A246-372DB8719518}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "Simple.Core\Simple.Datastore\Simple.Datastore.csproj", "{93CC9DF3-428A-40DC-A246-372DB8719518}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "Simple.Serialization\Simple.Serialization.csproj", "{3B4C2769-7B2A-481C-975D-F8B81408FE78}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "Simple.Core\Simple.Serialization\Simple.Serialization.csproj", "{3B4C2769-7B2A-481C-975D-F8B81408FE78}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "Simple.Collections\Simple.Collections.csproj", "{DDDAB03D-287E-467F-8640-746856EFB14F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "Simple.Core\Simple.Collections\Simple.Collections.csproj", "{DDDAB03D-287E-467F-8640-746856EFB14F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "Simple.Security\Simple.Security.csproj", "{6042EEDF-3D8C-495A-B78B-5CE13F621D5F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "Simple.Core\Simple.Security\Simple.Security.csproj", "{6042EEDF-3D8C-495A-B78B-5CE13F621D5F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "Simple.Modeling\Simple.Modeling.csproj", "{08FABA99-3414-47C8-B5D7-1A1C265DF00D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "Simple.Core\Simple.Modeling\Simple.Modeling.csproj", "{08FABA99-3414-47C8-B5D7-1A1C265DF00D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.SqlServer", "Simple.Datastore.SqlServer\Simple.Datastore.SqlServer.csproj", "{15455D28-B56E-41D9-876B-6DEBCB0C0B28}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.SqlServer", "Simple.Datastore.SqlServer\Simple.Datastore.SqlServer\Simple.Datastore.SqlServer.csproj", "{15455D28-B56E-41D9-876B-6DEBCB0C0B28}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Console", "Simple.Datastore.Console\Simple.Datastore.Console.csproj", "{BB2DA10C-54EC-40D1-AED7-C1665DDBC195}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Controls", "Simple.Controls\Simple.Datastore.Controls\Simple.Datastore.Controls.csproj", "{67A78863-594E-4EC5-B2C7-C663F59F35E4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Controls", "Simple.Datastore.Controls\Simple.Datastore.Controls.csproj", "{67A78863-594E-4EC5-B2C7-C663F59F35E4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "Simple.Core\Simple.AppContext\Simple.AppContext.csproj", "{5E934F3B-2384-4939-8FF6-49F3A6E9776A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "Simple.AppContext\Simple.AppContext.csproj", "{5E934F3B-2384-4939-8FF6-49F3A6E9776A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "Simple.Core\Simple.Network\Simple.Network.csproj", "{DDAA86AC-DA04-400D-AB61-D8757E945668}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "Simple.Network\Simple.Network.csproj", "{DDAA86AC-DA04-400D-AB61-D8757E945668}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Backup", "Simple.Controls\Simple.Datastore.Backup\Simple.Datastore.Backup.csproj", "{15C8101D-D687-43E6-A49D-BFB7011B174C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Backup", "Simple.Datastore.Backup\Simple.Datastore.Backup.csproj", "{15C8101D-D687-43E6-A49D-BFB7011B174C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Restore", "Simple.Controls\Simple.Datastore.Restore\Simple.Datastore.Restore.csproj", "{F9BF908F-F050-403D-8AD0-13F7DE1CB3FC}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore.Restore", "Simple.Datastore.Restore\Simple.Datastore.Restore.csproj", "{F9BF908F-F050-403D-8AD0-13F7DE1CB3FC}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Core", "Simple.Core", "{CAA72BA4-0992-482E-9A04-8C5E4005AA06}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,10 +68,6 @@ Global
 		{15455D28-B56E-41D9-876B-6DEBCB0C0B28}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{15455D28-B56E-41D9-876B-6DEBCB0C0B28}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{15455D28-B56E-41D9-876B-6DEBCB0C0B28}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BB2DA10C-54EC-40D1-AED7-C1665DDBC195}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BB2DA10C-54EC-40D1-AED7-C1665DDBC195}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BB2DA10C-54EC-40D1-AED7-C1665DDBC195}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BB2DA10C-54EC-40D1-AED7-C1665DDBC195}.Release|Any CPU.Build.0 = Release|Any CPU
 		{67A78863-594E-4EC5-B2C7-C663F59F35E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{67A78863-594E-4EC5-B2C7-C663F59F35E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67A78863-594E-4EC5-B2C7-C663F59F35E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -95,6 +91,16 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3F6A935C-71D8-49A7-AA0E-DE026DDF3127} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{93CC9DF3-428A-40DC-A246-372DB8719518} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{3B4C2769-7B2A-481C-975D-F8B81408FE78} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{DDDAB03D-287E-467F-8640-746856EFB14F} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{6042EEDF-3D8C-495A-B78B-5CE13F621D5F} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{08FABA99-3414-47C8-B5D7-1A1C265DF00D} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{5E934F3B-2384-4939-8FF6-49F3A6E9776A} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
+		{DDAA86AC-DA04-400D-AB61-D8757E945668} = {CAA72BA4-0992-482E-9A04-8C5E4005AA06}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2EE407B8-73B7-4F8C-8CEB-241868830CC1}

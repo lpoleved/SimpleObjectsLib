@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "933AS9CEij+0OGexzb4egtgkYjTkHVVSf9YB17Y4O5d7+jdr7/K1WW4BTGQ7tcoTE8u7I0c+qQTmSi0iBoAksg==",
+  "success": true,
+  "projectFilePath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\MisterX\\.nuget\\packages\\microsoft.dotnet.platformabstractions\\3.1.6\\microsoft.dotnet.platformabstractions.3.1.6.nupkg.sha512"
+  ],
+  "logs": []
+}

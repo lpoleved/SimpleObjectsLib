@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0; netstandard2.1</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Simple.Core\Simple.Modeling\Simple.Modeling.csproj" />
+    <ProjectReference Include="..\..\Simple.Core\Simple.Serialization\Simple.Serialization.csproj" />
+    <ProjectReference Include="..\..\Simple.Socketing\Simple.SocketEngine\Simple.SocketEngine.csproj" />
+    <ProjectReference Include="..\Simple.Objects.SocketProtocol\Simple.Objects.SocketProtocol.csproj" />
+  </ItemGroup>
+
+</Project>

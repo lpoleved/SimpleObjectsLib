@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "aWLEBLO/nWzqC9JJzVWsonfzQrJGGh1o2x//KG2ruSg3LIYYhVDZ5QhdbdJi1QUdBMv/Sp23XzbxtC2JLpL+vw==",
+  "success": true,
+  "projectFilePath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Compression\\Simple.Compression.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\MisterX\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.codedom\\6.0.0\\system.codedom.6.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.drawing.common\\6.0.0\\system.drawing.common.6.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.security.accesscontrol\\6.0.0\\system.security.accesscontrol.6.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.security.permissions\\6.0.0\\system.security.permissions.6.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.security.principal.windows\\5.0.0\\system.security.principal.windows.5.0.0.nupkg.sha512",
+    "C:\\Users\\MisterX\\.nuget\\packages\\system.windows.extensions\\6.0.0\\system.windows.extensions.6.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
