@@ -9,30 +9,30 @@ namespace Simple.Objects
         where TObjectManager : SimpleObjectManager
         where TSimpleObject : SimpleObject
     {
-        private List<TSimpleObject> genericList = null;
+        private List<TSimpleObject>? genericList = null;
 
         public GenericObjectCollectionBase(TObjectManager objectManager)
+            : this(objectManager, ObjectActionContext.Unspecified)
         {
             this.ObjectManager = objectManager;
         }
 
-        public TObjectManager ObjectManager { get; private set; }
+		protected GenericObjectCollectionBase(TObjectManager objectManager, ObjectActionContext context)
+		{
+			this.ObjectManager = objectManager;
+            this.Context = context;
 
-        public SimpleObjectCollection<TSimpleObject>? Collection
-        {
-            get { return (this.ObjectManager.GetObjectCache<TSimpleObject>() as ServerObjectCache)?.SelectAll<TSimpleObject>(); }
-        }
+            if (context == ObjectActionContext.Unspecified)
+                this.Context = (this.ObjectManager.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
+		}
 
-        public List<TSimpleObject> GenericList
-        {
-            get
-            {
-                if (this.genericList == null)
-                    this.genericList = this.CreateGenericList();
+		public TObjectManager ObjectManager { get; private set; }
 
-                return this.genericList;
-            }
-        }
+        public ObjectActionContext Context { get; set; }
+
+        public SimpleObjectCollection<TSimpleObject>? Collection => (this.ObjectManager.GetObjectCache<TSimpleObject>())?.GetObjectCollection<TSimpleObject>();
+
+        public List<TSimpleObject> GenericList => this.genericList ??= this.CreateGenericList();
 
         protected abstract List<TSimpleObject> CreateGenericList();
     }

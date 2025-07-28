@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Simple.Modeling;
@@ -13,7 +14,8 @@ namespace Simple.Objects
 		/// <summary>
 		/// Remeber the temp oldIds - newId untill all reference of oldId will be set to new Id (allow to get the object with the old key untill all reference are sets)
 		/// </summary>
-		private Dictionary<long, long> newIdsByTempId = new Dictionary<long, long>(); // Is this necesery ??????
+		//private Dictionary<long, long> newIdsByTempId = new Dictionary<long, long>(); // Is this necesery ??????
+		private IList<long>? objectIds = null;
 
 		public ClientObjectCache(SimpleObjectManager objectManager, ISimpleObjectModel objectModel)
 			: base(objectManager, objectModel)
@@ -28,23 +30,47 @@ namespace Simple.Objects
 
 				if (!this.simpleObjectsByObjectId.TryGetValue(objectId, out simpleObject)) // <- IsInChache
 				{
-					// TODO: Check is this needed since old temp id's (id < 0) are update via ReplaceTempId method
-					if (this.newIdsByTempId.TryGetValue(objectId, out long newId)) // try to get object by old temp Id
-						this.simpleObjectsByObjectId.TryGetValue(newId, out simpleObject);
+					//// TODO: Check is this needed since old temp id's (id < 0) are update via ReplaceTempId method
+					//if (this.newIdsByTempId.TryGetValue(objectId, out long newId)) // try to get object by old temp Id
+					//	this.simpleObjectsByObjectId.TryGetValue(newId, out simpleObject);
 
 					if (simpleObject is null) // Stil nothing => Ask server
 					{
 						IEnumerable<PropertyIndexValuePair>? propertyIndexValues = this.ObjectManager.RemoteDatastore!.GetObjectPropertyValues(this.ObjectModel.TableInfo.TableId, objectId).GetAwaiter().GetResult();
 
 						if (propertyIndexValues != null)
-							simpleObject = this.CreateAndLoadObject(objectId, propertyIndexValues);
+						{
+							simpleObject = this.CreateAndLoadObjectInternal(objectId, (simpleObject) => simpleObject.LoadFromServer(propertyIndexValues), this.ObjectManager.DefaultChangeContainer, ObjectActionContext.Client);
+							//this.simpleObjectsByObjectId.Add(objectId, simpleObject);
+						}
 						else
+						{
 							simpleObject = null;
+						}
 					}
 				}
 
 				return simpleObject;
 			}
+		}
+
+		public override SimpleObjectCollection<T> GetObjectCollection<T>() 
+		{
+			this.objectIds ??= this.ObjectManager.RemoteDatastore!.GetObjectIdsTEMP(this.ObjectModel.TableInfo.TableId).GetAwaiter().GetResult();
+
+			// TODO: We need to add only temp negatiove key ??? - check this
+			foreach (long localObjectId in this.simpleObjectsByObjectId.Keys.ToArray())  // Merge with the local object Id's. Check if they are less then zero
+			{
+				if (!this.objectIds.Contains(localObjectId))
+				{
+					this.objectIds.Add(localObjectId);
+
+					if (localObjectId > 0)
+						throw new Exception("Additiona key must be negative");
+				}
+			}
+
+			return new SimpleObjectCollection<T>(this.ObjectManager, this.ObjectModel.TableInfo.TableId, this.objectIds);
 		}
 
 		public override bool ContainsId(long objectId) => this.GetObject(objectId) != null;
@@ -129,7 +155,15 @@ namespace Simple.Objects
 			//return objectIds;
 		}
 
-		internal protected override bool RemoveObject(long objectId)
+		protected override void OnNewObjectAdded(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
+		{
+			base.OnNewObjectAdded(simpleObject, changeContainer, requester);
+
+			if (this.objectIds != null && !this.objectIds.Contains(simpleObject.Id))
+				this.objectIds.Add(simpleObject.Id);
+		}
+
+		internal protected override bool RemoveObjectInternal(long objectId, ChangeContainer? changeContainer, object? requester)
 		{
 			bool isRemoved;
 
@@ -139,6 +173,8 @@ namespace Simple.Objects
 
 				if (objectId < 0)
 					this.ObjectManager.ClientTempObjectIdGenerator.RemoveKey(-objectId);
+
+				this.objectIds?.Remove(objectId);
 			}
 
 			return isRemoved;
@@ -158,18 +194,19 @@ namespace Simple.Objects
 			{
 				long oldId = simpleObject.Id;
 
-				this.simpleObjectsByObjectId.Remove(oldId);
-				this.simpleObjectsByObjectId.Add(newId, simpleObject);
-				this.newIdsByTempId.Add(oldId, newId);
+				//this.simpleObjectsByObjectId.Remove(oldId);
+				this.objectIds?.Remove(oldId);
 
 				simpleObject.SetId(newId);
 
+				this.simpleObjectsByObjectId.Add(newId, simpleObject);
+				this.objectIds?.Add(newId);
 			}
 		}
 
-		internal void ClearTempIds()
+		internal void RemoveTempId(long tempId)
 		{
-			this.newIdsByTempId.Clear();
+			this.simpleObjectsByObjectId.Remove(tempId);
 		}
 	}
 }

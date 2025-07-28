@@ -6,10 +6,11 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using SuperSocket;
 using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SuperSocket.Tests
 {
@@ -23,21 +24,29 @@ namespace SuperSocket.Tests
 
         protected abstract IServer CreateServer(IHostConfigurator hostConfigurator);
 
+        protected virtual IHostConfigurator CreateHostConfigurator(Type hostConfiguratorType)
+        {
+            return CreateObject<IHostConfigurator>(hostConfiguratorType);
+        }
+
         protected abstract string CreateRequest(string sourceLine);
 
-        [Theory]
+        [Theory(Timeout = 60000)]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(GzipSecureHostConfigurator))]
         [InlineData(typeof(GzipHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public virtual async Task TestNormalRequest(Type hostConfiguratorType)
         {
-            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var hostConfigurator = CreateHostConfigurator(hostConfiguratorType);
 
             using (var server = CreateServer(hostConfigurator))
             {
-                await server.StartAsync();
+                Assert.True(await server.StartAsync());
+
+                OutputHelper.WriteLine("The server has been started.");
 
                 using (var socket = CreateClient(hostConfigurator))
                 {
@@ -49,7 +58,7 @@ namespace SuperSocket.Tests
                         writer.Write(CreateRequest(line));
                         writer.Flush();
 
-                        var receivedLine = await reader.ReadLineAsync();
+                        var receivedLine = await reader.ReadLineAsync(TestContext.Current.CancellationToken);
                         Assert.Equal(line, receivedLine);
                     }
                 }
@@ -58,19 +67,22 @@ namespace SuperSocket.Tests
             }
         }
 
-        [Theory]
+        [Theory(Timeout = 60000)]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
         [InlineData(typeof(GzipSecureHostConfigurator))]
         [InlineData(typeof(GzipHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public virtual async Task TestMiddleBreak(Type hostConfiguratorType)
         {
-            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var hostConfigurator = CreateHostConfigurator(hostConfiguratorType);
 
             using (var server = CreateServer(hostConfigurator))
             {
-                await server.StartAsync();
+                Assert.True(await server.StartAsync());
+
+                OutputHelper.WriteLine("The server has been started.");
 
                 for (var i = 0; i < 100; i++)
                 {
@@ -93,19 +105,22 @@ namespace SuperSocket.Tests
             }
         }
 
-        [Theory]
+        [Theory(Timeout = 60000)]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
         [InlineData(typeof(GzipSecureHostConfigurator))]
         [InlineData(typeof(GzipHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public virtual async Task TestFragmentRequest(Type hostConfiguratorType)
         {
-            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var hostConfigurator = CreateHostConfigurator(hostConfiguratorType);
 
             using (var server = CreateServer(hostConfigurator))
             {
-                await server.StartAsync();
+                Assert.True(await server.StartAsync());
+
+                OutputHelper.WriteLine("The server has been started.");
 
                 using (var socket = CreateClient(hostConfigurator))
                 {
@@ -124,7 +139,7 @@ namespace SuperSocket.Tests
                             await hostConfigurator.KeepSequence();
                         }
 
-                        var receivedLine = await reader.ReadLineAsync();
+                        var receivedLine = await reader.ReadLineAsync(TestContext.Current.CancellationToken);
                         Assert.Equal(line, receivedLine);
                     }
                 }
@@ -133,19 +148,22 @@ namespace SuperSocket.Tests
             }
         }
 
-        [Theory]
+        [Theory(Timeout = 60000)]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
         [InlineData(typeof(GzipSecureHostConfigurator))]
         [InlineData(typeof(GzipHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public virtual async Task TestBatchRequest(Type hostConfiguratorType)
         {
-            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var hostConfigurator = CreateHostConfigurator(hostConfiguratorType);
 
             using (var server = CreateServer(hostConfigurator))
             {
-                await server.StartAsync();
+                Assert.True(await server.StartAsync());
+
+                OutputHelper.WriteLine("The server has been started.");
 
                 using (var socket = CreateClient(hostConfigurator))
                 {
@@ -171,7 +189,7 @@ namespace SuperSocket.Tests
 
                         for (var i = 0; i < size; i++)
                         {
-                            var receivedLine = await reader.ReadLineAsync();
+                            var receivedLine = await reader.ReadLineAsync(TestContext.Current.CancellationToken);
                             Assert.Equal(lines[i], receivedLine);
                         }
                     }
@@ -181,19 +199,22 @@ namespace SuperSocket.Tests
             }
         }
 
-        [Theory]
+        [Theory(Timeout = 60000)]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(GzipSecureHostConfigurator))]
         [InlineData(typeof(GzipHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         //[InlineData(typeof(UdpHostConfigurator))]
         public virtual async Task TestBreakRequest(Type hostConfiguratorType)
         {
-            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var hostConfigurator = CreateHostConfigurator(hostConfiguratorType);
 
             using (var server = CreateServer(hostConfigurator))
             {
-                await server.StartAsync();
+                Assert.True(await server.StartAsync());
+
+                OutputHelper.WriteLine("The server has been started.");
 
                 using (var socket = CreateClient(hostConfigurator))
                 {
@@ -246,7 +267,7 @@ namespace SuperSocket.Tests
 
                         for (var i = 0; i < size; i++)
                         {
-                            var receivedLine = await reader.ReadLineAsync();
+                            var receivedLine = await reader.ReadLineAsync(TestContext.Current.CancellationToken);
                             Assert.Equal(lines[i], receivedLine);
                         }
                     }

@@ -98,7 +98,7 @@ namespace Simple.Objects
 			//for (int fieldIndex = (recordCountFieldIncluded) ? 1 : 0; fieldIndex < dataReader.FieldCount; fieldIndex++)
 			for (int fieldIndex = 0; fieldIndex < dataReader.FieldCount; fieldIndex++)
 			{
-				PropertyModel propertyModel = propertyModelsByFieldIndex[fieldIndex];
+				PropertyModel? propertyModel = propertyModelsByFieldIndex[fieldIndex];
 
 				if (propertyModel != null)
 				{
@@ -121,18 +121,21 @@ namespace Simple.Objects
 				this.OnBeforeSave();
 
 				int[] propertyIndexes = this.GetModel().StorablePropertyIndexes;
+
+				//propertyIndexes = new int[] { 0, 1 }; //, 1, 2, 3 };
+
 				var propertyIndexValues = this.GetPropertyIndexValuePairs(propertyIndexes);
 
 				if (this.IsNew) // -> Insert
 				{
-					this.ObjectManager?.LocalDatastore.InsertRecord(this.GetModel().TableInfo, propertyIndexValues, this.GetModel().GetPropertyModel);
+					this.ObjectManager?.LocalDatastore?.InsertRecord(this.GetModel().TableInfo, propertyIndexValues, this.GetModel().GetPropertyModel);
 					this.IsNew = false;
 				}
 				else // -> Update
 				{
 					TKey key = this.GetKeyValue();
 					
-					this.ObjectManager?.LocalDatastore.UpdateRecord(this.GetModel().TableInfo, this.GetModel().ObjectKeyPropertyModel.PropertyIndex, key, propertyIndexValues, this.GetModel().GetPropertyModel);
+					this.ObjectManager?.LocalDatastore?.UpdateRecord(this.GetModel().TableInfo, this.GetModel().ObjectKeyPropertyModel.PropertyIndex, key, propertyIndexValues, this.GetModel().GetPropertyModel);
 				}
 
 				this.OnAfterSave();
@@ -146,7 +149,7 @@ namespace Simple.Objects
 				this.OnBeforeDelete();
 
 				if (!this.IsNew)
-					this.ObjectManager?.LocalDatastore.DeleteRecord(this.GetModel().TableInfo, this.GetModel().ObjectKeyPropertyModel.PropertyIndex, this.GetModel().ObjectKeyPropertyModel.PropertyName, this.GetKeyValue());
+					this.ObjectManager?.LocalDatastore?.DeleteRecord(this.GetModel().TableInfo, this.GetModel().ObjectKeyPropertyModel.PropertyIndex, this.GetModel().ObjectKeyPropertyModel.PropertyName, this.GetKeyValue());
 
 				TKey key = this.GetKeyValue();
 
@@ -165,7 +168,7 @@ namespace Simple.Objects
 
 		protected internal virtual TKey GetKeyValue()
 		{
-			var value = this.GetModel().ObjectKeyPropertyModel.PropertyInfo.GetValue(this, null);
+			var value = this.GetModel().ObjectKeyPropertyModel.PropertyInfo?.GetValue(this, null);
 
 			if (value is TKey tKey)
 				return tKey;
@@ -175,7 +178,7 @@ namespace Simple.Objects
 
 		protected internal virtual void SetKeyValue(TKey value)
 		{
-			this.GetModel().ObjectKeyPropertyModel.PropertyInfo.SetValue(this, value, null);
+			this.GetModel().ObjectKeyPropertyModel.PropertyInfo?.SetValue(this, value, null);
 		}
 
 		protected virtual void OnLoad()
@@ -234,7 +237,7 @@ namespace Simple.Objects
 			{
 				int propertyIndex = propertyIndexes.ElementAt(i);
 				IPropertyModel propertyModel = this.GetModel().GetPropertyModel(propertyIndex);
-				object? propertyValue = propertyModel.PropertyInfo.GetValue(this, null);
+				object? propertyValue = propertyModel.PropertyInfo?.GetValue(this, null);
 				object? normalizedPropertyValue = (propertyValue != null) ? this.GetNormalizedSystemPropertyValue(propertyModel.DatastoreType, propertyValue) : null;
 
 				propertyValues[i] = normalizedPropertyValue;
@@ -243,7 +246,7 @@ namespace Simple.Objects
 			return propertyValues;
 		}
 
-		private PropertyIndexValuePair[] GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes)
+		protected PropertyIndexValuePair[] GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes)
 		{
 			PropertyIndexValuePair[] result = new PropertyIndexValuePair[propertyIndexes.Count()];
 
@@ -251,7 +254,7 @@ namespace Simple.Objects
 			{
 				int propertyIndex = propertyIndexes.ElementAt(i);
 				IPropertyModel propertyModel = this.GetModel().GetPropertyModel(propertyIndex);
-				object? propertyValue = propertyModel.PropertyInfo.GetValue(this, null);
+				object? propertyValue = propertyModel.PropertyInfo?.GetValue(this, null);
 				object? normalizedPropertyValue = (propertyValue != null) ? this.GetNormalizedSystemPropertyValue(propertyModel.DatastoreType, propertyValue) : null;
 
 				result[i] = new PropertyIndexValuePair(propertyIndex, normalizedPropertyValue);
@@ -263,13 +266,9 @@ namespace Simple.Objects
 		private object? GetNormalizedSystemPropertyValue(Type propertyType, object? fieldValue)
 		{
 			if (fieldValue == null || fieldValue.GetType() == typeof(System.DBNull))
-			{
 				return propertyType.GetDefaultValue();
-			}
 			else if (fieldValue.GetType() != propertyType)
-			{
 				return Conversion.TryChangeType(fieldValue, propertyType);
-			}
 
 			return fieldValue;
 		}

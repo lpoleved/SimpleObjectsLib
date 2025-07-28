@@ -51,7 +51,7 @@ namespace Simple.Objects.ServerMonitor
 			tabControlMessageDetails.SuspendLayout();
 			tabPageBodyDetails.SuspendLayout();
 			tabPageMessageBinary.SuspendLayout();
-			((System.ComponentModel.ISupportInitialize)editorPackageFlagsValue.Properties).BeginInit();
+			((System.ComponentModel.ISupportInitialize)editorMessagePackageHeaderValue.Properties).BeginInit();
 			((System.ComponentModel.ISupportInitialize)editorUser.Properties).BeginInit();
 			((System.ComponentModel.ISupportInitialize)editorMessageCodeOrRequestId.Properties).BeginInit();
 			((System.ComponentModel.ISupportInitialize)editorActionType.Properties).BeginInit();
@@ -70,20 +70,20 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// tabControlMessage
 			// 
-			tabControlMessage.Size = new Size(620, 535);
+			tabControlMessage.Size = new Size(656, 535);
 			// 
 			// tabPageMessage
 			// 
-			tabPageMessage.Size = new Size(618, 510);
+			tabPageMessage.Size = new Size(654, 510);
 			// 
 			// editorMessagePackageLength
 			// 
-			editorMessagePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorMessagePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorMessagePackageLength.Properties.Appearance.Options.UseFont = true;
 			// 
 			// packageHeaderControlMessage
 			// 
-			packageHeaderControlMessage.Size = new Size(413, 80);
+			packageHeaderControlMessage.Size = new Size(374, 80);
 			// 
 			// editorMessagePackageValue
 			// 
@@ -92,45 +92,45 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// tabControlMessageDetails
 			// 
-			tabControlMessageDetails.Size = new Size(611, 442);
+			tabControlMessageDetails.Size = new Size(647, 442);
 			// 
 			// tabPageBodyDetails
 			// 
 			tabPageBodyDetails.Controls.Add(labelControlTransactionActions);
 			tabPageBodyDetails.Controls.Add(gridControlTransactionDetails);
-			tabPageBodyDetails.Size = new Size(609, 417);
+			tabPageBodyDetails.Size = new Size(645, 417);
 			// 
 			// tabPageMessageBinary
 			// 
-			tabPageMessageBinary.Size = new Size(609, 417);
+			tabPageMessageBinary.Size = new Size(645, 417);
 			// 
-			// editorPackageFlagsValue
+			// editorMessagePackageHeaderValue
 			// 
-			editorPackageFlagsValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
-			editorPackageFlagsValue.Properties.Appearance.Options.UseFont = true;
+			editorMessagePackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
+			editorMessagePackageHeaderValue.Properties.Appearance.Options.UseFont = true;
 			// 
 			// editorUser
 			// 
-			editorUser.Location = new Point(258, 12);
-			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorUser.Location = new Point(279, 12);
+			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorUser.Properties.Appearance.Options.UseFont = true;
-			editorUser.Size = new Size(360, 20);
+			editorUser.Size = new Size(611, 20);
 			// 
 			// labelControlUser
 			// 
-			labelControlUser.Location = new Point(226, 15);
+			labelControlUser.Location = new Point(247, 15);
 			// 
 			// editorMessageCodeOrRequestId
 			// 
-			editorMessageCodeOrRequestId.Location = new Point(258, 36);
-			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorMessageCodeOrRequestId.Location = new Point(279, 36);
+			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorMessageCodeOrRequestId.Properties.Appearance.Options.UseFont = true;
-			editorMessageCodeOrRequestId.Size = new Size(356, 20);
+			editorMessageCodeOrRequestId.Size = new Size(607, 20);
 			// 
 			// editorActionType
 			// 
 			editorActionType.Location = new Point(76, 36);
-			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorActionType.Properties.Appearance.Options.UseFont = true;
 			editorActionType.Size = new Size(116, 20);
 			// 
@@ -140,7 +140,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// editorSessionKey
 			// 
-			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorSessionKey.Properties.Appearance.Options.UseFont = true;
 			editorSessionKey.Size = new Size(116, 20);
 			// 
@@ -148,14 +148,15 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			labelControlMessageCodeOrRequestId.Appearance.Options.UseTextOptions = true;
 			labelControlMessageCodeOrRequestId.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+			labelControlMessageCodeOrRequestId.Location = new Point(199, 39);
 			// 
 			// tabControl
 			// 
-			tabControl.Size = new Size(628, 628);
+			tabControl.Size = new Size(664, 628);
 			// 
 			// tabPageObjectName
 			// 
-			tabPageObjectName.Size = new Size(626, 603);
+			tabPageObjectName.Size = new Size(662, 603);
 			// 
 			// labelControlTransactionSucceed
 			// 
@@ -170,7 +171,7 @@ namespace Simple.Objects.ServerMonitor
 			editorTransactionSucceed.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 			editorTransactionSucceed.Location = new Point(116, 31);
 			editorTransactionSucceed.Name = "editorTransactionSucceed";
-			editorTransactionSucceed.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorTransactionSucceed.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorTransactionSucceed.Properties.Appearance.Options.UseFont = true;
 			editorTransactionSucceed.Properties.ReadOnly = true;
 			editorTransactionSucceed.Size = new Size(484, 20);
@@ -200,7 +201,7 @@ namespace Simple.Objects.ServerMonitor
 			editorTransactionId.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 			editorTransactionId.Location = new Point(116, 57);
 			editorTransactionId.Name = "editorTransactionId";
-			editorTransactionId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorTransactionId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorTransactionId.Properties.Appearance.Options.UseFont = true;
 			editorTransactionId.Properties.ReadOnly = true;
 			editorTransactionId.Size = new Size(484, 20);
@@ -211,7 +212,7 @@ namespace Simple.Objects.ServerMonitor
 			editorNewIds.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 			editorNewIds.Location = new Point(116, 83);
 			editorNewIds.Name = "editorNewIds";
-			editorNewIds.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorNewIds.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorNewIds.Properties.Appearance.Options.UseFont = true;
 			editorNewIds.Properties.ReadOnly = true;
 			editorNewIds.Size = new Size(484, 20);
@@ -222,7 +223,7 @@ namespace Simple.Objects.ServerMonitor
 			editorInfoMessage.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 			editorInfoMessage.Location = new Point(116, 109);
 			editorInfoMessage.Name = "editorInfoMessage";
-			editorInfoMessage.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorInfoMessage.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorInfoMessage.Properties.Appearance.Options.UseFont = true;
 			editorInfoMessage.Size = new Size(484, 86);
 			editorInfoMessage.TabIndex = 15;
@@ -238,10 +239,10 @@ namespace Simple.Objects.ServerMonitor
 			// gridControlTransactionDetails
 			// 
 			gridControlTransactionDetails.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-			gridControlTransactionDetails.Location = new Point(3, 34);
+			gridControlTransactionDetails.Location = new Point(3, 43);
 			gridControlTransactionDetails.MainView = gridViewTransactionDetails;
 			gridControlTransactionDetails.Name = "gridControlTransactionDetails";
-			gridControlTransactionDetails.Size = new Size(603, 380);
+			gridControlTransactionDetails.Size = new Size(639, 371);
 			gridControlTransactionDetails.TabIndex = 21;
 			gridControlTransactionDetails.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] { gridViewTransactionDetails });
 			// 
@@ -252,7 +253,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// labelControlTransactionActions
 			// 
-			labelControlTransactionActions.Location = new Point(12, 14);
+			labelControlTransactionActions.Location = new Point(5, 19);
 			labelControlTransactionActions.Name = "labelControlTransactionActions";
 			labelControlTransactionActions.Size = new Size(94, 13);
 			labelControlTransactionActions.TabIndex = 22;
@@ -263,7 +264,7 @@ namespace Simple.Objects.ServerMonitor
 			AutoScaleDimensions = new SizeF(6F, 13F);
 			AutoScaleMode = AutoScaleMode.Font;
 			Name = "EditPanelTransactionCompleted";
-			Size = new Size(634, 634);
+			Size = new Size(670, 634);
 			((System.ComponentModel.ISupportInitialize)tabControlMessage).EndInit();
 			tabControlMessage.ResumeLayout(false);
 			tabPageMessage.ResumeLayout(false);
@@ -275,7 +276,7 @@ namespace Simple.Objects.ServerMonitor
 			tabPageBodyDetails.ResumeLayout(false);
 			tabPageBodyDetails.PerformLayout();
 			tabPageMessageBinary.ResumeLayout(false);
-			((System.ComponentModel.ISupportInitialize)editorPackageFlagsValue.Properties).EndInit();
+			((System.ComponentModel.ISupportInitialize)editorMessagePackageHeaderValue.Properties).EndInit();
 			((System.ComponentModel.ISupportInitialize)editorUser.Properties).EndInit();
 			((System.ComponentModel.ISupportInitialize)editorMessageCodeOrRequestId.Properties).EndInit();
 			((System.ComponentModel.ISupportInitialize)editorActionType.Properties).EndInit();

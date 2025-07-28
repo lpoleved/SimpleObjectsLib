@@ -11,10 +11,11 @@ using Simple.Modeling;
 
 namespace Simple.Objects
 {
-	public class ServerObjectModelInfo
+	public class ServerObjectModelInfo : ISequenceSerializable
 	{
 		private HashArray<ServerPropertyInfo> serverPropertyInfosByPropertyIndex = new HashArray<ServerPropertyInfo>();
-		private List<int> serializablePropertyIndexes = new List<int>();
+		private List<int> cliaentSerializablePropertyIndexes = new List<int>();
+		private List<int> serverSerializablePropertyIndexes = new List<int>();
 		//private List<int> serializablePropertyTypeIds = new List<int>();
 		private List<int> storablePropertyIndexes = new List<int>();
 		//private List<int> storablePropertyTypeIds = new List<int>();
@@ -34,13 +35,13 @@ namespace Simple.Objects
 			//this.TransactionActionLogPropertyIndexes = this.transactionActionLogPropertyIndexes.ToArray();
 		}
 
-		public ServerObjectModelInfo(ref SequenceReader reader)
+		public ServerObjectModelInfo(ref SequenceReader reader, object? context)
         {
 			//this.ServerPropertyInfos = new ServerPropertyInfo[0] ;
 			//this.ObjectName = String.Empty;
 			//this.TableName = String.Empty;
 			
-			this.ReadFrom(ref reader);
+			this.ReadFrom(ref reader, context);
 			this.Initialize();
 			//this.SerializablePropertyIndexes = this.serializablePropertyIndexes.ToArray();
 			//this.StorablePropertyIndexes = this.storablePropertyIndexes.ToArray();
@@ -53,56 +54,49 @@ namespace Simple.Objects
 			{
 				this.serverPropertyInfosByPropertyIndex[serverPropertyInfo.PropertyIndex] = serverPropertyInfo;
 
-				if (serverPropertyInfo.IsClientSeriazable)
-				{
-					this.serializablePropertyIndexes.Add(serverPropertyInfo.PropertyIndex);
-					//this.serializablePropertyTypeIds.Add(serverPropertyInfo.PropertyTypeId);
-				}
+				if (serverPropertyInfo.IsClientToServerSeriazable)
+					this.cliaentSerializablePropertyIndexes.Add(serverPropertyInfo.PropertyIndex);
+
+				if (serverPropertyInfo.IsServerToClientSeriazable)
+					this.serverSerializablePropertyIndexes.Add(serverPropertyInfo.PropertyIndex);
 
 				if (serverPropertyInfo.IsStorable)
-				{
 					this.storablePropertyIndexes.Add(serverPropertyInfo.PropertyIndex);
-					//this.storablePropertyTypeIds.Add(serverPropertyInfo.DatastoreTypeId);
-				}
 
 				if (serverPropertyInfo.IncludeInTransactionActionLog)
-				{
 					this.transactionActionLogPropertyIndexes.Add(serverPropertyInfo.PropertyIndex);
-					//this.transactionActionLogPropertyTypeIds.Add(serverPropertyInfo.PropertyTypeId);
-				}
 			}
 
-			this.SerializablePropertyIndexes = this.serializablePropertyIndexes.ToArray();
+			this.ClientSerializablePropertyIndexes = this.cliaentSerializablePropertyIndexes.ToArray();
+			this.ServerSerializablePropertyIndexes = this.serverSerializablePropertyIndexes.ToArray();
 			this.StorablePropertyIndexes = this.storablePropertyIndexes.ToArray();
 			this.TransactionActionLogPropertyIndexes = this.transactionActionLogPropertyIndexes.ToArray();
 		}
 
-		public string ObjectName { get; private set; }
+		public string ObjectName { get; private set; } = string.Empty;
 		public int TableId { get; private set; }
-		public string TableName { get; private set; }
+		public string TableName { get; private set; } = string.Empty;
 
-		public ServerPropertyInfo[] ServerPropertyInfos { get; private set; }
+		public ServerPropertyInfo[] ServerPropertyInfos { get; private set; } = new ServerPropertyInfo[0];
 
-		public int[] SerializablePropertyIndexes { get; private set; }
-		public int[] StorablePropertyIndexes { get; private set; }
-		public int[] TransactionActionLogPropertyIndexes { get; private set; }
+		public int[] ClientSerializablePropertyIndexes { get; private set; } = new int[0];
+		public int[] ServerSerializablePropertyIndexes { get; private set; } = new int[0];
+		public int[] StorablePropertyIndexes { get; private set; } = new int[0];
+		public int[] TransactionActionLogPropertyIndexes { get; private set; } = new int[0];
 
 		//public int Count
 		//{
 		//	get { return this.ServerPropertyInfos.Count(); }
 		//}
 
-		public ServerPropertyInfo this[int propertyIndex]
-		{
-			get { return this.serverPropertyInfosByPropertyIndex[propertyIndex]; }
-		}
+		public ServerPropertyInfo this[int propertyIndex] => this.serverPropertyInfosByPropertyIndex[propertyIndex];
 
-		public ServerPropertyInfo GetPropertyInfo(int propertyIndex)
-		{
-			return this.serverPropertyInfosByPropertyIndex.GetValue(propertyIndex);
-		}
+		public ServerPropertyInfo GetPropertyInfo(int propertyIndex) => this.serverPropertyInfosByPropertyIndex.GetValue(propertyIndex);
 
-		public void WriteTo(ref SequenceWriter writer)
+		public int GetBufferCapacity() => this.ObjectName.Length + this.TableName.Length + 10;
+
+
+		public void WriteTo(ref SequenceWriter writer, object? context)
 		{
 			writer.WriteInt32Optimized(this.TableId);
 			writer.WriteString(this.ObjectName);
@@ -119,9 +113,11 @@ namespace Simple.Objects
 				writer.WriteInt32Optimized(serverPropertyInfo.DatastoreTypeId);
 				writer.WriteBoolean(serverPropertyInfo.IsRelationTableId);
 				writer.WriteBoolean(serverPropertyInfo.IsRelationObjectId);
-				writer.WriteBoolean(serverPropertyInfo.IsSerializationOptimizable);
-				writer.WriteBoolean(serverPropertyInfo.IsClientSeriazable);
 				writer.WriteBoolean(serverPropertyInfo.IsStorable);
+				writer.WriteBoolean(serverPropertyInfo.IsSerializationOptimizable);
+				writer.WriteBoolean(serverPropertyInfo.IsClientToServerSeriazable);
+				writer.WriteBoolean(serverPropertyInfo.IsServerToClientSeriazable);
+				writer.WriteBoolean(serverPropertyInfo.IsServerToClientTransactionInfoSeriazable);
 				writer.WriteBoolean(serverPropertyInfo.IsEncrypted);
 				writer.WriteBoolean(serverPropertyInfo.IncludeInTransactionActionLog);
 
@@ -132,7 +128,7 @@ namespace Simple.Objects
 			}
 		}
 
-		private void ReadFrom(ref SequenceReader reader)
+		public void ReadFrom(ref SequenceReader reader, object? context)
 		{
 			this.TableId = reader.ReadInt32Optimized();
 			this.ObjectName = reader.ReadString();
@@ -147,15 +143,18 @@ namespace Simple.Objects
 				int datastoreTypeId = reader.ReadInt32Optimized();
 				bool isRelationTableId = reader.ReadBoolean();
 				bool isRelationObjectId = reader.ReadBoolean();
-				bool isSerializationOptimizable = reader.ReadBoolean();
-				bool isMemberOfSerializationSequence = reader.ReadBoolean();
 				bool isStorable = reader.ReadBoolean();
+				bool isSerializationOptimizable = reader.ReadBoolean();
+				bool isMemberOfClientToServerSerializationSequence = reader.ReadBoolean();
+				bool isMemberOfServerToClientSerializationSequence = reader.ReadBoolean();
+				bool isMemberOfClientToServerToClientSerializationSequence = reader.ReadBoolean();
 				bool isEncrypted = reader.ReadBoolean();
 				bool includeInTransactionActionLog = reader.ReadBoolean();
 				object? defaultValue = (isSerializationOptimizable) ? reader.ReadOptimized(propertyTypeId) : reader.Read(propertyTypeId);
 
-				this.ServerPropertyInfos[i] = new ServerPropertyInfo(propertyIndex, propertyName, propertyTypeId, datastoreTypeId, isRelationTableId, isRelationObjectId, isSerializationOptimizable,
-																	 isMemberOfSerializationSequence, isStorable, isEncrypted, includeInTransactionActionLog, defaultValue);
+				this.ServerPropertyInfos[i] = new ServerPropertyInfo(propertyIndex, propertyName, propertyTypeId, datastoreTypeId, isRelationTableId, isRelationObjectId, isStorable,
+																	 isSerializationOptimizable, isMemberOfClientToServerSerializationSequence, isMemberOfServerToClientSerializationSequence, isMemberOfClientToServerToClientSerializationSequence, 
+																	 isEncrypted, includeInTransactionActionLog, defaultValue);
 			}
 		}
 	}

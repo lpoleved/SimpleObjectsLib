@@ -71,7 +71,6 @@ namespace Simple.Objects.SocketProtocol
 		//public string RevokeReasonDescription { get; set; }
 		//public long[] NewObjectIds { get; private set; }
 
-
 		public override void WriteTo(ref SequenceWriter writer, ISimpleSession session)
 		{
 			base.WriteTo(ref writer, session);
@@ -80,7 +79,7 @@ namespace Simple.Objects.SocketProtocol
 			{
 				this.TempClientObjectIds = new List<long>();
 				this.SimpleObjectPropertyWithTempObjectIdsNeedsToBeChangedToPositives = new List<NewPropertyObjectIdNeedToBeSet>();
-				writer.WriteInt32Optimized(this.TransactionActionInfoList.Count());
+				writer.WriteInt32Optimized(this.TransactionActionInfoList!.Count());
 
 				foreach (TransactionActionInfo transactionActionInfo in this.TransactionActionInfoList!)
 				{
@@ -176,9 +175,9 @@ namespace Simple.Objects.SocketProtocol
 
 			ServerObjectModelInfo? serverObjectModelInfo = session.GetServerObjectModel(transactionActionInfo.TableId);
 
-			if (serverObjectModelInfo != null)
+			if (serverObjectModelInfo != null && transactionActionInfo.PropertyIndexValues != null)
 			{
-				int propertyCount = transactionActionInfo.PropertyIndexValues!.Count();
+				int propertyCount = transactionActionInfo.PropertyIndexValues.Count();
 
 				writer.WriteInt32Optimized(propertyCount);
 

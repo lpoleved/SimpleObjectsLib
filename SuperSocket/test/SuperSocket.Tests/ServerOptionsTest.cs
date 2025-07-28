@@ -11,10 +11,11 @@ using System.Collections.Generic;
 using SuperSocket;
 using SuperSocket.Command;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Host;
+using SuperSocket.Server.Abstractions.Host;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using Xunit.Abstractions;
 using System.Threading;
 
 namespace SuperSocket.Tests

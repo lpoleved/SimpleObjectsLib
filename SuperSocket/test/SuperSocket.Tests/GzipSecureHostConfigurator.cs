@@ -10,10 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
-using SuperSocket.GZip;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Host;
+using System.IO.Compression;
 
 namespace SuperSocket.Tests
 {
@@ -33,13 +36,14 @@ namespace SuperSocket.Tests
                 {
                     var listener = options.Listeners[0];
 
-                    if (listener.Security == SslProtocols.None)
-                        listener.Security = GetServerEnabledSslProtocols();
-
-                    listener.CertificateOptions = new CertificateOptions
+                    listener.AuthenticationOptions = new ServerAuthenticationOptions
                     {
-                        FilePath = "supersocket.pfx",
-                        Password = "supersocket"
+                        CertificateOptions = new CertificateOptions
+                            {
+                                FilePath = "supersocket.pfx",
+                                Password = "supersocket"
+                            },
+                        EnabledSslProtocols = GetServerEnabledSslProtocols()
                     };
                 });
             });
@@ -55,29 +59,36 @@ namespace SuperSocket.Tests
             options.EnabledSslProtocols = GetClientEnabledSslProtocols();
             options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
             await stream.AuthenticateAsClientAsync(options);
-            var zipStream = new GZipReadWriteStream(stream, true);
+
+            var zipStream = new ReadWriteDelegateStream(
+                stream,
+                new GZipStream(stream, CompressionMode.Decompress),
+                new GZipStream(stream, CompressionMode.Compress));
+
             return zipStream;
         }
 
         protected virtual SslProtocols GetServerEnabledSslProtocols()
         {
-            return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
+            return SslProtocols.Tls13 | SslProtocols.Tls12;
         }
 
         protected virtual SslProtocols GetClientEnabledSslProtocols()
         {
-            return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
+            return SslProtocols.Tls13 | SslProtocols.Tls12;
         }
 
-        public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options) where TPackageInfo : class
+        public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
+            where TPackageInfo : class
         {
-            var client = new GZipEasyClient<TPackageInfo>(pipelineFilter, options);
+            var client = new EasyClient<TPackageInfo>(pipelineFilter, options);
             client.Security = new SecurityOptions
             {
                 TargetHost = "supersocket",
                 EnabledSslProtocols = GetClientEnabledSslProtocols(),
                 RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
             };
+            client.CompressionLevel = CompressionLevel.Optimal;
             return client;
         }
     }

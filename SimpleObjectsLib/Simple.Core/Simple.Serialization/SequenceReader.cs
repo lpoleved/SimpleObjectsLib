@@ -95,7 +95,7 @@ namespace Simple.Serialization
 			var ros = new ReadOnlySequence<byte>(buffer);
 			
 			this.reader = new SequenceReader<byte>(ros);
-			this.CharacterEncoding =characterEncoding;
+			this.CharacterEncoding = characterEncoding;
 		}
 
 		#endregion  |   Constructors and Initialization   |

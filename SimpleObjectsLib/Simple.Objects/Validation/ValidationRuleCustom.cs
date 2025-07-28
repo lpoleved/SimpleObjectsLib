@@ -44,17 +44,17 @@ namespace Simple.Objects
         }
 
         public IPropertyModel PropertyModel { get; protected set; }
-        public Func<SimpleObject, IDictionary<SimpleObject, TransactionRequestAction>, bool> GetCustomValidation { get; protected set; }
+        public Func<SimpleObject, IDictionary<SimpleObject, TransactionRequestAction>?, bool> GetCustomValidation { get; protected set; }
         public string ErrorMessagePrefix { get; protected set; }
         public string ErrorMessageBody { get; protected set; }
         public string ErrorMessageSuffix { get; protected set; }
 
-        public override ValidationResult Validate(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
+        public override ValidationResult Validate(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction>? transactionRequests)
         {
 			PropertyValidationResult result;
 
-			if (simpleObject.IsValidationTest && this.SkipIfTest)
-				return PropertyValidationResult.GetDefaultSuccessResult(this.PropertyModel);
+			//if (simpleObject.IsValidationTest && this.SkipIfTest)
+			//	return PropertyValidationResult.GetDefaultSuccessResult(this.PropertyModel);
 
 			bool passed = this.GetCustomValidation(simpleObject, transactionRequests);
 
@@ -64,7 +64,7 @@ namespace Simple.Objects
             }
 			else
 			{
-				string objectName = (this.PropertyModel != null && this.PropertyModel.Owner != null) ? (this.PropertyModel.Owner as ISimpleObjectModel).ObjectTypeCaption : String.Empty;
+				string objectName = (this.PropertyModel != null && this.PropertyModel.Owner != null && this.PropertyModel.Owner is ISimpleObjectModel simpleObjectModel) ? simpleObjectModel.ObjectCaption : String.Empty;
 				string propertyCaption = this.PropertyModel != null ? this.PropertyModel.Caption : String.Empty;
 				string errorMessage = this.ErrorMessagePrefix != null ? this.ErrorMessagePrefix : objectName + "'s";
 

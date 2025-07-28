@@ -36,9 +36,9 @@ namespace Simple.Objects
 			// Load all records
 			while (dataReader.Read())
 			{
-				SimpleObject simpleObject = this.CreateObjectFromPropertyValueData((so) => so.LoadFrom(dataReader, this.GetPropertyModelsByDataReaderFieldIndex(dataReader),
-																									   readNormalizer: this.ObjectManager.NormalizeWhenReadingFromDatastore,
-																									   loadOldValuesAlso: true), changeContainer: null);
+				SimpleObject simpleObject = this.CreateAndLoadObjectInternal(objectId: 0, 
+																			 loadAction: (so) => so.LoadFrom(dataReader, this.GetPropertyModelsByDataReaderFieldIndex(dataReader), this.ObjectManager.NormalizeWhenReadingFromDatastore, loadOldValuesAlso: true), 
+																			 this.ObjectManager.DefaultChangeContainer, ObjectActionContext.ServerTransaction);
 				long objectId = simpleObject.Id;
 
 				objectIds.Add(objectId);
@@ -87,7 +87,7 @@ namespace Simple.Objects
 					if (this.ContainsId(objectId))
 					{
 						// object is not in cache -> go to local or remote datastore (remote object server), create and load the object.
-						simpleObject = this.CreateAndLoadObject(objectId, (simpleObject) => this.ObjectManager.Datastore.LoadObjectPropertyValues(simpleObject).GetAwaiter().GetResult());
+						simpleObject = this.CreateAndLoadObjectInternal(objectId, (simpleObject) => this.ObjectManager.Datastore.LoadObjectPropertyValues(simpleObject).GetAwaiter().GetResult(), this.ObjectManager.DefaultChangeContainer, ObjectActionContext.ServerTransaction);
 					}
 					else
 					{
@@ -99,10 +99,10 @@ namespace Simple.Objects
 			return simpleObject;
 		}
 
-		public SimpleObjectCollection<T> GetObjectCollection<T>() where T : SimpleObject
+		public override SimpleObjectCollection<T> GetObjectCollection<T>()
 		{
 			if (this.collection == null)
-				this.collection = new SimpleObjectCollection<T>(this.ObjectManager, this.ObjectModel.TableInfo.TableId, new List<long>(this.idGenerator.Keys)); // The readonly keys are copiedint into new list
+				this.collection = new SimpleObjectCollection<T>(this.ObjectManager, this.ObjectModel.TableInfo.TableId, new List<long>(this.idGenerator.Keys)); // The readonly keys are copied into new list
 
 			return (SimpleObjectCollection<T>)this.collection;
 		}
@@ -145,7 +145,7 @@ namespace Simple.Objects
 			bool sortCollection = this.ObjectModel.SortingModel == SortingModel.BySingleObjectTypeCollection;
 
 			if (this.ObjectModel.SortingModel == SortingModel.BySingleObjectTypeCollection)
-				result.Sort(setPrevious: true, saveObjects: false);
+				result.Sort(setPrevious: true);
 
 			return result;
 		}
@@ -207,7 +207,7 @@ namespace Simple.Objects
 			result = new SimpleObjectCollection<T>(this.ObjectManager, this.ObjectModel.TableInfo.TableId, objectIds);
 
 			if (sortCollection) //(result.IsSortable)
-				result.Sort(setPrevious: true, saveObjects: false);
+				result.Sort(setPrevious: true);
 
 			return result;
 		}
@@ -221,7 +221,6 @@ namespace Simple.Objects
 				if (this.GetObject(id) is SimpleObject so && selector(so)) // // The object is deleted or simply not exists, is null or is not custable to T, for any reason
 					objectIds.Add(id);
 
-
 			return objectIds;
 		}
 
@@ -230,7 +229,12 @@ namespace Simple.Objects
 			return this.idGenerator.CreateKey();
 		}
 
-		internal protected override bool RemoveObject(long objectId)
+		protected override void OnNewObjectAdded(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
+		{
+			this.collection?.Add(simpleObject.Id, changeContainer, requester);
+		}
+
+		internal protected override bool RemoveObjectInternal(long objectId, ChangeContainer? changeContainer, object? requester)
 		{
 			bool isRemoved;
 
@@ -241,7 +245,7 @@ namespace Simple.Objects
 					this.simpleObjectsByObjectId.Remove(objectId);
 					this.idGenerator.RemoveKey(objectId);
 
-					this.collection?.Remove(objectId);
+					this.collection?.Remove(objectId, changeContainer, requester);
 				}
 			}
 

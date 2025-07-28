@@ -53,6 +53,7 @@ namespace Simple.Objects.Controls
 		private Dictionary<int, BarItem> goToGraphBarButtonItemsByGraphKey = new Dictionary<int, BarItem>();
 		private object lockLastGraphEditor = new object();
 		private int graphUpdate = 0;
+		private object? destinationNodeParentCandidate = null;
 		//private int largeGraphUpdate = 0;
 		//private BaseEdit lastActiveEditor = null;
 		//private int lastActiveEditorSelectionStart = 0;
@@ -187,8 +188,8 @@ namespace Simple.Objects.Controls
                     this.TreeList.BeforeDragNode -= new BeforeDragNodeEventHandler(treeList_BeforeDragNode);
                     this.TreeList.DragOver -= new DragEventHandler(treeList_DragOver);
                     this.TreeList.DragDrop -= new DragEventHandler(treeList_DragDrop);
-                    this.TreeList.GiveFeedback -= new GiveFeedbackEventHandler(treeList_GiveFeedback);
                     this.TreeList.AfterDropNode -= new AfterDropNodeEventHandler(treeList_AfterDropNode);
+                    this.TreeList.GiveFeedback -= new GiveFeedbackEventHandler(treeList_GiveFeedback);
                     this.TreeList.CompareNodeValues -= new CompareNodeValuesEventHandler(treeList_CompareNodeValues);
 					this.TreeList.EndSorting -= new EventHandler(treeList_EndSorting);
 				}
@@ -213,8 +214,8 @@ namespace Simple.Objects.Controls
 					this.TreeList.AfterDragNode += TreeList_AfterDragNode;
                     this.TreeList.DragOver += new DragEventHandler(treeList_DragOver);
                     this.TreeList.DragDrop += new DragEventHandler(treeList_DragDrop);
-                    this.TreeList.GiveFeedback += new GiveFeedbackEventHandler(treeList_GiveFeedback);
 					this.TreeList.AfterDropNode += new AfterDropNodeEventHandler(treeList_AfterDropNode);
+					this.TreeList.GiveFeedback += new GiveFeedbackEventHandler(treeList_GiveFeedback);
                     this.TreeList.CompareNodeValues += new CompareNodeValuesEventHandler(treeList_CompareNodeValues);
 					this.TreeList.EndSorting += new EventHandler(treeList_EndSorting);
 
@@ -226,26 +227,27 @@ namespace Simple.Objects.Controls
             }
         }
 
+
 		private void TreeList_AfterDragNode(object sender, AfterDragNodeEventArgs e)
 		{
 		}
 
 		[Category("Controls"), DefaultValue(null)]
-        public PopupMenu PopupMenu
+        public PopupMenu? PopupMenu
         {
             get { return this.popupMenu; }
             set { this.popupMenu = value; }
         }
 
         [Category("Controls"), DefaultValue(null)]
-        public BarManager BarManager
+        public BarManager? BarManager
         {
             get { return this.barManager; }
             set { this.barManager = value; }
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public Component ButtonAddFolder
+        public Component? ButtonAddFolder
         {
             get { return this.buttonAddFolder; }
             set
@@ -256,12 +258,12 @@ namespace Simple.Objects.Controls
                 this.buttonAddFolder = value;
 
                 if (this.buttonAddFolder != null)
-                    this.SetAddButtonPolicy(new AddButtonPolicy<GraphElement>(typeof(Folder)) { AddButtonPolicyOption = AddButtonPolicyOption.AddAsChildToParent }, this.buttonAddFolder);
+                    this.SetAddButtonPolicy(new AddButtonPolicy<GraphElement>(typeof(Folder)) { AddButtonPolicyOption = AddButtonPolicyOption.AddAsNeighbor }, this.buttonAddFolder);
             }
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public BarItem ButtonAddFolderPopup
+        public BarItem? ButtonAddFolderPopup
         {
             get { return this.buttonAddFolderPopup; }
             set
@@ -272,12 +274,12 @@ namespace Simple.Objects.Controls
                 this.buttonAddFolderPopup = value;
 
                 if (this.buttonAddFolderPopup != null)
-                    this.SetAddButtonPolicy(new AddButtonPolicy<GraphElement>(typeof(Folder)) { AddButtonPolicyOption = AddButtonPolicyOption.AddAsChildToParent }, this.buttonAddFolderPopup);
+                    this.SetAddButtonPolicy(new AddButtonPolicy<GraphElement>(typeof(Folder)) { AddButtonPolicyOption = AddButtonPolicyOption.AddAsNeighbor }, this.buttonAddFolderPopup);
             }
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public Component ButtonAddSubFolder
+        public Component? ButtonAddSubFolder
         {
             get { return this.buttonAddSubFolder; }
             set
@@ -293,7 +295,7 @@ namespace Simple.Objects.Controls
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public BarItem ButtonAddSubFolderPopup
+        public BarItem? ButtonAddSubFolderPopup
         {
             get { return this.buttonAddSubFolderPopup; }
             set
@@ -309,7 +311,7 @@ namespace Simple.Objects.Controls
         }
 
 		[Category("Buttons"), DefaultValue(null)]
-		public Component ButtonMoveUp
+		public Component? ButtonMoveUp
 		{
 			get { return this.buttonMoveUp; }
 			set
@@ -317,13 +319,9 @@ namespace Simple.Objects.Controls
 				if (this.buttonMoveUp != null)
 				{
 					if (this.buttonMoveUp is BarItem barItem)
-					{
 						barItem.ItemClick -= new ItemClickEventHandler(MoveUpButton_BarItemClick);
-					}
 					else if (this.buttonMoveUp is Control control)
-					{
 						control.Click -= new EventHandler(MoveUpButton_ControlClick);
-					}
 
 					this.ButtonMoveUpList.Remove(this.buttonMoveUp);
 				}
@@ -333,17 +331,11 @@ namespace Simple.Objects.Controls
 				if (this.buttonMoveUp != null)
 				{
 					if (this.buttonMoveUp is BarItem barItem)
-					{
 						barItem.ItemClick += new ItemClickEventHandler(MoveUpButton_BarItemClick);
-					}
 					else if (this.buttonMoveUp is Control control)
-					{
 						control.Click += new EventHandler(MoveUpButton_ControlClick);
-					}
 					else
-					{
 						throw new ArgumentException("Button type " + this.buttonMoveUp.GetType() + " is not supported.");
-					}
 
 					this.ButtonMoveUpList.Add(this.buttonMoveUp);
 				}
@@ -351,7 +343,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarItem ButtonMoveUpPopup
+		public BarItem? ButtonMoveUpPopup
 		{
 			get { return this.buttonMoveUpPopup; }
 			set
@@ -373,7 +365,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public Component ButtonMoveDown
+		public Component? ButtonMoveDown
 		{
 			get { return this.buttonMoveDown; }
 			set
@@ -381,13 +373,9 @@ namespace Simple.Objects.Controls
 				if (this.buttonMoveDown != null)
 				{
 					if (this.buttonMoveDown is BarItem barItem)
-					{
 						barItem.ItemClick -= new ItemClickEventHandler(MoveDownButton_BarItemClick);
-					}
 					else if (this.buttonMoveDown is Control control)
-					{
 						control.Click -= new EventHandler(MoveDownButton_ControlClick);
-					}
 
 					this.ButtonMoveDownList.Remove(this.buttonMoveDown);
 				}
@@ -397,17 +385,11 @@ namespace Simple.Objects.Controls
 				if (this.buttonMoveDown != null)
 				{
 					if (this.buttonMoveDown is BarItem barItem)
-					{
 						barItem.ItemClick += new ItemClickEventHandler(MoveDownButton_BarItemClick);
-					}
 					else if (this.buttonMoveDown is Control control)
-					{
 						control.Click += new EventHandler(MoveDownButton_ControlClick);
-					}
 					else
-					{
 						throw new ArgumentException("Button type " + this.buttonMoveDown.GetType() + " is not supported.");
-					}
 
 					this.ButtonMoveDownList.Add(this.buttonMoveDown);
 				}
@@ -415,7 +397,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarItem ButtonMoveDownPopup
+		public BarItem? ButtonMoveDownPopup
 		{
 			get { return this.buttonMoveDownPopup; }
 			set
@@ -437,7 +419,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public Component ButtonRemoveColumnSorting
+		public Component? ButtonRemoveColumnSorting
 		{
 			get { return this.buttonRemoveColumnSorting; }
 			set
@@ -445,13 +427,9 @@ namespace Simple.Objects.Controls
 				if (this.buttonRemoveColumnSorting != null)
 				{
 					if (this.buttonRemoveColumnSorting is BarItem barItem)
-					{
 						barItem.ItemClick -= new ItemClickEventHandler(RemoveColumnSortingButton_BarItemClick);
-					}
 					else if (this.buttonRemoveColumnSorting is Control control)
-					{
 						control.Click -= new EventHandler(RemoveColumnSortingButton_ControlClick);
-					}
 
 					this.ButtonRemoveColumnSortingList.Remove(this.buttonRemoveColumnSorting);
 				}
@@ -461,17 +439,11 @@ namespace Simple.Objects.Controls
 				if (this.buttonRemoveColumnSorting != null)
 				{
 					if (this.buttonRemoveColumnSorting is BarItem barItem)
-					{
 						barItem.ItemClick += new ItemClickEventHandler(RemoveColumnSortingButton_BarItemClick);
-					}
 					else if (this.buttonRemoveColumnSorting is Control control)
-					{
 						control.Click += new EventHandler(RemoveColumnSortingButton_ControlClick);
-					}
 					else
-					{
 						throw new ArgumentException("Button type " + this.buttonRemoveColumnSorting.GetType() + " is not supported.");
-					}
 
 					this.ButtonRemoveColumnSortingList.Add(this.buttonRemoveColumnSorting);
 				}
@@ -479,7 +451,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarItem ButtonRemoveColumnSortingPopup
+		public BarItem? ButtonRemoveColumnSortingPopup
 		{
 			get { return this.buttonRemoveColumnSortingPopup; }
 			set
@@ -501,7 +473,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-        public Component ButtonSave
+        public Component? ButtonSave
         {
             get { return this.buttonSave; }
             set
@@ -509,13 +481,9 @@ namespace Simple.Objects.Controls
                 if (this.buttonSave != null)
                 {
                     if (this.buttonSave is BarItem barItem)
-                    {
                         barItem.ItemClick -= new ItemClickEventHandler(SaveButton_BarItemClick);
-                    }
                     else if (this.buttonSave is Control control)
-                    {
                         control.Click -= new EventHandler(SaveButton_ControlClick);
-                    }
 
                     this.ButtonSaveList.Remove(this.buttonSave);
                 }
@@ -525,17 +493,11 @@ namespace Simple.Objects.Controls
                 if (this.buttonSave != null)
                 {
                     if (this.buttonSave is BarItem barItem)
-                    {
                         barItem.ItemClick += new ItemClickEventHandler(SaveButton_BarItemClick);
-                    }
                     else if (this.buttonSave is Control control)
-                    {
                         control.Click += new EventHandler(SaveButton_ControlClick);
-                    }
                     else
-                    {
                         throw new ArgumentException("Button type " + this.buttonSave.GetType() + " is not supported.");
-                    }
 
                     this.ButtonSaveList.Add(this.buttonSave);
                 }
@@ -543,7 +505,7 @@ namespace Simple.Objects.Controls
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public BarItem ButtonSavePopup
+        public BarItem? ButtonSavePopup
         {
             get { return this.buttonSavePopup; }
             set
@@ -565,7 +527,7 @@ namespace Simple.Objects.Controls
         }
 
 		[Category("Buttons"), DefaultValue(null)]
-		public Component ButtonRejectChanges
+		public Component? ButtonRejectChanges
 		{
 			get { return this.buttonRejectChanges; }
 			set
@@ -573,13 +535,9 @@ namespace Simple.Objects.Controls
 				if (this.buttonRejectChanges != null)
 				{
 					if (this.buttonRejectChanges is BarItem barItem)
-					{
 						barItem.ItemClick -= new ItemClickEventHandler(RejectChangesButton_BarItemClick);
-					}
 					else if (this.buttonRejectChanges is Control control)
-					{
 						control.Click -= new EventHandler(RejectChangesButton_ControlClick);
-					}
 
 					this.ButtonRejectChangesList.Remove(this.buttonRejectChanges);
 				}
@@ -589,17 +547,11 @@ namespace Simple.Objects.Controls
 				if (this.buttonRejectChanges != null)
 				{
 					if (this.buttonRejectChanges is BarItem barItem)
-					{
 						barItem.ItemClick += new ItemClickEventHandler(RejectChangesButton_BarItemClick);
-					}
 					else if (this.buttonRejectChanges is Control control)
-					{
 						control.Click += new EventHandler(RejectChangesButton_ControlClick);
-					}
 					else
-					{
 						throw new ArgumentException("Button type " + this.buttonRejectChanges.GetType() + " is not supported.");
-					}
 
 					this.ButtonRejectChangesList.Add(this.buttonRejectChanges);
 				}
@@ -607,7 +559,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarItem ButtonRejectChangesPopup
+		public BarItem? ButtonRejectChangesPopup
 		{
 			get { return this.buttonRejectChangesPopup; }
 			set
@@ -629,7 +581,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-        public Component ButtonRemove
+        public Component? ButtonRemove
         {
             get { return this.buttonRemove; }
             set
@@ -637,13 +589,9 @@ namespace Simple.Objects.Controls
                 if (this.buttonRemove != null)
                 {
                     if (this.buttonRemove is BarItem barItem)
-                    {
                         barItem.ItemClick -= new ItemClickEventHandler(RemoveButton_BarItemClick);
-                    }
                     else if (this.buttonRemove is Control control)
-                    {
                         control.Click -= new EventHandler(RemoveButton_ControlClick);
-                    }
 
                     this.ButtonRemoveList.Remove(this.buttonRemove);
                 }
@@ -653,17 +601,11 @@ namespace Simple.Objects.Controls
                 if (this.buttonRemove != null)
                 {
                     if (this.buttonRemove is BarItem barItem)
-                    {
                         barItem.ItemClick += new ItemClickEventHandler(RemoveButton_BarItemClick);
-                    }
                     else if (this.buttonRemove is Control control)
-                    {
                         control.Click += new EventHandler(RemoveButton_ControlClick);
-                    }
                     else
-                    {
                         throw new ArgumentException("Button type " + this.buttonRemove.GetType() + " is not supported.");
-                    }
 
                     this.ButtonRemoveList.Add(this.buttonRemove);
                 }
@@ -671,7 +613,7 @@ namespace Simple.Objects.Controls
         }
 
         [Category("Buttons"), DefaultValue(null)]
-        public BarItem ButtonRemovePopup
+        public BarItem? ButtonRemovePopup
         {
             get { return this.buttonRemovePopup; }
             set
@@ -693,7 +635,7 @@ namespace Simple.Objects.Controls
         }
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarSubItem SubButtonGoToGraph
+		public BarSubItem? SubButtonGoToGraph
 		{
 			get { return this.subButtonGoToGraph; }
 			set
@@ -709,7 +651,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarSubItem SubButtonGoToGraphPopup
+		public BarSubItem? SubButtonGoToGraphPopup
 		{
 			get { return this.subButtonGoToGraphPopup; }
 			set
@@ -725,7 +667,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarSubItem SubButtonChangeTo
+		public BarSubItem? SubButtonChangeTo
 		{
 			get { return this.subButtonChangeTo; }
 			set
@@ -741,7 +683,7 @@ namespace Simple.Objects.Controls
 		}
 
 		[Category("Buttons"), DefaultValue(null)]
-		public BarSubItem SubButtonChangeToPopup
+		public BarSubItem? SubButtonChangeToPopup
 		{
 			get { return this.subButtonChangeToPopup; }
 			set
@@ -755,12 +697,18 @@ namespace Simple.Objects.Controls
 					this.subButtonChangeToPopup.GetItemData += new EventHandler(SubButtonChangeTo_GetItemData);
 			}
 		}
-		
+
 		#endregion |   Public Properties   |
 
-        #region |   Public Methods   |
+		#region |   Public Properties   |
 
-        public object? GetNodeTag(TreeListNode node)
+		public event DragOverTestEventHandler? DragOverTest;
+
+		#endregion |   Public Properties   |
+
+		#region |   Public Methods   |
+
+		public object? GetNodeTag(TreeListNode node)
         {
             GraphElementNodeTag? nodeTag = node.Tag as GraphElementNodeTag;
             
@@ -935,9 +883,9 @@ namespace Simple.Objects.Controls
 				this.TreeList.AllowDrop = canDragAndDrop;
 				this.TreeList.OptionsDragAndDrop.DragNodesMode = (canDragAndDrop) ? DragNodesMode.Single : DragNodesMode.None;
                 this.TreeList.OptionsDragAndDrop.DropNodesMode = DropNodesMode.Advanced;
-				this.TreeList.OptionsDragAndDrop.CanCloneNodesOnDrop = true;
-                //this.TreeList.DragNodesMode = TreeListDragNodesMode.Advanced;
-            }
+				this.TreeList.OptionsDragAndDrop.CanCloneNodesOnDrop = false;
+				//this.TreeList.DragNodesMode = TreeListDragNodesMode.Advanced;
+			}
         }
 
         protected override void GraphControlSetImageList(ImageList imageList)
@@ -1165,22 +1113,32 @@ namespace Simple.Objects.Controls
 
         protected override GraphElementNodeTag GraphControlGetGraphNodeTag(object node)
         {
-            return (node as TreeListNode).Tag as GraphElementNodeTag;
+            return ((node as TreeListNode)!.Tag as GraphElementNodeTag)!;
         }
 
         protected override void GraphControlSetNodeHasChildrenProperty(object node, bool value)
         {
-            (node as TreeListNode).HasChildren = value;
+			if (node is TreeListNode treeListNode)
+				treeListNode.HasChildren = value;
         }
 
         protected override void GraphControlSetNodeCheckedProperty(object node, bool value)
         {
-            (node as TreeListNode).Checked = value;
+            if (node is TreeListNode treeListNode)
+            {
+                try
+                {
+                    treeListNode.Checked = value;
+                }
+                catch (Exception ex)
+                {
+                }
+            }
         }
 
         protected override void GraphControlDeleteNode(object node)
         {
-            this.TreeList.DeleteNode(node as TreeListNode);
+            this.TreeList?.DeleteNode(node as TreeListNode);
             //TreeListNode treeListNode = node as TreeListNode;
             //GraphNodeTag nodeTag = treeListNode.Tag as GraphNodeTag;
             //nodeTag.GraphElement = null;
@@ -1189,9 +1147,9 @@ namespace Simple.Objects.Controls
 
 		protected override object GraphControlGetNodeCellEditValue(object node, int columnIndex)
 		{
-			TreeListNode treeListNode = node as TreeListNode;
+			TreeListNode? treeListNode = node as TreeListNode;
 			
-            return treeListNode.GetValue(columnIndex);
+            return treeListNode!.GetValue(columnIndex);
 		}
 
         protected override void GraphControlSetNodeCellEditValue(object node, int columnIndex, object? editValue)
@@ -1211,8 +1169,8 @@ namespace Simple.Objects.Controls
             TreeListNode? dn = destinationNode as TreeListNode;
 
             //if (sourceNode is TreeListNode sn && destinationNode is TreeListNode dn)
-                this.TreeList?.MoveNode(sn, dn, modifySource: false);
-        }
+                this.TreeList?.MoveNode(sn, dn, modifySource: true); //  modifySource: false
+		}
 
         protected override void GraphControlExpandNode(object node)
         {
@@ -1444,7 +1402,7 @@ namespace Simple.Objects.Controls
             this.TreeList?.ClearNodes();
         }
 
-		protected override object[] GraphControlGetChildNodes(object node)
+		protected override object[] GraphControlGetChildNodes(object? node)
 		{
 			if (node is TreeListNode treeListNode)
 			{
@@ -1495,9 +1453,9 @@ namespace Simple.Objects.Controls
 		//	this.SetButtonGoToGraphEnableProperty(this.FocusedNode);
 		//}
 
-		protected override void SetButtonsEnableProperty(GraphElement graphElement)
+		protected override void OnSetButtonsEnableProperty(GraphElement? graphElement)
 		{
-			base.SetButtonsEnableProperty(graphElement);
+			base.OnSetButtonsEnableProperty(graphElement);
 
 			// barSubItems buttons
 			foreach (BarSubItem barSubItem in this.barSubItemList)
@@ -1568,7 +1526,7 @@ namespace Simple.Objects.Controls
 			}
 		}
 
-        protected override void OnDispose()
+		protected override void OnDispose()
         {
             this.TreeList = null;
             base.OnDispose();
@@ -1580,19 +1538,24 @@ namespace Simple.Objects.Controls
 
         private void treeList_BeforeFocusNode(object sender, BeforeFocusNodeEventArgs e)
         {
-            if (e.Node != null && e.OldNode != null && e.Node != e.OldNode)
+            //if (e.Node != null && e.OldNode != null && e.Node != e.OldNode)
+            if (e.Node != e.OldNode)
             {
                 bool canFocus = true;
                 
                 this.GraphControlBeforeNodeIsFocused(e.Node, e.OldNode, ref canFocus);
                 e.CanFocus = canFocus;
+
+                //           if (canFocus)
+                //this.GraphControlFocusedNodeIsChanged(e.Node, e.OldNode);
             }
         }
 
         private void treeList_FocusedNodeChanged(object sender, FocusedNodeChangedEventArgs e)
         {
             this.GraphControlFocusedNodeIsChanged(e.Node, e.OldNode);
-			//this.SetButtonGoToGraphEnableProperty(this.FocusedNode);
+			
+            //this.SetButtonGoToGraphEnableProperty(this.FocusedNode);
         }
 
 		private void treeList_CellValueChanging(object sender, CellValueChangedEventArgs e)
@@ -1634,208 +1597,80 @@ namespace Simple.Objects.Controls
 
         private void treeList_DragOver(object sender, DragEventArgs e)
         {
-			DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
-            TreeListNode? parentNode = this.GetDragDropParentNode(args.TargetNode, args.DragInsertPosition);
+            DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
+            bool canChangeParent = false;
 
-            //if (args.DragInsertPosition != DragInsertPosition.Before && args.DragInsertPosition != DragInsertPosition.After)
-                e.Effect = this.GraphControlGetDragDropEffect(args.Node, parentNode);
-            
-			if (e.Effect == DragDropEffects.None)
-                if (args.DragInsertPosition == DragInsertPosition.Before || args.DragInsertPosition == DragInsertPosition.After)
-                    if (args.TargetNode != null && args.Node.ParentNode == args.TargetNode.ParentNode)
-                        e.Effect = DragDropEffects.Move;
-            
-            //object dragNode, targetNode;
 
-			//         dragNode = e.Data.GetData(typeof(TreeListNode));
+			e.Effect = DragDropEffects.None;
+			//        if (args.TargetNode == null || args.DragInsertPosition == DragInsertPosition.None)
+			//        {
+			//this.RaiseDragOverTest(this, new DragOverTestArgs(args.TargetNode, args.DragInsertPosition, e.Effect));
 
-			//         Point p = this.TreeList.PointToClient(new Point(e.X, e.Y));
-			//         targetNode = this.TreeList.CalcHitInfo(p).Node;
+			//return;
+			//        }
 
-			//         e.Effect = this.GraphControlGetDragDropEffect(dragNode, targetNode);
-		}
+			//if (args.DragInsertPosition != DragInsertPosition.None)
+   //         {
+                TreeListNode? newParentNode = this.GetDragDropParentNode(args.TargetNode, args.DragInsertPosition);
 
-        private TreeListNode? GetDragDropParentNode(TreeListNode targetNode, DragInsertPosition dragInsertPosition)
+				//if (args.TargetNode.Id == 1 && args.DragInsertPosition == DragInsertPosition.AsChild)
+				//if (args.TargetNode.GetValue(0).ToString() == "F4" && args.DragInsertPosition == DragInsertPosition.AsChild)
+				//    e.Effect = DragDropEffects.None;
+
+				canChangeParent = this.CanNodeChangeParent(args.Node, newParentNode);
+
+                if (canChangeParent)
+                {
+                    e.Effect = DragDropEffects.Move;
+                    this.destinationNodeParentCandidate = newParentNode;
+				}
+
+            this.RaiseDragOverTest(this, new DragOverTestArgs(args.TargetNode, args.DragInsertPosition, e.Effect, canChangeParent));
+        }
+
+		private TreeListNode? GetDragDropParentNode(TreeListNode targetNode, DragInsertPosition dragInsertPosition)
 		{
-            TreeListNode? parentNode = targetNode;
-
-            if (dragInsertPosition == DragInsertPosition.Before || dragInsertPosition == DragInsertPosition.After)
-                parentNode = targetNode?.ParentNode;
-
+            TreeListNode? parentNode = (dragInsertPosition == DragInsertPosition.Before || dragInsertPosition == DragInsertPosition.After) ? parentNode = targetNode?.ParentNode :
+                                                                                                                                             parentNode = targetNode;
             return parentNode;
         }
 
-        private void treeList_DragDrop(object sender, DragEventArgs e)
+		private void treeList_DragDrop(object sender, DragEventArgs e)
         {
-			DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
-            //this.GraphControlDragDrop(args.Node, args.TargetNode);
-            //TreeListNode draggedNode = args.Node;
-            TreeListNode? draggedNode = e.Data.GetData(typeof(TreeListNode)) as TreeListNode;
-            TreeListNode? parentNode = this.GetDragDropParentNode(args.TargetNode, args.DragInsertPosition);
+            DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
 
-            
-   //         else if (insertPosition == DragInsertPosition.AsChild)
+			if (args.DragInsertPosition == DragInsertPosition.None && this.destinationNodeParentCandidate == null) // In case when node can be moved to root (last under all elements in root position, if thex ecists) we need to manualy move node.
+				this.TreeList?.MoveNode(args.Node, destinationNode: null);                                         // TreeList AfterDropNode event is not fired
+
+
+			this.GraphControlDragDrop(args.Node, this.destinationNodeParentCandidate);
+			//this.GraphControlDragDrop(args.Node, args.TargetNode);
+			//this.TreeList?.MoveNode(args.Node, this.destinationNodeParentCandidate as TreeListNode);                                         // TreeList AfterDropNode event is not fired
+
+			//e.Effect = DragDropEffects.Move;
+		}
+
+		private void treeList_AfterDropNode(object sender, AfterDropNodeEventArgs e)
+		{
+			if (!e.IsSuccess)
+				return;
+
+			if (e.DestinationNode != this.destinationNodeParentCandidate)
+				this.TreeList?.MoveNode(e.Node, this.destinationNodeParentCandidate as TreeListNode); // Fix DevExpress bug
+
+			//if (e.DestinationNode != null)
 			//{
-   //             parentNode = parentNode;
-   //         }
+				//int nodeIndex = this.TreeList!.GetNodeIndex(e.DestinationNode);
+				int nodeIndex = this.TreeList!.GetNodeIndex(e.Node);
 
-            if (parentNode == draggedNode)
-                return;
-            
-            //GraphElement draggedGraphElement = this.GetGraphElement(draggedNode);
-            //GraphElement parentGraphElement = (parentNode != null) ? this.GetGraphElement(parentNode) : null;            
+				this.GraphControlAfterDropNode(e.Node, nodeIndex);
+			//}
+		}
 
-            //Point pt = this.TreeList.PointToClient(new Point(e.X, e.Y));
-            //TreeListHitTest ht = this.TreeList.ViewInfo.GetHitTest(pt);
-            //TreeListNode targetNode = ht.Node;
-
-            //if (args.TargetNode != targetNode)
-
-
-
-            //bool isMovedManualy = false;
-
-            //if (!(targetNode != null && targetNode.HasChildren)) // If terget node has children no need for since destination node will be targetNode.Nodes[0] and will moved automatically
-            //{
-            //isMovedManualy = this.TreeList.MoveNode(draggedNode, targetNode);
-
-            if (parentNode == null)
-                this.TreeList?.MoveNode(draggedNode, parentNode);
-            //if (isMovedManualy)
-            //{
-            //    int position = this.TreeList.GetNodeIndex(draggedNode);
-            //    GraphElement graphElement = this.GetGraphElement(draggedNode);
-
-            //    if (position != graphElement.OrderIndex)
-            //        graphElement.OrderIndex = position;
-            //}
-            //}
-
-            //         if (insertPosition == DragInsertPosition.AsChild)
-            //{
-            //             targetPosition = -1;
-            //         }
-            //         else if (insertPosition == DragInsertPosition.Before)
-            //{
-            //             targetPosition = 0;
-            //}
-            //         else if (insertPosition == DragInsertPosition.After)
-            //{
-            //             targetPosition = 1;
-            //}
-
-            if (draggedNode is not null)
-                this.GraphControlDragDrop(draggedNode, parentNode);
-
-            //int draggedNodeIndex = this.TreeList.GetNodeIndex(draggedNode);
-
-   //         if (insertPosition == DragInsertPosition.Before)
-			//{
-   //             draggedNodeIndex = this.TreeList.GetNodeIndex(args.TargetNode);
-   //         }
-   //         else if (insertPosition == DragInsertPosition.After)
-			//{
-   //             draggedNodeIndex = this.TreeList.GetNodeIndex(args.TargetNode);
-
-   //             if (draggedNode.ParentNode != args.TargetNode.ParentNode) // If in same collection, no need for +1
-   //                 draggedNodeIndex++;
-   //             //            int targetPosition2 = (targetNode.ParentNode != null) ? targetNode.ParentNode.Nodes.IndexOf(targetNode) : this.TreeList.Nodes.IndexOf(targetNode);
-   //         }
-   //         else
-			//{
-   //             draggedNodeIndex = this.TreeList.GetNodeIndex(draggedNode);
-   //         }
-
-   //         else if (parentNode != null)
-			//{
-   //             draggedNodeIndex = parentNode.Nodes.Count;
-   //         }
-   //         else
-			//{
-   //             draggedNodeIndex = this.TreeList.Nodes.Count - 1;
-   //         }
-
-            //if (draggedGraphElement.OrderIndex != draggedNodeIndex)
-            //{
-            //    draggedGraphElement.Requester = this;
-            //    draggedGraphElement.OrderIndex = draggedNodeIndex;
-            //}
-
-            //if (targetPosition != draggedGraphElement.OrderIndex)
-            //    draggedGraphElement.OrderIndex = targetPosition;
-
-
-            //object dragNode, targetNode;
-
-            //         dragNode = e.Data.GetData(typeof(TreeListNode));
-
-            //         Point p = this.TreeList.PointToClient(new Point(e.X, e.Y));
-            //         targetNode = this.TreeList.CalcHitInfo(p).Node;
-
-            //         this.GraphControlDragDrop(dragNode, targetNode);
-
-            //e.Effect = DragDropEffects.Move;
-        }
-
-        // Add a node to the TreeList when a grid row is dropped.
-        //private void treeList_DragDrop2(object sender, DragEventArgs e)
-        //{
-        //    // Get extended arguments of the drag event.
-        //    DXDragEventArgs args = treeList.GetDXDragEventArgs(e);
-
-        //    // Get how a node is inserted (as a child, before or after a node, or at the end of the node collection).
-        //    DragInsertPosition position = args.DragInsertPosition;
-        //    Person dataRow = e.Data.GetData(typeof(DragAndDropRows.Person)) as Person;
-        //    if (dataRow == null) return;
-        //    int parentID = (int)treeList.RootValue;
-
-        //    // Get the node over which the row is dropped.
-        //    TreeListNode node = args.TargetNode;
-
-        //    // Add a node at the root level.
-        //    if (node == null)
-        //    {
-        //        treeList.AppendNode((new PersonEx(dataRow, parentID)).ToArray(), null);
-        //    }
-        //    else
-        //    {
-        //        // Add a child node to the target node.
-        //        if (position == DragInsertPosition.AsChild)
-        //        {
-        //            parentID = Convert.ToInt32(node.GetValue("ID"));
-        //            Object[] targetObject = (new PersonEx(dataRow, parentID)).ToArray();
-        //            treeList.AppendNode(targetObject, node);
-        //        }
-        //        // Insert a node before the target node.
-        //        if (position == DragInsertPosition.Before)
-        //        {
-        //            parentID = Convert.ToInt32(node.GetValue("ParentID"));
-        //            Object[] targetObject = (new PersonEx(dataRow, parentID)).ToArray();
-        //            TreeListNode newNode = treeList.AppendNode(targetObject, node.ParentNode);
-        //            int targetPosition;
-        //            if (node.ParentNode == null)
-        //                targetPosition = treeList.Nodes.IndexOf(node);
-        //            else targetPosition = node.ParentNode.Nodes.IndexOf(node);
-        //            treeList.SetNodeIndex(newNode, targetPosition);
-        //        }
-        //        node.Expanded = true;
-        //    }
-        //}
-
-        private void treeList_GiveFeedback(object sender, GiveFeedbackEventArgs e)
+		private void treeList_GiveFeedback(object sender, GiveFeedbackEventArgs e)
         {
             //e.UseDefaultCursors = true;
 		}
-
-        private void treeList_AfterDropNode(object sender, AfterDropNodeEventArgs e)
-        {
-            if (this.TreeList is null)
-                return;
-            
-            int nodeIndex = this.TreeList.GetNodeIndex(e.Node);
-            
-            this.GraphControlAfterDropNode(e.Node, nodeIndex);
-        }
 
         private void treeList_BeforeCollapse(object sender, BeforeCollapseEventArgs e)
         {
@@ -2044,8 +1879,16 @@ namespace Simple.Objects.Controls
 
 		private void SubButtonChangeToBarButtonItem_ItemClick(object? sender, ItemClickEventArgs e)
 		{
-			if (this.FocusedSimpleObject != null)
-				this.FocusedSimpleObject.SetPropertyValue(this.FocusedSimpleObject.GetModel().ObjectSubTypePropertyModel, Conversion.TryChangeType<int>(e.Item.Tag));
+            if (this.FocusedSimpleObject != null)
+            {
+                this.FocusedSimpleObject.SetPropertyValue(this.FocusedSimpleObject.GetModel().ObjectSubTypePropertyModel, Conversion.TryChangeType<int>(e.Item.Tag));
+
+                if (this.FocusedGraphElement != null)
+                {
+                    this.RefreshGraphElement(this.FocusedGraphElement);
+                    this.SetColumnsAndButtonsEnableProperty(this.FocusedGraphElement);
+                }
+            }
 		}
 
 		private void simpleRibbonModulePanel_ModuleSelected(object? sender, EventArgs e)
@@ -2085,52 +1928,85 @@ namespace Simple.Objects.Controls
 				this.RibbonModulePanel.RibbonForm?.GoToGraphElement(graphElement);
 		}
 
-		//private void SaveLastEditorState()
-		//{
-		//	this.lastActiveEditor = this.TreeList.ActiveEditor;
+        //private void SaveLastEditorState()
+        //{
+        //	this.lastActiveEditor = this.TreeList.ActiveEditor;
 
-		//	if (this.lastActiveEditor != null)
-		//	{
-		//		if (this.lastActiveEditor is TextEdit)
-		//		{
-		//			this.lastActiveEditorSelectionStart = (this.lastActiveEditor as TextEdit).SelectionStart;
-		//			this.lastActiveEditorSelectionLength = (this.lastActiveEditor as TextEdit).SelectionLength;
-		//		}
-		//		else if (this.lastActiveEditor is DateEdit)
-		//		{
-		//			this.lastActiveEditorSelectionStart = (this.lastActiveEditor as DateEdit).SelectionStart;
-		//			this.lastActiveEditorSelectionLength = (this.lastActiveEditor as DateEdit).SelectionLength;
-		//		}
+        //	if (this.lastActiveEditor != null)
+        //	{
+        //		if (this.lastActiveEditor is TextEdit)
+        //		{
+        //			this.lastActiveEditorSelectionStart = (this.lastActiveEditor as TextEdit).SelectionStart;
+        //			this.lastActiveEditorSelectionLength = (this.lastActiveEditor as TextEdit).SelectionLength;
+        //		}
+        //		else if (this.lastActiveEditor is DateEdit)
+        //		{
+        //			this.lastActiveEditorSelectionStart = (this.lastActiveEditor as DateEdit).SelectionStart;
+        //			this.lastActiveEditorSelectionLength = (this.lastActiveEditor as DateEdit).SelectionLength;
+        //		}
 
-		//		if (this.lastActiveEditor is PopupBaseEdit)
-		//			this.lastActiveEditorIsPopupOpen = (this.lastActiveEditor as PopupBaseEdit).IsPopupOpen;
+        //		if (this.lastActiveEditor is PopupBaseEdit)
+        //			this.lastActiveEditorIsPopupOpen = (this.lastActiveEditor as PopupBaseEdit).IsPopupOpen;
 
-		//		this.GraphControlCloseEditor();
-		//	}
-		//}
+        //		this.GraphControlCloseEditor();
+        //	}
+        //}
 
-		//private void RestoreLastEditorState()
-		//{
-		//	if (this.lastActiveEditor != null)
-		//	{
-		//		this.GraphControlShowEditor();
+        //private void RestoreLastEditorState()
+        //{
+        //	if (this.lastActiveEditor != null)
+        //	{
+        //		this.GraphControlShowEditor();
 
-		//		if (this.lastActiveEditor is TextEdit)
-		//		{
-		//			(this.lastActiveEditor as TextEdit).SelectionStart = this.lastActiveEditorSelectionStart;
-		//			(this.lastActiveEditor as TextEdit).SelectionLength = this.lastActiveEditorSelectionLength;
-		//		}
-		//		else if (this.lastActiveEditor is DateEdit)
-		//		{
-		//			(this.lastActiveEditor as DateEdit).SelectionStart = this.lastActiveEditorSelectionStart;
-		//			(this.lastActiveEditor as DateEdit).SelectionLength = this.lastActiveEditorSelectionLength;
-		//		}
+        //		if (this.lastActiveEditor is TextEdit)
+        //		{
+        //			(this.lastActiveEditor as TextEdit).SelectionStart = this.lastActiveEditorSelectionStart;
+        //			(this.lastActiveEditor as TextEdit).SelectionLength = this.lastActiveEditorSelectionLength;
+        //		}
+        //		else if (this.lastActiveEditor is DateEdit)
+        //		{
+        //			(this.lastActiveEditor as DateEdit).SelectionStart = this.lastActiveEditorSelectionStart;
+        //			(this.lastActiveEditor as DateEdit).SelectionLength = this.lastActiveEditorSelectionLength;
+        //		}
 
-		//		if (this.lastActiveEditor is PopupBaseEdit && this.lastActiveEditorIsPopupOpen)
-		//			(this.lastActiveEditor as PopupBaseEdit).ShowPopup();
-		//	}
-		//}
+        //		if (this.lastActiveEditor is PopupBaseEdit && this.lastActiveEditorIsPopupOpen)
+        //			(this.lastActiveEditor as PopupBaseEdit).ShowPopup();
+        //	}
+        //}
 
         #endregion |   Private Methods   |
-    }
+
+        #region |   Private Test Methods   |
+
+        public void RaiseDragOverTest(object? sender, DragOverTestArgs e) => this.DragOverTest?.Invoke(sender, e);
+
+		#endregion |   Private Test Methods   |
+	}
+
+	#region |   Event Delegates   |
+
+	public delegate void DragOverTestEventHandler(object? sender, DragOverTestArgs e);
+
+	#endregion |   Event Delegates   |
+
+	#region |   Helper Classes   |
+
+	public class DragOverTestArgs : EventArgs
+	{
+		public DragOverTestArgs(TreeListNode? targetNode, DragInsertPosition insertPosition, DragDropEffects effect, bool canChangeParent)
+		{
+			this.TargetNode = targetNode;
+			this.InsertPosition = insertPosition;
+			this.Effect = effect;
+            this.CanChangeParent = canChangeParent;
+		}
+
+		public TreeListNode? TargetNode { get; private set; }
+		public DragInsertPosition InsertPosition { get; private set; }
+		public DragDropEffects Effect { get; private set; }
+        public bool CanChangeParent { get; private set; }
+	}
+
+	#endregion |   Helper Classes   |
+
 }

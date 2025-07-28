@@ -45,22 +45,24 @@ namespace Simple.Objects
 	//	};
 	//}
 
-	public class PrevIdPM<T> : PM<T>
+	public class PreviousIdPM<T> : PM<T>
 	{
-		public PrevIdPM(int index)
+		public PreviousIdPM(int index)
 			: base(index)
 		{
 			this.PropertyName = "PreviousId";
 			this.AccessPolicy = PropertyAccessPolicy.ReadWrite;
-			this.GetAccessModifier = AccessModifier.Protected; // | AccessModifier.Internal;
-			this.SetAccessModifier = AccessModifier.Protected; // | AccessModifier.Internal;
+			this.GetAccessModifier = AccessModifier.Public;
+			this.SetAccessModifier = AccessModifier.Protected | AccessModifier.Internal;
 			//this.IsRelationObjectId = true;
 			this.IsIndexed = true;
 			this.IsPreviousId = true;
-			this.AddOrRemoveInChangedProperties = true; // at Server side
-			this.FirePropertyValueChangeEvent = false;
-			this.IsClientSeriazable = false;
+			//this.AddOrRemoveInChangedProperties = true; // at Server side
+			//this.FirePropertyValueChangeEvent = false;
 			this.IsStorable = true;
+			this.IsClientToServerSeriazable = false;
+			this.IsServerToClientSeriazable = false;
+			this.IsServerToClientTransactionInfoSeriazable = false;
 			this.IncludeInTransactionActionLog = false;
 		}
 	}
@@ -94,9 +96,12 @@ namespace Simple.Objects
 			//this.SetAccessModifier = AccessModifier.Public;
 			//this.AddOrRemoveInChangedProperties = false; // at Server side
 			//this.FirePropertyValueChangeEvent = false;
-			this.IsClientSeriazable = true;
-			this.IsStorable = false;
+			//this.IsClientSeriazable = true;
 			this.IsOrderIndex = true;
+			this.IsStorable = false;
+			this.IsClientToServerSeriazable = true;
+			this.IsServerToClientSeriazable = false;
+			this.IsServerToClientTransactionInfoSeriazable = true;
 			this.IncludeInTransactionActionLog = true;
 		}
 	}

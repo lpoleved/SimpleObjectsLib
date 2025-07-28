@@ -15,7 +15,7 @@ namespace Simple.Objects.SocketProtocol
 	{
         public GraphElementsWithObjectsResponseArgs()
         {
-        }
+		}
 
 		public GraphElementsWithObjectsResponseArgs(GraphElementObjectPair[] graphElementWithObjects, IEnumerable<ServerObjectModelInfo>? newServerObjectModels)
 		{
@@ -24,7 +24,7 @@ namespace Simple.Objects.SocketProtocol
         }
 
 		public IEnumerable<ServerObjectModelInfo>? NewServerObjectModels { get; private set; }
-		public GraphElementObjectPair[]? GraphElementWithObjects { get; private set; }
+		public GraphElementObjectPair[] GraphElementWithObjects { get; private set; } = new GraphElementObjectPair[0];
 
 		public override void WriteTo(ref SequenceWriter writer, ISimpleSession session)
         {
@@ -38,7 +38,7 @@ namespace Simple.Objects.SocketProtocol
 					writer.WriteInt32Optimized(this.NewServerObjectModels.Count());
 
 					foreach (var model in this.NewServerObjectModels)
-						model.WriteTo(ref writer);
+						model.WriteTo(ref writer, context: session);
 				}
 				else
 				{
@@ -81,7 +81,7 @@ namespace Simple.Objects.SocketProtocol
 
 					for (int i = 0; i < newServerObjectModels.Length; i++)
 					{
-						ServerObjectModelInfo model = new ServerObjectModelInfo(ref reader);
+						ServerObjectModelInfo model = new ServerObjectModelInfo(ref reader, context: session);
 
 						newServerObjectModels[i] = model;
 						simpleObjectSession.SetServerObjectModel(model.TableId, model);

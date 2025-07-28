@@ -237,7 +237,8 @@ namespace Simple.Objects.Controls
 
 		public void GoToGraphElement(GraphElement graphElement)
 		{
-			this.GoToGraphElement(this.graphController, graphElement);
+			if (this.graphController != null)
+                this.GoToGraphElement(this.graphController, graphElement);
 		}
 	
 		public void GoToGraphElement(SimpleObjectGraphController graphController, GraphElement graphElement)
@@ -312,7 +313,7 @@ namespace Simple.Objects.Controls
 
 		public void ShowRibbonPrintPreview(DevExpress.XtraTreeList.TreeList treeList)
 		{
-			Cursor currentCursor = Cursor.Current;
+			Cursor? currentCursor = Cursor.Current;
 			Cursor.Current = Cursors.WaitCursor;
 			
 			treeList.ShowRibbonPrintPreview();
@@ -322,7 +323,7 @@ namespace Simple.Objects.Controls
 
         public void ShowRibbonPrintPreview(DevExpress.XtraGrid.GridControl gridControl)
         {
-            Cursor currentCursor = Cursor.Current;
+            Cursor? currentCursor = Cursor.Current;
             Cursor.Current = Cursors.WaitCursor;
 
             gridControl.ShowRibbonPrintPreview();
@@ -332,7 +333,7 @@ namespace Simple.Objects.Controls
         
         public void PrintTreeList(DevExpress.XtraTreeList.TreeList treeList)
 		{
-			Cursor currentCursor = Cursor.Current;
+			Cursor? currentCursor = Cursor.Current;
 			Cursor.Current = Cursors.WaitCursor;
 
 			treeList.Print();
@@ -342,7 +343,7 @@ namespace Simple.Objects.Controls
 
         public void PrintTreeList(DevExpress.XtraGrid.GridControl gridControl)
         {
-            Cursor currentCursor = Cursor.Current;
+            Cursor? currentCursor = Cursor.Current;
             Cursor.Current = Cursors.WaitCursor;
 
             gridControl.Print();

@@ -11,22 +11,22 @@ namespace Simple.Objects
     public interface IBindingSimpleObject : IBindingObject
     {
 		//event RelationForeignObjectSetEventHandler RelationForeignObjectSet;
-        event BeforeChangePropertyValueSimpleObjectRequesterEventHandler BeforePropertyValueChange;
-        event ChangePropertyValueSimpleObjectRequesterEventHandler PropertyValueChange;
+        event BeforeChangePropertyValuePropertyModelSimpleObjectChangeContainerContextRequesterEventHandler BeforePropertyValueChange;
+        event ChangePropertyValuePropertyModelSimpleObjectChangeContainerRequesterEventHandler PropertyValueChange;
 
         //bool Save();
         void RequestDelete();
 
-        void SetPropertyValue(int propertyIndex, object value, ChangeContainer changeContainer, object requester);
+        //void SetPropertyValue(int propertyIndex, object? value, object? requester);
 
         SimpleObject GetOneToOnePrimaryObject(int oneToOneRelationKey);
-		bool SetOneToOnePrimaryObject(SimpleObject foreignObject, int oneToOneRelationKey, object requester);
+		bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, int oneToOneRelationKey, object? requester);
 
 		SimpleObject GetOneToOneForeignObject(int oneToOneRelationKey);
-		bool SetOneToOneForeignObject(SimpleObject foreignObject, int oneToOneRelationKey, object requester);
+		bool SetOneToOneForeignObject(SimpleObject? foreignObject, int oneToOneRelationKey, object? requester);
 
 		SimpleObject GetOneToManyPrimaryObject(int oneToManyRelationKey);
-		bool SetOneToManyPrimaryObject(SimpleObject foreignObject, int oneToManyRelationKey, object requester);
+		bool SetOneToManyPrimaryObject(SimpleObject primaryObject, int oneToManyRelationKey, object? requester);
 
         SimpleObjectCollection GetOneToManyForeignObjectCollection(int oneToManyRelationKey);
 

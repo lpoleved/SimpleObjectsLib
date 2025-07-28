@@ -16,7 +16,7 @@ using DevExpress.XtraTreeList.Columns;
 using DevExpress.XtraTreeList.Nodes;
 using DevExpress.XtraSpreadsheet.Utils.Trees;
 using DevExpress.XtraGrid.Columns;
-using System.Windows.Controls;
+//using System.Windows.Controls;
 using DevExpress.XtraEditors.Repository;
 using Simple.Controls;
 using DevExpress.Mvvm.POCO;
@@ -28,7 +28,7 @@ namespace Simple.Objects.ServerMonitor
 	{
 		private int columnIndexIndex, columnNameIndex, columnObjectTypeIdIndex, columnObjectTypeNameIndex;
 		private int columnDatastoreTypeIdIndex, columnIsRelationTableIdIndex, columnIsRelationObjectIdIndex;
-		private int columnIsSerializationOptimizableIndex, columnIsMemberOfSerializationSequenceIndex;
+		private int columnIsSerializationOptimizableIndex, columnIsClientSeriazableIndex, columnIsServerSeriazableIndex, columnIsServerToClientTransactionInfoSeriazableIndex;
 		private int columnIsStorableIndex, columnIsEncryptedIndex, columnIncludeInTransactionActionLogIndex, columnDefaultValueIndex;
 		private GridColumn columnNo, columnGraphElementId, columnGraphKey, columnParentId, columnObjectTableId, columnObjectId, columnHasChildren, columnSimpleObjectPropertyIndexValues;
 		//private int graphKey;
@@ -98,11 +98,25 @@ namespace Simple.Objects.ServerMonitor
 			column.Caption = "IsSerializationOptimizable";
 			column.Visible = true;
 
-			// bool IsMemberOfSerializationSequence
+			// bool IsMemberOfClientSerializationSequence
 			column = this.treeListNewObjectModels.Columns.Add();
-			this.columnIsMemberOfSerializationSequenceIndex = column.AbsoluteIndex;
-			column.Name = "IsMemberOfSerializationSequence";
-			column.Caption = "IsMemberOfSerializationSequence";
+			this.columnIsClientSeriazableIndex = column.AbsoluteIndex;
+			column.Name = "IsClientSeriazable";
+			column.Caption = "IsClientSeriazable";
+			column.Visible = true;
+
+			// bool IsMemberOfServerSerializationSequence
+			column = this.treeListNewObjectModels.Columns.Add();
+			this.columnIsServerSeriazableIndex = column.AbsoluteIndex;
+			column.Name = "IsServerSeriazable";
+			column.Caption = "IsServerSeriazable";
+			column.Visible = true;
+
+			// bool IsMemberOfcolumnIsServerToClientTransactionInfoSequence
+			column = this.treeListNewObjectModels.Columns.Add();
+			this.columnIsServerToClientTransactionInfoSeriazableIndex = column.AbsoluteIndex;
+			column.Name = "IsServerToClientTransactionInfoSeriazable";
+			column.Caption = "IsServerToClientTransactionInfoSeriazable";
 			column.Visible = true;
 
 			// bool IsStorable 
@@ -153,15 +167,14 @@ namespace Simple.Objects.ServerMonitor
 			this.gridControlGraphElementsWithObjects.DataSource = this.dataSourceGraphElementsWithObjects;
 		}
 
-
 		protected override void OnRefreshBindingObject()
 		{
 			base.OnRefreshBindingObject();
 
 			if (this.PackageInfoRow?.RequestOrMessagePackageInfo.PackageArgs is ParentGraphElementIdGraphKeyRequestArgs requestArgs) // && this.PackageInfoRow.ResponseArgs is PropertyIndexValuePairsResponseArgs responseArgs)
 			{
-				string graphName = this.GetGraphName(requestArgs.GraphKey);
-				string parentGrapElementName = this.GetObjectName(GraphElementModel.TableId, requestArgs.ParentGraphElementId);
+				string? graphName = this.Context?.GetGraphName(requestArgs.GraphKey);
+				string? parentGrapElementName = this.Context?.GetObjectName(GraphElementModel.TableId, requestArgs.ParentGraphElementId);
 
 				this.editorGraphKey.Text = $"{requestArgs.GraphKey} ({graphName})"; ;
 				this.editorParentGraphElementId.Text = requestArgs.ParentGraphElementId.ToString();
@@ -200,11 +213,11 @@ namespace Simple.Objects.ServerMonitor
 
 			if (this.PackageInfoRow?.ResponsePackageInfo?.PackageArgs is GraphElementsWithObjectsResponseArgs responseArgs)
 			{
-				this.tabPageResponseNewServerObjectPropertyModels.Text = $"{this.tabNewObjectModelsName} ({responseArgs.NewServerObjectModels?.Count().ToString() ?? "0"})";
-				this.tabPageResponseGraphElementsWithObjects.Text = this.tabGraphElementsWithObjectsName + " (" + responseArgs?.GraphElementWithObjects!.Count() + ")";
+				this.tabPageResponseNewServerObjectPropertyModels.Text = this.tabNewObjectModelsName + " (" + (responseArgs.NewServerObjectModels?.Count().ToString() ?? "0") + ")";
+				this.tabPageResponseGraphElementsWithObjects.Text = this.tabGraphElementsWithObjectsName + " (" + responseArgs?.GraphElementWithObjects.Count() + ")";
 
 				// New Object Models
-				this.treeListNewObjectModels.BeginUnboundLoad();
+				this.treeListNewObjectModels.BeginUnboundLoad() ;
 				this.treeListNewObjectModels.ClearNodes();
 
 				if (responseArgs?.NewServerObjectModels != null)
@@ -230,12 +243,13 @@ namespace Simple.Objects.ServerMonitor
 							node.SetValue(this.columnIsRelationTableIdIndex, serverPropertyInfo.IsRelationTableId.ToString());
 							node.SetValue(this.columnIsRelationObjectIdIndex, serverPropertyInfo.IsRelationObjectId.ToString());
 							node.SetValue(this.columnIsSerializationOptimizableIndex, serverPropertyInfo.IsSerializationOptimizable.ToString());
-							node.SetValue(this.columnIsMemberOfSerializationSequenceIndex, serverPropertyInfo.IsClientSeriazable.ToString());
+							node.SetValue(this.columnIsClientSeriazableIndex, serverPropertyInfo.IsClientToServerSeriazable.ToString());
+							node.SetValue(this.columnIsServerSeriazableIndex, serverPropertyInfo.IsServerToClientSeriazable.ToString());
+							node.SetValue(this.columnIsServerToClientTransactionInfoSeriazableIndex, serverPropertyInfo.IsServerToClientTransactionInfoSeriazable.ToString());
 							node.SetValue(this.columnIsStorableIndex, serverPropertyInfo.IsStorable.ToString());
 							node.SetValue(this.columnIsEncryptedIndex, serverPropertyInfo.IsEncrypted.ToString());
 							node.SetValue(this.columnIncludeInTransactionActionLogIndex, serverPropertyInfo.IncludeInTransactionActionLog.ToString());
 							node.SetValue(this.columnDefaultValueIndex, serverPropertyInfo.DefaultValue?.ValueToString());
-
 						}
 					}
 				}
@@ -246,8 +260,9 @@ namespace Simple.Objects.ServerMonitor
 				this.gridViewGraphElementsWithObjects.BeginUpdate();
 				this.dataSourceGraphElementsWithObjects.Clear();
 
-				for (int i = 0; i < responseArgs?.GraphElementWithObjects!.Length; i++)
-					this.AppendGraphElementObjectPropertyInfoRow(i, ref responseArgs.GraphElementWithObjects![i]);
+				if (responseArgs?.GraphElementWithObjects != null)
+					for (int i = 0; i < responseArgs?.GraphElementWithObjects!.Length; i++)
+						this.AppendGraphElementObjectPropertyInfoRow(i, ref responseArgs.GraphElementWithObjects![i]);
 
 				for (int i = 0; i < 5; i++)
 					this.gridViewGraphElementsWithObjects.Columns[i].BestFit();
@@ -265,7 +280,7 @@ namespace Simple.Objects.ServerMonitor
 
 		private void AppendGraphElementObjectPropertyInfoRow(int rowIndex, ref GraphElementObjectPair graphElementWithObject)
 		{
-			ServerObjectModelInfo? objectModel = this.GetServerObjectModel(graphElementWithObject.SimpleObjectTableId);
+			ServerObjectModelInfo? objectModel = this.Context?.GetServerObjectModel(graphElementWithObject.SimpleObjectTableId);
 			string simpleObjectPropertyIndexValuesText = this.CreatePropertyIndexValuesString(objectModel!, graphElementWithObject.SimpleObjectPropertyIndexValues);
 			GraphElementObjectPropertyInfoRow row = new GraphElementObjectPropertyInfoRow(rowIndex, graphElementWithObject.GraphElementId,
 																						  graphElementWithObject.SimpleObjectTableId, graphElementWithObject.SimpleObjectId,

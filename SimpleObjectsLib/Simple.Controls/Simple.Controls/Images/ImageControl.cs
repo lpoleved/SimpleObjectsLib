@@ -315,12 +315,12 @@ namespace Simple.Controls
         {
             foreach (PropertyInfo property in resources.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
             {
-                object propertyValue = property.GetValue(resources, null);
+                object? propertyValue = property.GetValue(resources, null);
 
-                if (propertyValue is Image)
-                    this.LoadItem(property.Name, propertyValue as Image, createAlarmImages, createUpdateImages);
-            }
-        }
+				if (propertyValue is Image image)
+					this.LoadItem(property.Name, image, createAlarmImages, createUpdateImages);
+			}
+		}
 
         protected virtual void LoadItem(string key, Image image, bool createAlarmImages, bool createUpdateImages)
         {
@@ -396,6 +396,7 @@ namespace Simple.Controls
             foreach (string imageKey in imageList.Images.Keys)
             {
                 Image image = imageList.Images[imageKey];
+                
                 imageList.Images.Add(imageKey, image);
             }
         }

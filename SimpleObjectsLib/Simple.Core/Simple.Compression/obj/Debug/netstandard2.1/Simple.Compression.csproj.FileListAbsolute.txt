@@ -1,0 +1,10 @@
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\bin\Debug\netstandard2.1\Simple.Compression.deps.json
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\bin\Debug\netstandard2.1\Simple.Compression.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\bin\Debug\netstandard2.1\Simple.Compression.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.csproj.AssemblyReference.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.GeneratedMSBuildEditorConfig.editorconfig
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.AssemblyInfoInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.AssemblyInfo.cs
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.csproj.CoreCompileInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Compression\obj\Debug\netstandard2.1\Simple.Compression.pdb

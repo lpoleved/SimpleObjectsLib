@@ -55,7 +55,7 @@ namespace Simple.Controls
 			this.labelControlCopyright.Name = "labelControlCopyright";
 			this.labelControlCopyright.Size = new System.Drawing.Size(87, 13);
 			this.labelControlCopyright.TabIndex = 6;
-			this.labelControlCopyright.Text = "Copyright © 2023";
+			this.labelControlCopyright.Text = "Copyright © 2025";
 			// 
 			// labelControl2
 			// 

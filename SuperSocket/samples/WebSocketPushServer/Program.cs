@@ -4,8 +4,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SuperSocket;
 using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Server.Abstractions.Middleware;
+using SuperSocket.Server.Host;
 using SuperSocket.WebSocket.Server;
 
 namespace WebSocketPushServer

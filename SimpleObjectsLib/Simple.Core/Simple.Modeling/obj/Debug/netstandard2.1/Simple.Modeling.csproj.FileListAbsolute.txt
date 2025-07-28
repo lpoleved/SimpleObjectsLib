@@ -1,0 +1,15 @@
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.Modeling.deps.json
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.Modeling.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.Modeling.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.Collections.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.Collections.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\bin\Debug\netstandard2.1\Simple.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.csproj.AssemblyReference.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.GeneratedMSBuildEditorConfig.editorconfig
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.AssemblyInfoInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.AssemblyInfo.cs
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.csproj.CoreCompileInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.M.19308A2F.Up2Date
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Modeling\obj\Debug\netstandard2.1\Simple.Modeling.pdb

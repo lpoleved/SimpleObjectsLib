@@ -7,7 +7,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
 using SuperSocket.ProtoBase;
 
@@ -40,7 +43,8 @@ namespace SuperSocket.Tests
                 );
         }
 
-        public IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options) where TPackageInfo : class
+        public IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
+            where TPackageInfo : class
         {
             return new EasyClient<TPackageInfo>(pipelineFilter, options);
         }
@@ -68,7 +72,7 @@ namespace SuperSocket.Tests
             throw new Exception("Cannot find an available port for udp client binding.");
         }
 
-        private async Task UdpReceive(Socket socket, IVirtualChannel channel)
+        private async Task UdpReceive(Socket socket, IVirtualConnection connection)
         {
             var remoteEndPoint = new IPEndPoint(IPAddress.Any, 4040);
 
@@ -82,7 +86,7 @@ namespace SuperSocket.Tests
                         .ReceiveFromAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), SocketFlags.None, remoteEndPoint)
                         .ConfigureAwait(false);
 
-                    await channel.WritePipeDataAsync((new ArraySegment<byte>(buffer, 0, result.ReceivedBytes)).AsMemory(), CancellationToken.None);
+                    await connection.WriteInputPipeDataAsync((new ArraySegment<byte>(buffer, 0, result.ReceivedBytes)).AsMemory(), CancellationToken.None);
                 }
                 catch (NullReferenceException)
                 {
@@ -99,25 +103,32 @@ namespace SuperSocket.Tests
             }
         }
 
-        public ValueTask<Stream> GetClientStream(Socket socket)
+        public async ValueTask<Stream> GetClientStream(Socket socket)
         {
-            var channel = new UdpPipeChannel<TextPackageInfo>(socket, new TerminatorPipelineFilter<TextPackageInfo>(new[] { (byte)'\r', (byte)'\n'})
-                {
-                    Decoder = new UdpPackageDecoder()
-                },
-                new ChannelOptions(), new IPEndPoint(IPAddress.Loopback, Listener.GetListenEndPoint().Port));
+            await Task.Delay(0);
 
-            channel.Start();
+            var connection = new UdpPipeConnection(socket,
+                new ConnectionOptions(), new IPEndPoint(IPAddress.Loopback, Listener.ToEndPoint().Port));
 
-            UdpReceive(socket, channel).DoNotAwait();
+            _ = connection.RunAsync(GetPipelineFilter());
 
-            return new ValueTask<Stream>(new UdpChannelStream(channel, socket));
+            UdpReceive(socket, connection).DoNotAwait();
+
+            return new UdpConnectionStream(connection, socket);
         }
 
         public TextReader GetStreamReader(Stream stream, Encoding encoding)
         {
-            var channel = (stream as UdpChannelStream).Channel;
-            return new UdpTextReader(channel);
+            var connection = (stream as UdpConnectionStream).Connection;
+            return new UdpTextReader(connection, GetPipelineFilter());
+        }
+
+        private IPipelineFilter<TextPackageInfo> GetPipelineFilter()
+        {
+            return new TerminatorPipelineFilter<TextPackageInfo>(new[] { (byte)'\r', (byte)'\n' })
+            {
+                Decoder = new UdpPackageDecoder()
+            };
         }
 
         class UdpPackageDecoder : IPackageDecoder<TextPackageInfo>
@@ -133,5 +144,9 @@ namespace SuperSocket.Tests
             await Task.Delay(200);
         }
 
+        public ValueTask<Socket> CreateConnectedClientAsync()
+        {
+            throw new NotSupportedException();
+        }
     }
 }

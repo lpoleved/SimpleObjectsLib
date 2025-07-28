@@ -9,7 +9,7 @@ namespace Simple.Objects
 	//[DatastoreTable(DatastoreTableInfo.Folders)]
 	public class FolderModel : SimpleObjectModel<Folder, FolderPropertyModel, FolderModel>, ISimpleObjectModel
 	{
-		public FolderModel() : base(SystemTables.Folders)
+		public FolderModel() : base(SystemTablesBase.Folders)
 		{
 			this.UpdateValidationRules.Add(new ValidationRuleExistance(PropertyModel.Name));
 			this.UpdateValidationRules.Add(new ValidationRuleUnique(PropertyModel.Name));

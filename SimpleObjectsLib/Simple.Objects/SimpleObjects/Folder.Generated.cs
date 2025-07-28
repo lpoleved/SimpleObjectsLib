@@ -13,8 +13,8 @@ namespace Simple.Objects
     {
         #region |   Protected Members   |
 
-        protected string name = default, oldName = default;
-        protected string description = default, oldDescription = default;
+        protected string name = String.Empty, oldName = String.Empty;
+        protected string description = String.Empty, oldDescription = String.Empty;
 
         #endregion |   Protected Members   |
 
@@ -59,7 +59,7 @@ namespace Simple.Objects
         #region |   Properties by Object Property Model   |
 
         /// <summary>
-        ///  Gets or sets Name property value.
+        /// Gets or sets Name
         /// </summary>
         public string Name
         {
@@ -68,7 +68,7 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        ///  Gets or sets Description property value.
+        /// Gets or sets Description
         /// </summary>
         public string Description
         {

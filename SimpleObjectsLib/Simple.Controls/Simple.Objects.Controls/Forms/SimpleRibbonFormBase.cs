@@ -108,7 +108,7 @@ namespace Simple.Objects.Controls
 
 			if (this.ribbonModulePanelsByGraphKey.TryGetValue(graphElement.GraphKey, out ribbonModulePanel))
 			{
-				RibbonPage pageGroup = this.GetRibbonPageGroup(ribbonModulePanel.RibbonPage);
+				RibbonPage? pageGroup = this.GetRibbonPageGroup(ribbonModulePanel.RibbonPage);
 
 				if (pageGroup != null)
 					this.Ribbon.SelectedPage = pageGroup;
@@ -341,8 +341,8 @@ namespace Simple.Objects.Controls
         {
             try
             {
-                try
-                {
+                //try
+                //{
                     try
                     {
                         if (this.WindowState == FormWindowState.Normal)
@@ -355,16 +355,16 @@ namespace Simple.Objects.Controls
 
                         this.AppContext.UserSettings.WindowState = (int)this.WindowState;
                         this.AppContext.UserSettings.Save();
-                   }
+                    }
                     catch (Exception exception)
                     {
                         MessageBox.Show(exception.Message, this.AppContext.AppName, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     }
-                }
-                catch (Exception exception)
-                {
-                    MessageBox.Show(exception.Message, this.AppContext.AppName, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                }
+                //}
+                //catch (Exception exception)
+                //{
+                //    MessageBox.Show(exception.Message, this.AppContext.AppName, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                //}
 
                 SimpleRibbonModulePanel selectedModulePanel = this.GetModule(this.Ribbon.SelectedPage);
                     
@@ -470,17 +470,11 @@ namespace Simple.Objects.Controls
 
         protected void SetSkinStyle(RibbonControlStyle ribbonStyle)
         {
-            string skinName = this.AppContext.UserSettings.RibbonSkinName;
+            string skinName = this.GetSkinName();
 
             this.Ribbon.RibbonStyle = (ribbonStyle == RibbonControlStyle.Default) ? RibbonControlStyle.Office2019 : ribbonStyle;
             this.Ribbon.ColorScheme = (RibbonControlColorScheme)this.AppContext.UserSettings.RibbonColorScheme;
             WindowsFormsSettings.CompactUIMode = (this.AppContext.UserSettings.CompactUI) ? DefaultBoolean.True : DefaultBoolean.False;
-
-            if (skinName == null || skinName.Length == 0)
-                skinName = this.AppContext.UserSettings.DefaultRibonSkinName;
-
-            if (this.AppContext.UserSettings.DarkMode)
-                skinName = this.GetDarkModeSkinName();
 
             if (skinName != UserLookAndFeel.Default.ActiveSkinName)
             {
@@ -497,7 +491,21 @@ namespace Simple.Objects.Controls
             }
         }
 
-        protected virtual void OnSkinNameChange(string skinName, string oldSkinName) 
+        private string GetSkinName()
+        {
+			string skinName = this.AppContext.UserSettings.RibbonSkinName;
+
+			if (skinName == null || skinName.Length == 0)
+				skinName = this.AppContext.UserSettings.DefaultRibonSkinName;
+
+			if (this.AppContext.UserSettings.DarkMode)
+				skinName = this.GetDarkModeSkinName();
+
+            return skinName;
+		}
+
+
+		protected virtual void OnSkinNameChange(string skinName, string oldSkinName) 
         {
 			if (this.BarSubItemChangeSkin != null)
                 this.BarSubItemChangeSkin.Enabled = !this.AppContext.UserSettings.DarkMode;
@@ -587,6 +595,7 @@ namespace Simple.Objects.Controls
             foreach (SkinContainer skin in SkinManager.Default.Skins)
             {
                 BarCheckItem item = this.Ribbon.Items.CreateCheckItem(skin.SkinName, false);
+                
                 item.Tag = skin.SkinName;
                 item.ItemClick += new ItemClickEventHandler(BarButtonChangeSkinClick);
 
@@ -595,18 +604,18 @@ namespace Simple.Objects.Controls
             }
         }
 
-        private void Ribbon_SelectedPageChanging(object sender, RibbonPageChangingEventArgs e)
+        private void Ribbon_SelectedPageChanging(object? sender, RibbonPageChangingEventArgs e)
         {
             if (!this.initializing)
 				e.Cancel = !this.SelectPage(e.Page);
         }
 
-        private void SimpleRibbonForm_FormClosing(object sender, FormClosingEventArgs e)
+        private void SimpleRibbonForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             e.Cancel = !this.OnFormClosing();
         }
 
-        private void BarButtonChangeSkinClick(object sender, ItemClickEventArgs e)
+        private void BarButtonChangeSkinClick(object? sender, ItemClickEventArgs e)
         {
             string skinName = e.Item.Tag.ToString();
 
@@ -615,36 +624,33 @@ namespace Simple.Objects.Controls
             this.SetSkinStyle();
         }
 
-        private void barSubItemChangeSkin_Popup(object sender, EventArgs e)
+        private void barSubItemChangeSkin_Popup(object? sender, EventArgs e)
         {
-            foreach (BarItemLink link in this.barSubItemChangeSkin.ItemLinks)
-                ((BarCheckItem)link.Item).Checked = (link.Item.Caption == UserLookAndFeel.Default.ActiveLookAndFeel.SkinName);
+            if (this.barSubItemChangeSkin != null)
+                foreach (BarItemLink link in this.barSubItemChangeSkin.ItemLinks)
+                    ((BarCheckItem)link.Item).Checked = (link.Item.Caption == UserLookAndFeel.Default.ActiveLookAndFeel.SkinName);
         }
 
         private void LoadLocationAndSizeSettings()
         {
             try
             {
-                // Divide the screen in half, and find the center of the form to center it
-                int defaultX = (Screen.PrimaryScreen.Bounds.Width - this.Width) / 2;
-                int defaultY = (Screen.PrimaryScreen.Bounds.Height - this.Height) / 2;
+				// Set location.                                                                                      // Divide the screen in half, and find the center of the form to center it
+				int x = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowLocationX, defaultValue: (Screen.PrimaryScreen!.Bounds.Width - this.Width) / 2); // this.AppContext.UserSettings.WindowLocationX
+				int y = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowLocationY, defaultValue: (Screen.PrimaryScreen.Bounds.Height - this.Height) / 2); // this.AppContext.UserSettings.WindowLocationY
 
-                // Set location.
-                int x = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowLocationX, defaultX);
-                int y = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowLocationY, defaultY);
+				this.Location = new Point(x, y);
 
-                this.Location = new Point(x, y);
+				// Set size.
+				int width = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowWidth, defaultValue: this.Size.Width); // this.AppContext.UserSettings.WindowWidth
+				int height = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowHeight, defaultValue: this.Size.Height); // this.AppContext.UserSettings.WindowHeight
 
-                // Set size.
-                int width = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowWidth, this.Size.Width);
-                int height = this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowHeight, this.Size.Height);
+				this.Size = new Size(width, height);
 
-                this.Size = new Size(width, height);
-
-                // Set state.
-                this.WindowState = Conversion.TryChangeType<FormWindowState>(this.AppContext.UserSettings.GetValue<int>(UserSettings.SettingWindowState, ((int)FormWindowState.Normal)));
-            }
-            catch (Exception exception)
+				// Set state.
+				this.WindowState = Conversion.TryChangeType<FormWindowState>(this.AppContext.UserSettings.WindowState, ((int)FormWindowState.Normal)); //  GetValue<int>(UserSettings.SettingWindowState
+			}
+			catch (Exception exception)
             {
                 MessageBox.Show(exception.Message, this.AppContext.AppName, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }

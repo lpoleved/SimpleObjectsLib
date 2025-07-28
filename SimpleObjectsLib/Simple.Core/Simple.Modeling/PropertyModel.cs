@@ -134,21 +134,25 @@ namespace Simple.Modeling
 			this.FieldType = propertyType;
 			this.datastoreType = propertyType;
 			this.DatastoreType = propertyType;
-			this.IsStorable = true;
-			this.IsClientSeriazable = true;
-			this.IncludeInTransactionActionLog = true;
-			this.AccessPolicy = PropertyAccessPolicy.ReadWrite;
-			this.GetAccessModifier = AccessModifier.Public;
-			this.SetAccessModifier = AccessModifier.Public;
-			this.FirePropertyValueChangeEvent = true;
-			this.AddOrRemoveInChangedProperties = true;
-			this.AutoGenerateProperty = true;
+			
+			//this.IsStorable = true;
+			//this.IsClientToServerSeriazable = true;
+			//this.IsServerToClientSeriazable = true;
+			//this.IsClientToServerToClientSeriazable = true;
+			//this.IncludeInTransactionActionLog = true;
+			//this.AccessPolicy = PropertyAccessPolicy.ReadWrite;
+			//this.GetAccessModifier = AccessModifier.Public;
+			//this.SetAccessModifier = AccessModifier.Public;
+			//this.FirePropertyValueChangeEvent = true;
+			//this.AddOrRemoveInChangedProperties = true;
+			//this.AutoGenerateProperty = true;
 			this.IsSerializationOptimizable = SerializationOptimizableTypeList.Contains(propertyType) || propertyType.IsEnum;
 
 			// TODO: Add DefaultObjectValue
 			this.DefaultValue = propertyType.GetDefaultValue(); 
 			this.IsNullable = (this.DefaultValue == null);
 		}
+
 		//public SimpleProperty PropertyRepository { get; private set; }
 		//public int Index { get; set; }
 		public int PropertyIndex { get; set; }
@@ -159,7 +163,7 @@ namespace Simple.Modeling
 		public PropertyInfo? PropertyInfo { get; set; }
 		public bool IsIndexed { get; set; }
 		//public int ServerPropertyTypeId { get; set; }
-		public PropertyAccessPolicy AccessPolicy { get; set; }
+		public PropertyAccessPolicy AccessPolicy { get; set; } = PropertyAccessPolicy.ReadWrite;
 
 		public Type PropertyType
 		{
@@ -188,15 +192,17 @@ namespace Simple.Modeling
 		public int DatastoreTypeId { get; private set; }
 		public DbType DbType { get; set; }
 		public OleDbType OleDbType { get; set; }
-		public bool IsStorable { get; set; }
-		public bool IncludeInTransactionActionLog { get; set; }
-		
-		public bool IsClientSeriazable { get; set; }
+		public bool IsStorable { get; set; } = true;
+		public bool IncludeInTransactionActionLog { get; set; } = true;
+
+		public bool IsClientToServerSeriazable { get; set; } = true;
+		public bool IsServerToClientSeriazable { get; set; } = true;
+		public bool IsServerToClientTransactionInfoSeriazable { get; set; } = true; 
 
 		public bool IsSerializationOptimizable { get; set; }
 
 		public bool IsNullable { get; set; }
-		public bool IsKey { get; set; }
+		public bool IsId { get; set; }
 		public bool IsRelationTableId { get; set; }
 		public bool IsRelationObjectId { get; set; }
 		public bool IsPreviousId { get; set; }
@@ -205,8 +211,6 @@ namespace Simple.Modeling
 		public int RelationKey { get; set; }
 		public bool IsEncrypted { get; set; }
 		//public bool CanSetOnClientUpdate { get; set; }
-
-
 		
 		///// <summary>
 		///// If different than null and if IsRelationKey is True this property specify related datastore realation key TableId field propery.
@@ -224,11 +228,13 @@ namespace Simple.Modeling
 		/// If set true this property is not considered when rejecting property changes.
 		/// </summary>
 		public bool AvoidRejectChanges { get; set; }
-		public AccessModifier GetAccessModifier { get; set; }
-		public AccessModifier SetAccessModifier { get; set; }
-		public bool FirePropertyValueChangeEvent { get; set; }
-		public bool AddOrRemoveInChangedProperties { get; set; }
-		public bool AutoGenerateProperty { get; set; }
+		public AccessModifier GetAccessModifier { get; set; } = AccessModifier.Public;
+		public AccessModifier SetAccessModifier { get; set; } = AccessModifier.Public;
+		//public bool FirePropertyValueChangeEvent { get; set; } = true;
+		//public bool AddOrRemoveInChangedProperties { get; set; } = true;
+		public bool TrimStringBeforeComparison { get; set; } = true;
+
+		public bool AutoGenerateProperty { get; set; } = true;
 		public object? DefaultValue { get; set; }
 		public object? Owner { get; set; }
 

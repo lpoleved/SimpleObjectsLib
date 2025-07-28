@@ -22,7 +22,7 @@ namespace Simple.SocketEngine
 
 		public PackageArgsFactory PackageArgsFactory { get; private set; }
 
-		public IPipelineFilter<PackageReader> Create(object client)
+		public IPipelineFilter<PackageReader> Create()
 		{
 			var result = new PipelineFilter(this.PackageArgsFactory, createPackageDataCopy: false); // base class sets Decoder to null
 

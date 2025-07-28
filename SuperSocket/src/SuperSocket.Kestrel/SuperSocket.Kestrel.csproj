@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(DotNetTargetFrameworks)</TargetFrameworks>
+    <Description>SuperSocket integration with ASP.NET Core Kestrel server, enabling SuperSocket to leverage Kestrel's high-performance networking stack with TLS support and HTTP/2 protocol capabilities.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SuperSocket.Connection/SuperSocket.Connection.csproj" />
+    <ProjectReference Include="../SuperSocket.Server.Abstractions/SuperSocket.Server.Abstractions.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

@@ -14,10 +14,14 @@ using SuperSocket.ProtoBase;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using Xunit.Abstractions;
-using SuperSocket.Server;
 using System.Threading;
 using SuperSocket.Tests.Command;
+using SuperSocket.Server;
+using SuperSocket.Server.Connection;
+using SuperSocket.Server.Host;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Connections;
+using SuperSocket.Server.Abstractions.Session;
 
 namespace SuperSocket.Tests
 {
@@ -46,7 +50,8 @@ namespace SuperSocket.Tests
 
                     // register all commands in one assembly
                     //commandOptions.AddCommandAssembly(typeof(SUB).GetTypeInfo().Assembly);
-                }).BuildAsServer())
+                })
+                .BuildAsServer())
             {
 
                 Assert.Equal("TestServer", server.Name);
@@ -77,6 +82,57 @@ namespace SuperSocket.Tests
                     await streamWriter.FlushAsync();
                     line = await streamReader.ReadLineAsync();
                     Assert.Equal("6", line);
+                }
+
+                await server.StopAsync();
+            }
+        }
+
+        [Theory]
+        [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(SecureHostConfigurator))]
+        public async Task TestUnknownCommands(Type hostConfiguratorType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            using (var server = CreateSocketServerBuilder<StringPackageInfo, CommandLinePipelineFilter>(hostConfigurator)
+                .UseCommand(commandOptions =>
+                {
+                    // register commands one by one
+                    commandOptions.AddCommand<ADD>();
+                    commandOptions.RegisterUnknownPackageHandler<StringPackageInfo>(async (session, package, cancellationToken) =>
+                    {
+                        await session.SendAsync(Encoding.UTF8.GetBytes("X\r\n"));
+                    });
+
+                    // register all commands in one assembly
+                    //commandOptions.AddCommandAssembly(typeof(SUB).GetTypeInfo().Assembly);
+                })
+                .BuildAsServer())
+            {
+
+                Assert.Equal("TestServer", server.Name);
+
+                Assert.True(await server.StartAsync());
+                OutputHelper.WriteLine("Server started.");
+
+
+                var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                await client.ConnectAsync(hostConfigurator.GetServerEndPoint());
+                OutputHelper.WriteLine("Connected.");
+
+                using (var stream = await hostConfigurator.GetClientStream(client))
+                using (var streamReader = new StreamReader(stream, Utf8Encoding, true))
+                using (var streamWriter = new StreamWriter(stream, Utf8Encoding, 1024 * 1024 * 4))
+                {
+                    await streamWriter.WriteAsync("ADD 1 2 3\r\n");
+                    await streamWriter.FlushAsync();
+                    var line = await streamReader.ReadLineAsync();
+                    Assert.Equal("6", line);
+
+                    await streamWriter.WriteAsync("MULT 2 5\r\n");
+                    await streamWriter.FlushAsync();
+                    line = await streamReader.ReadLineAsync();
+                    Assert.Equal("X", line);
                 }
 
                 await server.StopAsync();
@@ -326,7 +382,7 @@ namespace SuperSocket.Tests
                 _encoder = encoder;
             }
 
-            public async ValueTask ExecuteAsync(IAppSession session, StringPackageInfo package)
+            public async ValueTask ExecuteAsync(IAppSession session, StringPackageInfo package, CancellationToken cancellationToken)
             {
                 await session.SendAsync(_encoder, "OK\r\n");
             }
@@ -342,7 +398,7 @@ namespace SuperSocket.Tests
                 _encoder = encoder;
             }
 
-            public async ValueTask ExecuteAsync(IAppSession session, StringPackageInfo package)
+            public async ValueTask ExecuteAsync(IAppSession session, StringPackageInfo package, CancellationToken cancellationToken)
             {
                 await session.SendAsync(_encoder, "OK\r\n");
             }
@@ -416,6 +472,111 @@ namespace SuperSocket.Tests
                 }
 
                 await server.StopAsync();
+            }
+        }
+
+        [Theory]
+        [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(SecureHostConfigurator))]
+        public async Task TestCommandWithDependencyInjection(Type hostConfiguratorType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            using (var server = CreateSocketServerBuilder<StringPackageInfo, CommandLinePipelineFilter>(hostConfigurator)
+                .UseCommand(commandOptions =>
+                {
+                    commandOptions.AddCommand<DOUBLE>();
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddSingleton<DataStore>();
+                })
+                .BuildAsServer())
+            {
+
+                Assert.Equal("TestServer", server.Name);
+
+                Assert.True(await server.StartAsync());
+                OutputHelper.WriteLine("Server started.");
+
+                var dataStore = server.ServiceProvider.GetService<DataStore>();
+
+                // Default value of data store
+                Assert.Equal(1, dataStore.Value);
+
+                var client = hostConfigurator.CreateClient();
+
+                using (var stream = await hostConfigurator.GetClientStream(client))
+                using (var streamWriter = new StreamWriter(stream, Utf8Encoding, 1024 * 1024 * 4))
+                {
+                    dataStore.ResetTask();
+                    await streamWriter.WriteAsync("DOUBLE\r\n");
+                    await streamWriter.FlushAsync();
+
+                    var newValue = await dataStore.WaitNewValue();
+
+                    Assert.Equal(2, newValue);
+
+                    dataStore.ResetTask();
+                    await streamWriter.WriteAsync("DOUBLE\r\n");
+                    await streamWriter.FlushAsync();
+
+                    newValue = await dataStore.WaitNewValue();
+
+                    Assert.Equal(4, newValue);
+
+                    dataStore.ResetTask();
+                    await streamWriter.WriteAsync("DOUBLE\r\n");
+                    await streamWriter.FlushAsync();
+
+                    newValue = await dataStore.WaitNewValue();
+
+                    Assert.Equal(8, newValue);
+                }
+
+                await server.StopAsync();
+            }
+        }
+
+        public class DataStore
+        {
+            private int _value = 1;
+
+            public int Value 
+            {
+                get { return _value; }
+                set
+                {
+                    _value = value;
+                    _newValueTaskSource?.SetResult(value);
+                }
+            }
+
+            private TaskCompletionSource<int> _newValueTaskSource;
+
+            public Task<int> WaitNewValue()
+            {
+                return _newValueTaskSource.Task;
+            }
+
+            public void ResetTask()
+            {
+                _newValueTaskSource = new TaskCompletionSource<int>();
+            }
+        }
+
+        class DOUBLE : IAsyncCommand<StringPackageInfo>
+        {
+            private readonly DataStore _dataStore;
+
+            public DOUBLE(DataStore dataStore)
+            {
+                _dataStore = dataStore;
+            }
+
+            public ValueTask ExecuteAsync(IAppSession session, StringPackageInfo package, CancellationToken cancellationToken)
+            {
+                _dataStore.Value = _dataStore.Value * 2;
+                return ValueTask.CompletedTask;
             }
         }
     }

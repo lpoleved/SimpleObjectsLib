@@ -11,8 +11,11 @@ using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server;
+using SuperSocket.Server.Host;
+using SuperSocket.Server.Abstractions.Host;
 using Xunit;
-using Xunit.Abstractions;
+using Meziantou.Extensions.Logging.Xunit.v3;
+using System.Threading;
 
 namespace SuperSocket.Tests
 {
@@ -22,6 +25,8 @@ namespace SuperSocket.Tests
         protected static readonly Encoding Utf8Encoding = new UTF8Encoding();
         protected readonly static int DefaultServerPort = 4040;
         protected readonly static int AlternativeServerPort = 4041;
+
+        protected CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
         protected IPEndPoint GetDefaultServerEndPoint()
         {
@@ -33,14 +38,19 @@ namespace SuperSocket.Tests
             return new IPEndPoint(IPAddress.Loopback, AlternativeServerPort);
         }
 
-        protected static ILoggerFactory DefaultLoggerFactory { get; } = LoggerFactory.Create(builder =>
-                {
-                    builder.AddConsole();
-                });
+        protected ILoggerFactory DefaultLoggerFactory { get; }
 
         protected TestClassBase(ITestOutputHelper outputHelper)
         {
             OutputHelper = outputHelper;
+
+            DefaultLoggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole();
+                builder.Services.AddSingleton<ILoggerProvider>(new XUnitLoggerProvider(outputHelper, appendScope: false));
+                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.AddDebug();
+            });
         }
 
         protected virtual void ConfigureServices(HostBuilderContext context, IServiceCollection services)
@@ -48,8 +58,14 @@ namespace SuperSocket.Tests
 
         }
 
+        protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(IHostConfigurator configurator = null)
+            where TPackageInfo : class
+        {
+            var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
+            return Configure(hostBuilder, configurator) as SuperSocketHostBuilder<TPackageInfo>;
+        }
 
-        protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(Func<object, IPipelineFilter<TPackageInfo>> filterFactory, IHostConfigurator configurator = null)
+        protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(Func<IPipelineFilter<TPackageInfo>> filterFactory, IHostConfigurator configurator = null)
             where TPackageInfo : class
         {
             var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
@@ -59,7 +75,7 @@ namespace SuperSocket.Tests
 
         protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo, TPipelineFilter>(IHostConfigurator configurator = null)
             where TPackageInfo : class
-            where TPipelineFilter : IPipelineFilter<TPackageInfo>, new()
+            where TPipelineFilter : class, IPipelineFilter<TPackageInfo>
         {
             var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
             hostBuilder.UsePipelineFilter<TPipelineFilter>();
@@ -68,7 +84,7 @@ namespace SuperSocket.Tests
 
         protected T CreateObject<T>(Type type)
         {
-            return (T)ActivatorUtilities.CreateFactory(type, new Type[0]).Invoke(null, null);
+            return (T)Activator.CreateInstance(type);
         }
 
         protected Socket CreateClient(IHostConfigurator hostConfigurator)
@@ -90,7 +106,7 @@ namespace SuperSocket.Tests
                 })
                 .ConfigureLogging((hostCtx, loggingBuilder) =>
                 {
-                    loggingBuilder.AddConsole();
+                    loggingBuilder.Services.AddSingleton<ILoggerProvider>(new XUnitLoggerProvider(OutputHelper, appendScope: false));
                     loggingBuilder.SetMinimumLevel(LogLevel.Debug);
                     loggingBuilder.AddDebug();
                 })

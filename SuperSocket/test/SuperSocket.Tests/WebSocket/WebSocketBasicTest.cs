@@ -14,15 +14,17 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using SuperSocket;
 using SuperSocket.Command;
 using SuperSocket.WebSocket.Server;
 using SuperSocket.ProtoBase;
 using SuperSocket.WebSocket;
 using SuperSocket.Server;
+using SuperSocket.Server.Host;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Tests.Command;
 using Xunit;
-using Xunit.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
 
 
 namespace SuperSocket.Tests.WebSocket
@@ -36,6 +38,83 @@ namespace SuperSocket.Tests.WebSocket
             : base(outputHelper)
         {
 
+        }
+
+        private string GetTestMessage(int messageSize, bool nonAsciiText)
+        {
+            var sb = new StringBuilder();
+            
+            while (sb.Length < messageSize)
+            {
+                if (nonAsciiText)
+                    sb.Append("这是一段长文本这是一段长文本这是");
+                else
+                    sb.Append(Guid.NewGuid().ToString());
+            }
+
+            return sb.ToString(0, messageSize);
+        }
+
+        [Theory]
+        [InlineData(125, false, 128)]
+        [InlineData(125, true, 128)]
+        [InlineData(126, false, 128)]
+        [InlineData(126, true, 128)]
+        [InlineData(127, false, 128)]
+        [InlineData(127, true, 128)]
+        [InlineData(128, false, 128)]
+        [InlineData(128, true, 128)]
+        [InlineData(129, false, 128)]
+        [InlineData(129, true, 128)]
+        [InlineData(130, false, 128)]
+        [InlineData(130, true, 128)]
+        [InlineData(8192, false, 1024)]
+        [InlineData(8192, true, 1024)]
+        [InlineData(65535, false, 1024)]
+        [InlineData(65535, true, 1024)]
+        [InlineData(65536, false, 1024)]
+        [InlineData(65536, true, 1024)]
+        [InlineData(65537, false, 1024)]
+        [InlineData(65537, true, 1024)]
+        [InlineData(6, true, 8)]
+        [InlineData(7, true, 8)]
+        [InlineData(8, true, 8)]
+        [InlineData(9, true, 8)]
+        [InlineData(10, true, 8)]
+        [InlineData(16, true, 8)]
+        [InlineData(17, true, 8)]
+        [InlineData(0, false, 8)]
+        public void TestWebSocketMaskEncoder(int messageLength, bool nonAsciiText, int fragmentSize)
+        {
+            var websocketEncoder = new WebSocketMaskedEncoder(ArrayPool<byte>.Shared, new int[] { fragmentSize });
+
+            var package = new WebSocketPackage();
+            package.OpCode = OpCode.Text;
+            package.Message = GetTestMessage(messageLength, nonAsciiText);
+
+            var writter = new ArrayBufferWriter<byte>();
+            websocketEncoder.Encode(writter, package);
+
+            var filter = new WebSocketDataPipelineFilter(null, true);
+
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(writter.WrittenMemory));
+            
+            var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            var decodedPakcage = default(WebSocketPackage);
+
+            while (true)
+            {
+                Assert.False(cancellationTokenSource.IsCancellationRequested);
+
+                decodedPakcage = filter.Filter(ref reader);
+
+                if (decodedPakcage != null)
+                    break;
+            }
+
+            Assert.Equal(package.OpCode, decodedPakcage.OpCode);
+            Assert.Equal(package.Message, decodedPakcage.Message);
         }
 
         [Theory]
@@ -166,7 +245,7 @@ namespace SuperSocket.Tests.WebSocket
                 .UseInProcSessionContainer()
                 .BuildAsServer())
             {
-                Assert.True(await server.StartAsync());
+                Assert.True(await server.StartAsync(TestContext.Current.CancellationToken));
                 OutputHelper.WriteLine("Server started.");
 
                 var sessionContainer = server.GetSessionContainer();
@@ -174,7 +253,10 @@ namespace SuperSocket.Tests.WebSocket
                 Assert.NotNull(sessionContainer);
 
                 var websocketMiddleware = server.ServiceProvider.GetRequiredService<IWebSocketServerMiddleware>();
-                
+
+                var testConnections = 100;
+                var websocketStates = new WebSocketState[testConnections];
+
                 await Parallel.ForEachAsync(Enumerable.Range(0, 100), async (index, ct) =>
                 {
                     var websocket = new ClientWebSocket();
@@ -188,18 +270,20 @@ namespace SuperSocket.Tests.WebSocket
                     {
                     }
 
-                    Assert.Equal(WebSocketState.Closed, websocket.State);
+                    websocketStates[index] = websocket.State;
                 });
-                
+
+
+                Assert.All(websocketStates, s => Assert.Equal(WebSocketState.Closed, s));
+
+                await Task.Delay(1000, TestContext.Current.CancellationToken);
+
                 Assert.Equal(0, server.SessionCount);
                 Assert.Equal(0, sessionContainer.GetSessionCount());
-
-                await Task.Delay(1000);
-
                 Assert.Equal(0, websocketMiddleware.OpenHandshakePendingQueueLength);
                 Assert.Equal(0, websocketMiddleware.CloseHandshakePendingQueueLength);
 
-                await server.StopAsync();
+                await server.StopAsync(TestContext.Current.CancellationToken);
             }
         }
 
@@ -420,6 +504,56 @@ namespace SuperSocket.Tests.WebSocket
                 });
 
                 await Task.WhenAll(tasks.ToArray());
+                await server.StopAsync();
+            }
+        }
+
+        [Theory]
+        [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(SecureHostConfigurator))]
+        public async Task TestSendReadOnlySequence(Type hostConfiguratorType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+
+            using (var server = CreateWebSocketServerBuilder(builder =>
+            {
+                return builder.UseWebSocketMessageHandler(async (session, message) =>
+                {
+                    await session.SendAsync(message.Data);
+                });
+            }, hostConfigurator).BuildAsServer())
+            {
+                Assert.True(await server.StartAsync());
+                OutputHelper.WriteLine("Server started.");
+
+                var websocket = new ClientWebSocket();
+
+                websocket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+
+                var startConnectTime = DateTime.Now;
+                await websocket.ConnectAsync(new Uri($"{hostConfigurator.WebSocketSchema}://localhost:{hostConfigurator.Listener.Port}"), CancellationToken.None);
+                OutputHelper.WriteLine($"Took {DateTime.Now.Subtract(startConnectTime)} to establish the connection from client side.");
+
+                Assert.Equal(WebSocketState.Open, websocket.State);
+
+                var receiveBuffer = new byte[256];
+
+                for (var i = 0; i < 100; i++)
+                {
+                    var message = Guid.NewGuid().ToString();
+                    var data = _encoding.GetBytes(message);
+                    var segment = new ArraySegment<byte>(data, 0, data.Length);
+
+                    await websocket.SendAsync(new ArraySegment<byte>(data, 0, data.Length), WebSocketMessageType.Binary, true, CancellationToken.None);
+                    var receivedMessage = await GetWebSocketReply(websocket, receiveBuffer, WebSocketMessageType.Binary);
+
+                    Assert.Equal(message, receivedMessage);
+                }
+
+                await websocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+
+                Assert.Equal(WebSocketState.Closed, websocket.State);
+                
                 await server.StopAsync();
             }
         }
@@ -1071,7 +1205,7 @@ namespace SuperSocket.Tests.WebSocket
 
         class ADD : IAsyncCommand<WebSocketSession, StringPackageInfo>
         {
-            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package)
+            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package, CancellationToken cancellationToken)
             {
                 var result = package.Parameters
                     .Select(p => int.Parse(p))
@@ -1083,7 +1217,7 @@ namespace SuperSocket.Tests.WebSocket
 
         class MULT : IAsyncCommand<WebSocketSession, StringPackageInfo>
         {
-            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package)
+            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package, CancellationToken cancellationToken)
             {
                 var result = package.Parameters
                     .Select(p => int.Parse(p))
@@ -1095,7 +1229,7 @@ namespace SuperSocket.Tests.WebSocket
 
         class SUB : IAsyncCommand<WebSocketSession, StringPackageInfo>
         {
-            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package)
+            public async ValueTask ExecuteAsync(WebSocketSession session, StringPackageInfo package, CancellationToken cancellationToken)
             {
                 var result = package.Parameters
                     .Select(p => int.Parse(p))

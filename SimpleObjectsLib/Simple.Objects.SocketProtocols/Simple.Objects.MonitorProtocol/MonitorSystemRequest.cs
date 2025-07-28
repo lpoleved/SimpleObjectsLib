@@ -7,7 +7,8 @@ namespace Simple.Objects.MonitorProtocol
 {
 	public enum MonitorSystemRequest
 	{
-		GetProtocolVersion = 0,
+		//GetProtocolVersion = 0,
+		GetServerVersionInfo = 0,
 		AuthenticateSession = 1,
 		GetServerState = 2,
 		StopServer = 3,

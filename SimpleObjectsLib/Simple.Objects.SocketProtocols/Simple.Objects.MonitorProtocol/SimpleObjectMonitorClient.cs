@@ -5,6 +5,7 @@ using System.Text;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using SuperSocket.Server.Abstractions;
 using Simple;
 using Simple.Collections;
 using Simple.Serialization;
@@ -25,7 +26,8 @@ namespace Simple.Objects.MonitorProtocol
 	{
 		protected override object GetCommandOwnerInstance() => this;
 
-		private Version? protocolVersion = null;
+		//private Version? protocolVersion = null;
+		private Version? systemServerVersion = null, appServerVersion = null;
 		//private SimpleObjectModelDiscovery modelDiscovery = null;
 		////private HashList<ISystemPropertySequence> systemPropertySequencesBySequenceId = null;
 		private HashArray<ServerObjectModelInfo?> serverObjectModelInfosByTableId = new HashArray<ServerObjectModelInfo?>();
@@ -39,7 +41,7 @@ namespace Simple.Objects.MonitorProtocol
 		private ActionBlock<SessionClosedMessageArgs> sessionClosedActionBlock;
 		private ActionBlock<SessionAuthenticatedMessageArgs> sessionAuthenticatedActionBlock;
 		private ActionBlock<MessageSessionMessageArgs> messageSentActionBlock;
-		private ActionBlock<MessageMessageArgs> brodcastMessageSentActionBlock;
+		private ActionBlock<BrodcastMessageMessageArgs> brodcastMessageSentActionBlock;
 		private ActionBlock<MessageSessionMessageArgs> messageReceivedActionBlock;
 		private ActionBlock<RequestResponseSessionMessageArgs> requestReceivedActionBlock;
 		private ActionBlock<RequestResponseSessionMessageArgs> requestSentActionBlock;
@@ -77,7 +79,7 @@ namespace Simple.Objects.MonitorProtocol
 			this.sessionClosedActionBlock = new ActionBlock<SessionClosedMessageArgs>(args => this.SessionClosed?.Invoke(args), dataflowOptions);
 			this.sessionAuthenticatedActionBlock = new ActionBlock<SessionAuthenticatedMessageArgs>(args => this.SessionAuthenticated?.Invoke(args), dataflowOptions);
 			this.messageSentActionBlock = new ActionBlock<MessageSessionMessageArgs>(args => this.MessageSent?.Invoke(args), dataflowOptions);
-			this.brodcastMessageSentActionBlock = new ActionBlock<MessageMessageArgs>(args => this.BrodcastMessageSent?.Invoke(args), dataflowOptions);
+			this.brodcastMessageSentActionBlock = new ActionBlock<BrodcastMessageMessageArgs>(args => this.BrodcastMessageSent?.Invoke(args), dataflowOptions);
 			this.messageReceivedActionBlock = new ActionBlock<MessageSessionMessageArgs>(args => this.MessageReceived?.Invoke(args), dataflowOptions);
 			this.requestReceivedActionBlock = new ActionBlock<RequestResponseSessionMessageArgs>(args => this.RequestReceived?.Invoke(args), dataflowOptions);
 			this.requestSentActionBlock = new ActionBlock<RequestResponseSessionMessageArgs>(args => this.RequestSent?.Invoke(args), dataflowOptions);
@@ -109,28 +111,60 @@ namespace Simple.Objects.MonitorProtocol
 		public event SessionErrorPackageInfoEventHandler? PackageProcessingError;
 		public event TransactionEventHandler? TransactionFinished;
 
-		public Version? ProtocolVersion
+		//public Version? ProtocolVersion
+		//{
+		//	get
+		//	{
+		//		if (this.protocolVersion == null && this.IsConnected)
+		//		{
+		//			var response = this.GetProtocolVersion().GetAwaiter().GetResult();
+
+		//			this.protocolVersion = (response.ResponseSucceeded) ? response.ProtocolVersion : null;
+		//		}
+		//		else if (!this.IsConnected)
+		//		{
+		//			this.protocolVersion = null;
+		//		}
+
+		//		return this.protocolVersion;
+		//	}
+		//}
+
+		public Version? SystemServerVersion
 		{
 			get
 			{
-				if (this.protocolVersion == null && this.IsConnected)
-				{
-					var response = this.GetProtocolVersion().GetAwaiter().GetResult();
+				if (this.systemServerVersion == null && this.IsConnected)
+					this.SetServerVersionInfo();
 
-					this.protocolVersion = (response.ResponseSucceeded) ? response.ProtocolVersion : null;
-				}
-				else if (!this.IsConnected)
-				{
-					this.protocolVersion = null;
-				}
+				return this.systemServerVersion;
+			}
+		}
 
-				return this.protocolVersion;
+		public Version? AppServerVersion
+		{
+			get
+			{
+				if (this.appServerVersion == null && this.IsConnected)
+					this.SetServerVersionInfo();
+
+				return this.appServerVersion;
 			}
 		}
 
 		public string Username => this.username;
 
-		protected override PackageArgsFactory CreatePackageArgsFactory() => new MonitorPackageArgsFactory(this.GetPackageArgsAssemblies());
+		protected override PackageArgsFactory CreatePackageArgsFactory() => new MonitorPackageArgsFactory(Assembly.GetExecutingAssembly());
+
+		//protected override List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var result = base.GetPackageArgsAssemblies();
+
+		//	result.Add(Assembly.GetExecutingAssembly());
+
+		//	return result;
+		//}
+
 
 		//public ServerObjectModelInfo GetServerObjectModel(int tableId) => this.GetServerObjectModelFromServer(tableId).GetAwaiter().GetResult();
 
@@ -149,11 +183,16 @@ namespace Simple.Objects.MonitorProtocol
 		//	return list;
 		//}
 
-		#region |   App Requests   |
+		#region |   System Requests   |
 
-		public async ValueTask<ProtocolVersionResponseArgs> GetProtocolVersion()
+		//public async ValueTask<ProtocolVersionResponseArgs> GetProtocolVersion()
+		//{
+		//	return await this.SendSystemRequest<ProtocolVersionResponseArgs>((int)MonitorSystemRequest.GetProtocolVersion);
+		//}
+
+		public async ValueTask<ServerVersionInfoResponseArgs> GetServerVersionInfo()
 		{
-			return await this.SendSystemRequest<ProtocolVersionResponseArgs>((int)MonitorSystemRequest.GetProtocolVersion);
+			return await this.SendSystemRequest<ServerVersionInfoResponseArgs>((int)MonitorSystemRequest.GetServerVersionInfo);
 		}
 
 		public async ValueTask<AuthenticateSessionResponseArgs> AuthenticateSession(string username, string password)
@@ -201,6 +240,9 @@ namespace Simple.Objects.MonitorProtocol
 
 		public async ValueTask<ServerObjectModelInfo?> GetServerObjectModel(int tableId)
 		{
+			if (tableId == 0)
+				return null;
+			
 			ServerObjectModelInfo? serverObjectPropertyInfo = this.serverObjectModelInfosByTableId.GetValue(tableId);
 
 			if (serverObjectPropertyInfo == null)
@@ -343,7 +385,7 @@ namespace Simple.Objects.MonitorProtocol
 		[SystemMessageCommand((int)MonitorSystemMessage.BrodcastMessageSent)]
 		protected void MessageReceive_BrodcastMessageSent(ISimpleSession session, PackageReader packageInfo)
 		{
-			if (this.BrodcastMessageSent != null && packageInfo.PackageArgs is MessageMessageArgs args)
+			if (this.BrodcastMessageSent != null && packageInfo.PackageArgs is BrodcastMessageMessageArgs args)
 				this.brodcastMessageSentActionBlock.Post(args);
 		}
 
@@ -458,7 +500,15 @@ namespace Simple.Objects.MonitorProtocol
 
 		//#endregion |   Protected Methods   |
 
-		//#region |   Private Methods   |
+		#region |   Private Methods   |
+
+		private void SetServerVersionInfo()
+		{
+			var serverVersionInfo = this.GetServerVersionInfo().GetAwaiter().GetResult();
+
+			this.systemServerVersion = serverVersionInfo.SystemServerVersion;
+			this.appServerVersion = serverVersionInfo.AppServerVersion;
+		}
 
 		//private void RaiseNewSessionConnected(object sender, SerializationReader reader)
 		//{
@@ -534,7 +584,8 @@ namespace Simple.Objects.MonitorProtocol
 		//	}
 		//}
 
-		//#endregion |   Private Methods   |
+		#endregion |   Private Methods   |
+
 		#region |   Interface ISimpleObjectSession   |
 
 		ServerObjectModelInfo? ISimpleObjectSession.GetServerObjectModel(int tableId) => this.GetServerObjectModel(tableId).GetAwaiter().GetResult();
@@ -549,7 +600,7 @@ namespace Simple.Objects.MonitorProtocol
 	public delegate void SessionConnectedEventHandler(SessionConnectedMessageArgs sessionInfo);
 	public delegate void SessionClosedEventHandler(SessionClosedMessageArgs sessionClosedInfo);
 	public delegate void SessionAuthenticatedEventHandler(SessionAuthenticatedMessageArgs sessionAuthenticatedInfo);
-	public delegate void MessageEventHandler(MessageMessageArgs sentPackageInfo);
+	public delegate void MessageEventHandler(BrodcastMessageMessageArgs sentPackageInfo);
 	public delegate void SessionMessageSentEventHandler(MessageSessionMessageArgs sessionSentPackageInfo);
 	public delegate void SessionResponsePackageInfodEventHandler(RequestResponseSessionMessageArgs requestResponseSessionInfoMessageArgs);
 	public delegate void SessionErrorPackageInfoEventHandler(SessionErrorPackageInfoMessageArgs sessionErrorPackageInfoMessageArgs);

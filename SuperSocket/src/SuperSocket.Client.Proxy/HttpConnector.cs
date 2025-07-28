@@ -3,11 +3,14 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
 
 namespace SuperSocket.Client.Proxy
 {
+    /// <summary>
+    /// Represents a connector for HTTP proxy connections.
+    /// </summary>
     public class HttpConnector : ProxyConnectorBase
     {
         private const string _requestTemplate = "CONNECT {0}:{1} HTTP/1.1\r\nHost: {0}:{1}\r\nProxy-Connection: Keep-Alive\r\n";
@@ -16,12 +19,21 @@ namespace SuperSocket.Client.Proxy
         private string _username;
         private string _password;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HttpConnector"/> class with the specified proxy endpoint.
+        /// </summary>
+        /// <param name="proxyEndPoint">The endpoint of the HTTP proxy server.</param>
         public HttpConnector(EndPoint proxyEndPoint)
             : base(proxyEndPoint)
         {
-
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HttpConnector"/> class with the specified proxy endpoint, username, and password.
+        /// </summary>
+        /// <param name="proxyEndPoint">The endpoint of the HTTP proxy server.</param>
+        /// <param name="username">The username for authentication.</param>
+        /// <param name="password">The password for authentication.</param>
         public HttpConnector(EndPoint proxyEndPoint, string username, string password)
             : this(proxyEndPoint)
         {
@@ -29,13 +41,24 @@ namespace SuperSocket.Client.Proxy
             _password = password;
         }
 
+        /// <summary>
+        /// Connects to the specified remote endpoint through the HTTP proxy.
+        /// </summary>
+        /// <param name="remoteEndPoint">The remote endpoint to connect to.</param>
+        /// <param name="state">The connection state from the previous connector.</param>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task representing the asynchronous connection operation. The result contains information about the connection status.</returns>
+        /// <remarks>
+        /// This method establishes a connection to the remote endpoint through the HTTP proxy using the CONNECT method.
+        /// It supports both DNS and IP endpoint types and handles proxy authentication if credentials are provided.
+        /// </remarks>
         protected override async ValueTask<ConnectState> ConnectProxyAsync(EndPoint remoteEndPoint, ConnectState state, CancellationToken cancellationToken)
         {
             var encoding = Encoding.ASCII;
             var request = string.Empty;
-            var channel = state.CreateChannel<TextPackageInfo>(new LinePipelineFilter(encoding), new ChannelOptions { ReadAsDemand = true });
+            var connection = state.CreateConnection(new ConnectionOptions { ReadAsDemand = true });
 
-            channel.Start();
+            var packStream = connection.GetPackageStream(new LinePipelineFilter(encoding));
 
             if (remoteEndPoint is DnsEndPoint dnsEndPoint)
             {
@@ -55,7 +78,7 @@ namespace SuperSocket.Client.Proxy
             }
 
             // send request
-            await channel.SendAsync((writer) =>
+            await connection.SendAsync((writer) =>
             {
                 writer.Write(request, encoding);
 
@@ -70,13 +93,12 @@ namespace SuperSocket.Client.Proxy
                     writer.Write("\r\n", encoding);
                 }
             });
-
-            var packStream = channel.GetPackageStream();
+            
             var p = await packStream.ReceiveAsync();
 
             if (!HandleResponse(p, out string errorMessage))
             {
-                await channel.CloseAsync(CloseReason.ProtocolError);
+                await connection.CloseAsync(CloseReason.ProtocolError);
 
                 return new ConnectState
                 {
@@ -85,10 +107,20 @@ namespace SuperSocket.Client.Proxy
                 };
             }
 
-            await channel.DetachAsync();
+            await connection.DetachAsync();
             return state;
         }
 
+        /// <summary>
+        /// Processes the HTTP response from the proxy server.
+        /// </summary>
+        /// <param name="p">The text package containing the HTTP response.</param>
+        /// <param name="message">When this method returns, contains an error message if the response is invalid; otherwise, an empty string.</param>
+        /// <returns><c>true</c> if the response indicates a successful connection; otherwise, <c>false</c>.</returns>
+        /// <remarks>
+        /// A successful response should have a status code in the 2xx range (200-299).
+        /// This method validates the format of the HTTP response and extracts the status code.
+        /// </remarks>
         private bool HandleResponse(TextPackageInfo p, out string message)
         {
             message = string.Empty;

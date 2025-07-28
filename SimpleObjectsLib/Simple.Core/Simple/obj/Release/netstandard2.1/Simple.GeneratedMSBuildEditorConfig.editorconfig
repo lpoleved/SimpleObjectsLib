@@ -1,3 +1,8 @@
 is_global = true
 build_property.RootNamespace = Simple
-build_property.ProjectDir = D:\Wild Wind\Sources\SimpleObjectsLib\Simple.Core\Simple\
+build_property.ProjectDir = D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 

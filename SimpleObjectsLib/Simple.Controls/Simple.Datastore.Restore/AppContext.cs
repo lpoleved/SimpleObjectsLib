@@ -17,7 +17,7 @@ namespace Simple.Datastore.Restore
 		public AppContext()
 		{
 			this.AppName = "Backup Database";
-			this.Copyright = "Copyright © 2023 Simple.Objects";
+			this.Copyright = "Copyright © 2025 Simple.Objects";
 		}
 
 		public static AppContext Instance { get; private set; }

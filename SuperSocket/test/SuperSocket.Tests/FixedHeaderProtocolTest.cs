@@ -3,12 +3,10 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using SuperSocket;
 using SuperSocket.ProtoBase;
-using SuperSocket.Server;
+using SuperSocket.Server.Host;
+using SuperSocket.Server.Abstractions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SuperSocket.Tests
 {
@@ -20,7 +18,7 @@ namespace SuperSocket.Tests
 
         }
 
-        class MyFixedHeaderPipelineFilter : FixedHeaderPipelineFilter<TextPackageInfo>
+        internal class MyFixedHeaderPipelineFilter : FixedHeaderPipelineFilter<TextPackageInfo>
         {
             public MyFixedHeaderPipelineFilter()
                 : base(4)
@@ -54,11 +52,14 @@ namespace SuperSocket.Tests
                 })
                 .ConfigureAppConfiguration((HostBuilder, configBuilder) =>
                 {
-                    configBuilder.AddInMemoryCollection(new Dictionary<string, string>
-                    {
-                        { "serverOptions:values:enableSendingPipe", "true" }
-                    });
+                    configBuilder.AddInMemoryCollection(LoadMemoryConfig(new Dictionary<string, string>()));
                 }).BuildAsServer() as IServer;
+        }
+
+        protected virtual Dictionary<string, string> LoadMemoryConfig(Dictionary<string, string> configSettings)
+        {
+            configSettings["serverOptions:values:enableSendingPipe"] = "true";
+            return configSettings;
         }
     }
 }

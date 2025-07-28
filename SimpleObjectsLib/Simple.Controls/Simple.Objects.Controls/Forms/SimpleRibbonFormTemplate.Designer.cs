@@ -211,7 +211,7 @@
 			this.Ribbon = this.ribbonMain;
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
 			this.StatusBar = this.ribbonStatusBar;
-			this.Text = "DemoApp Studio - Enterprise Edition";
+			this.Text = "Mobiteli Studio - Enterprise Edition";
 			((System.ComponentModel.ISupportInitialize)(this.ribbonMain)).EndInit();
 			this.ResumeLayout(false);
 			this.PerformLayout();

@@ -61,23 +61,28 @@ namespace Simple.Objects
 		{
 			lock (this.lockObject)
 			{
-				using (IDataReader reader = this.GetRecord(simpleObject.GetModel().TableInfo, SimpleObject.IndexPropertyId, SimpleObject.StringPropertyId, simpleObject.Id))
+				if (simpleObject.Manager.GetObjectCache(simpleObject.GetModel().TableInfo.TableId) is ServerObjectCache objectCache)
 				{
-					ServerObjectCache objectCache = (simpleObject.Manager.GetObjectCache(simpleObject.GetModel().TableInfo.TableId) as ServerObjectCache)!;
-
-					if (reader.Read())
+					using (IDataReader reader = this.GetRecord(simpleObject.GetModel().TableInfo, SimpleObject.IndexPropertyId, SimpleObject.StringPropertyId, simpleObject.Id))
 					{
-						simpleObject.LoadFrom(reader, objectCache.GetPropertyModelsByDataReaderFieldIndex(reader), simpleObject.Manager.NormalizeWhenReadingFromDatastore, loadOldValuesAlso: true);
-					}
-					else
-					{
-						throw new FieldAccessException("The DataReader cannot be read.");
+						if (reader.Read())
+						{
+							simpleObject.LoadFrom(reader, objectCache.GetPropertyModelsByDataReaderFieldIndex(reader), simpleObject.Manager.NormalizeWhenReadingFromDatastore, loadOldValuesAlso: true);
+						}
+						else
+						{
+							throw new FieldAccessException("The DataReader cannot be read.");
+						}
+
+						reader.Close();
 					}
 
-					reader.Close();
+					simpleObject.AfterLoad();
 				}
-
-				simpleObject.AfterLoad();
+				else
+				{
+					throw new Exception("LoadObjectPropertyValues cann be invoked only on Server");
+				}
 			}
 
 #if !NETSTANDARD

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,7 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
 using SuperSocket.ProtoBase;
 
@@ -17,13 +18,13 @@ namespace Simple.SocketEngine
 {
     public abstract class TcpHostConfigurator : IHostConfigurator
     {
-		public TcpHostConfigurator() { }
-        
-        public abstract string WebSocketSchema { get; }
-        public bool IsSecure { get; protected set; }
-        public ListenOptions Listener { get; private set; }
+        ListenOptions? listener = null;
 
-        public int ServerPort { get; private set; }
+		public string WebSocketSchema { get; protected set; } = string.Empty;
+
+        public bool IsSecure { get; protected set; }
+
+        public ListenOptions Listener { get => this.listener!; private set => this.listener = value; }
 
         public virtual void Configure(ISuperSocketHostBuilder hostBuilder)
         {
@@ -33,8 +34,7 @@ namespace Simple.SocketEngine
                 {
                     var listener = options.Listeners[0];
                     
-                    this.Listener = listener;
-
+                    Listener = listener;
                 });
             });
         }
@@ -49,18 +49,19 @@ namespace Simple.SocketEngine
             return socket;
         }
 
-        public TextReader GetStreamReader(Stream stream, Encoding encoding) => new StreamReader(stream, encoding, true);
-        
-        public ValueTask KeepSequence() => new ValueTask();
-
-        public virtual IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options)
-            where TPackageInfo : class
-		{
-            return new EasyClient<TPackageInfo>(pipelineFilter, options);
+        public TextReader GetStreamReader(Stream stream, Encoding encoding)
+        {
+            return new StreamReader(stream, encoding, true);
         }
+
+        public abstract IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
+            where TPackageInfo : class;
 
         public abstract ValueTask<Stream> GetClientStream(Socket socket);
 
-        protected virtual IPEndPoint GetServerEndPoint() => new IPEndPoint(IPAddress.Loopback, this.Listener.Port);
+        public ValueTask KeepSequence()
+        {
+            return new ValueTask();
+        }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Simple
@@ -55,14 +56,26 @@ namespace Simple
 			list[oldIndex] = temp;
 		}
 
-        /// <summary>
-        /// Checks whether a collection is the same as another collection
-        /// </summary>
-        /// <param name="value">The current instance object</param>
-        /// <param name="compareList">The collection to compare with</param>
-        /// <param name="comparer">The comparer object to use to compare each item in the collection.  If null uses EqualityComparer(T).Default</param>
-        /// <returns>True if the two collections contain all the same items in the same order</returns>
-        internal static bool IsEqualTo<TSource>(this IEnumerable<TSource> value, IEnumerable<TSource> compareList, IEqualityComparer<TSource> comparer)
+        public static T? FindFirst<T>(this IEnumerable<T> collection, Func<T, bool> predicate)
+            where T : struct
+        {
+            foreach (T item in collection)
+                if (predicate(item))
+                    return item;
+
+            return default;
+        }
+
+        //public static bool Contains<T>(this IEnumerable<T> collection, Func<T, bool> predicate) where T : struct => FindFirst(collection, predicate) != null;
+
+		/// <summary>
+		/// Checks whether a collection is the same as another collection
+		/// </summary>
+		/// <param name="value">The current instance object</param>
+		/// <param name="compareList">The collection to compare with</param>
+		/// <param name="comparer">The comparer object to use to compare each item in the collection.  If null uses EqualityComparer(T).Default</param>
+		/// <returns>True if the two collections contain all the same items in the same order</returns>
+		internal static bool IsEqualTo<TSource>(this IEnumerable<TSource>? value, IEnumerable<TSource>? compareList, IEqualityComparer<TSource>? comparer = null)
         {
             if (value == compareList)
                 return true;
@@ -98,17 +111,5 @@ namespace Simple
                 enumerator2.Dispose();
             }
         }
-
-        /// <summary>
-        /// Checks whether a collection is the same as another collection
-        /// </summary>
-        /// <param name="value">The current instance object</param>
-        /// <param name="compareList">The collection to compare with</param>
-        /// <returns>True if the two collections contain all the same items in the same order</returns>
-        internal static bool IsEqualTo<TSource>(this IEnumerable<TSource> value, IEnumerable<TSource> compareList)
-        {
-            return IsEqualTo(value, compareList, null);
-        }
-
     }
 }

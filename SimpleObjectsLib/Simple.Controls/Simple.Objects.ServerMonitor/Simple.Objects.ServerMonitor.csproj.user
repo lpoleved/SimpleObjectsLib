@@ -7,19 +7,19 @@
     <Compile Update="Edit Panels\EditPanelAuthenticateSession.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Edit Panels\EditPanelGetAllServerObjectModels.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
     <Compile Update="Edit Panels\EditPanelGetGraphElementsWithObjects.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Edit Panels\EditPanelGetObjectIds_OLD.cs">
+    <Compile Update="Edit Panels\EditPanelGetObjectIdsTEMP.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Edit Panels\EditPanelGetObjectPropertyValues.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Edit Panels\EditPanelGetProtocolVersion.cs">
+    <Compile Update="Edit Panels\EditPanelGetOneToManyForeignObjectCollection.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Edit Panels\EditPanelGetProtocolVersion_OLD.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Edit Panels\EditPanelGetServerObjectModel.cs">
@@ -28,10 +28,16 @@
     <Compile Update="Edit Panels\EditPanelPackageInfo.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="Edit Panels\EditPanelServerMonitorBase.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="Edit Panels\EditPanelSessionPackageMessage.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Edit Panels\EditPanelSessionPackageRequestResponse.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Edit Panels\EditPanelTransactionAction.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Edit Panels\EditPanelTransactionCompleted.cs">
@@ -43,32 +49,35 @@
     <Compile Update="Forms\BackstageViewLabel.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="Forms\FormMainOld2.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormMainOld.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Forms\FormSplashScreen.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Forms\OLD\FormMain_OLD.cs">
+    <Compile Update="Forms\frmFind.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Tools\ColorBox.cs">
+    <Compile Update="Forms\frmPad.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\frmReplace.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Tools\PopupColor.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Tools\Office.cs">
+    <Compile Update="Tools\Office2007PopupControlContainer.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Update="Forms\OLD\FormFind.cs">
+    <Compile Update="Forms\FormSettings.cs">
       <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="Forms\OLD\FormPad.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="Forms\OLD\FormSettings.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="Tools\ColorPopup.cs">
-      <SubType>UserControl</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>

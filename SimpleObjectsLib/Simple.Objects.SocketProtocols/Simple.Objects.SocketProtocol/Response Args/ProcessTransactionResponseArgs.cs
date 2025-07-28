@@ -16,18 +16,19 @@ namespace Simple.Objects.SocketProtocol
         {
         }
 
-		public ProcessTransactionResponseArgs(long transactionId, IEnumerable<long> newObjectIds) // IEnumerable<long> newObjectIds)
+		public ProcessTransactionResponseArgs(long transactionId, IEnumerable<long>? newObjectIds, string infoMessage) // IEnumerable<long> newObjectIds)
 		{
-			this.TransactionSucceeded = true;
+			this.TransactionSucceeded = transactionId > 0;
 			this.TransactionId = transactionId;
 			this.NewObjectIds = newObjectIds;
+			this.InfoMessage = infoMessage;
 		}
 
 		//private int NewObjectsCount { get; set; }
 		public bool TransactionSucceeded { get; private set; }
 		public long TransactionId { get; private set; }
 		public IEnumerable<long>? NewObjectIds { get; private set; }
-		public string MessageInfo { get; private set; } = String.Empty;
+		public string InfoMessage { get; private set; } = String.Empty;
 
 		public override int GetBufferCapacity() => base.GetBufferCapacity() + 15;
 
@@ -45,10 +46,10 @@ namespace Simple.Objects.SocketProtocol
 				foreach (long newObjectId in this.NewObjectIds!)
 					writer.WriteInt64Optimized(newObjectId); // Writes new object Id 
 			}
-			else
-			{
-				writer.WriteString(this.MessageInfo);
-			}
+			//else
+			//{
+				writer.WriteString(this.InfoMessage);
+			//}
 		}
 
 		public override void ReadFrom(ref SequenceReader reader, ISimpleSession session)
@@ -67,10 +68,10 @@ namespace Simple.Objects.SocketProtocol
 
 				this.NewObjectIds = newObjectIds;
 			}
-			else
-			{
-				this.MessageInfo = reader.ReadString();
-			}
+			//else
+			//{
+				this.InfoMessage = reader.ReadString();
+			//}
 		}
 	}
 }

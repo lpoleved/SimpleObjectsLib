@@ -18,15 +18,15 @@ namespace Simple.Objects.SocketProtocol
         {
         }
 
-		public AuthenticateSessionResponseArgs(bool isAuthenticated) //, long userId, string username)
+		public AuthenticateSessionResponseArgs(bool isAuthenticated, long userId) //, long userId, string username)
         {
             this.IsAuthenticated = isAuthenticated;
-            //this.UserId = userId;
+            this.UserId = userId;
             //this.Username = username;
         }
 
         public bool IsAuthenticated { get; private set; }
-        //public long UserId { get; private set; }
+        public long UserId { get; private set; }
         //public string Username { get; private set; } = String.Empty;
 
 
@@ -41,11 +41,11 @@ namespace Simple.Objects.SocketProtocol
 			
             writer.WriteBoolean(this.IsAuthenticated);
 
-            //if (this.IsAuthenticated)
-            //{
-            //    writer.WriteInt64Optimized(this.UserId);
+            if (this.IsAuthenticated)
+            {
+                writer.WriteInt64Optimized(this.UserId);
             //    writer.WriteString(this.Username);
-            //}
+            }
         }
 
         public override void ReadFrom(ref SequenceReader reader, ISimpleSession session)
@@ -54,11 +54,11 @@ namespace Simple.Objects.SocketProtocol
 			
             this.IsAuthenticated = reader.ReadBoolean();
 
-            //if (this.IsAuthenticated)
-            //{
-            //    this.UserId = reader.ReadInt64Optimized();
+            if (this.IsAuthenticated)
+            {
+                this.UserId = reader.ReadInt64Optimized();
             //    this.Username = reader.ReadString();
-            //}
+            }
         }
     }
 }

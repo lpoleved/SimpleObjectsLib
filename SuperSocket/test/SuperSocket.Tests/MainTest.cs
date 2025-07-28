@@ -1,23 +1,27 @@
 using System;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-using SuperSocket.ProtoBase;
-using Xunit;
-using Xunit.Abstractions;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SuperSocket;
-using SuperSocket.Server;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Hosting.Internal;
-using System.Linq;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Pipelines;
+using System.Linq;
+using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SuperSocket.Connection;
+using SuperSocket.Kestrel;
+using SuperSocket.ProtoBase;
+using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Server.Host;
+using Xunit;
 
 /// <summary>
 /// Run selected test case by command
@@ -95,14 +99,17 @@ namespace SuperSocket.Tests
 
         [Theory]
         [InlineData("Tls12", SslProtocols.Tls12, false)]
+        //[InlineData("Tls13", SslProtocols.Tls13, false)] We cannot test it because TLS 1.3 client is only available in Windows
         [InlineData("Tls15", SslProtocols.None, true)]
-        [InlineData("Tls11, Tls12", SslProtocols.Tls11 | SslProtocols.Tls12, false)]
-        [InlineData("Tls11,Tls12", SslProtocols.Tls11 | SslProtocols.Tls12, false)]
-        [InlineData("Tls11|Tls12", SslProtocols.Tls11 | SslProtocols.Tls12, true)]        
+        [InlineData("Tls13, Tls12", SslProtocols.Tls13 | SslProtocols.Tls12, false)]
+        [InlineData("Tls13,Tls12", SslProtocols.Tls13 | SslProtocols.Tls12, false)]
+        [InlineData("Tls13|Tls12", SslProtocols.Tls13 | SslProtocols.Tls12, true)]        
         public async Task TestSecurityOptions(string security, SslProtocols protocols, bool expectException) 
         {
             var hostConfigurator = new SecureHostConfigurator();
             var listener = default(ListenOptions);
+
+            var autoResetEvent = new AutoResetEvent(false);
 
             var createServer = new Func<IServer>(() =>
             {
@@ -111,13 +118,23 @@ namespace SuperSocket.Tests
                     {
                         configBuilder.AddInMemoryCollection(new Dictionary<string, string>
                         {
-                            { "serverOptions:listeners:0:security", security }
+                            { "serverOptions:listeners:0:authenticationOptions:enabledSslProtocols", security }
                         });
                     })
                     .ConfigureSuperSocket(serverOptions =>
                     {
                         listener = serverOptions.Listeners.FirstOrDefault();
                     })
+                    .UseSessionHandler(onConnected: (session) =>
+                        {
+                            autoResetEvent.Set();
+                            return ValueTask.CompletedTask;
+                        },
+                        onClosed: (session, reason) =>
+                        {
+                            autoResetEvent.Set();
+                            return ValueTask.CompletedTask;
+                        })
                     .BuildAsServer();
             });
 
@@ -136,13 +153,13 @@ namespace SuperSocket.Tests
             }
             
             Assert.NotNull(listener);
-            Assert.Equal(protocols, listener.Security);
+            Assert.Equal(protocols, listener.AuthenticationOptions.EnabledSslProtocols);
 
             using (server)
             {
                 Assert.Equal("TestServer", server.Name);
 
-                Assert.True(await server.StartAsync());
+                Assert.True(await server.StartAsync(TestContext.Current.CancellationToken));
                 OutputHelper.WriteLine("Started.");
 
                 Assert.Equal(0, server.SessionCount);
@@ -151,46 +168,51 @@ namespace SuperSocket.Tests
                 using (var socket = CreateClient(hostConfigurator))
                 {
                     var socketStream = await hostConfigurator.GetClientStream(socket);
-                    await Task.Delay(500);
+                    autoResetEvent.WaitOne(1000);
                     Assert.Equal(1, server.SessionCount);
                     OutputHelper.WriteLine("SessionCount:" + server.SessionCount);              
                 }
 
-                await Task.Delay(500);
+                autoResetEvent.WaitOne(1000);
                 Assert.Equal(0, server.SessionCount);
                 OutputHelper.WriteLine("SessionCount:" + server.SessionCount);
 
-                await server.StopAsync();
+                await server.StopAsync(TestContext.Current.CancellationToken);
             }            
         }
 
         [Theory]
         [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
         public async Task TestSessionHandlers(Type hostConfiguratorType) 
         {
             var connected = false;
             var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
 
+            var autoResetEvent = new AutoResetEvent(false);
+
             using (var server = CreateSocketServerBuilder<TextPackageInfo, LinePipelineFilter>(hostConfigurator)
                 .UseSessionHandler((s) =>
                 {
                     connected = true;
+                    autoResetEvent.Set();
                     return new ValueTask();
                 }, (s, e) =>
                 {
                     connected = false;
+                    autoResetEvent.Set();
                     return new ValueTask();
                 })
                 .UsePackageHandler(async (s, p) =>
                 {
                     if (p.Text == "CLOSE")
-                        await s.CloseAsync(Channel.CloseReason.LocalClosing);            
+                        await s.CloseAsync(CloseReason.LocalClosing);            
                 }).BuildAsServer())
             {
                 Assert.Equal("TestServer", server.Name);
 
-                Assert.True(await server.StartAsync());
+                Assert.True(await server.StartAsync(TestContext.Current.CancellationToken));
                 OutputHelper.WriteLine("Started.");
 
                 var client = hostConfigurator.CreateClient();
@@ -206,7 +228,7 @@ namespace SuperSocket.Tests
 
                 OutputHelper.WriteLine("Connected.");
 
-                await Task.Delay(1000);
+                autoResetEvent.WaitOne(1000);
 
                 Assert.True(connected);
 
@@ -222,7 +244,7 @@ namespace SuperSocket.Tests
                     client.Close();
                 }                
 
-                await Task.Delay(1000);
+                autoResetEvent.WaitOne(1000);
 
                 if (outputStream != null)
                 {
@@ -231,7 +253,7 @@ namespace SuperSocket.Tests
 
                 Assert.False(connected);
 
-                await server.StopAsync();
+                await server.StopAsync(TestContext.Current.CancellationToken);
             }
         }
 
@@ -333,8 +355,43 @@ namespace SuperSocket.Tests
         }
 
         [Theory]
+        [InlineData(typeof(RegularHostConfigurator), typeof(TcpPipeConnection))]
+        [InlineData(typeof(SecureHostConfigurator), typeof(StreamPipeConnection))]
+        //[InlineData(typeof(UdpHostConfigurator), typeof(UdpConnectionStream))]
+        [InlineData(typeof(KestralConnectionHostConfigurator), typeof(KestrelPipeConnection))]
+        public async Task TestConnectionType(Type hostConfiguratorType, Type connectionType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+            var connection = default(IConnection);
+            var resetEvent = new ManualResetEvent(false);
+            
+            using (var server = CreateSocketServerBuilder<TextPackageInfo, LinePipelineFilter>(hostConfigurator)
+                .UseSessionHandler(onConnected: (session) =>
+                {
+                    connection = session.Connection;
+                    resetEvent.Set();
+                    return ValueTask.CompletedTask;
+                }).BuildAsServer() as IServer)
+            {
+                Assert.True(await server.StartAsync());
+                Assert.Equal(0, server.SessionCount);
+
+                using (var socket = CreateClient(hostConfigurator))
+                using (var socketStream = await hostConfigurator.GetClientStream(socket))
+                {
+                    Assert.True(resetEvent.WaitOne(5000));
+                }
+
+                await server.StopAsync();
+            }
+
+            Assert.IsType(connectionType, connection);
+        }
+
+        [Theory]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public async Task TestConsoleProtocol(Type hostConfiguratorType)
         {
             var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
@@ -366,6 +423,7 @@ namespace SuperSocket.Tests
         [Theory]
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public async Task TestCloseAfterSend(Type hostConfiguratorType)
         {
             var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
@@ -373,25 +431,25 @@ namespace SuperSocket.Tests
                 .UsePackageHandler(async (IAppSession s, TextPackageInfo p) =>
                 {
                     await s.SendAsync(Utf8Encoding.GetBytes("Hello World\r\n"));
-                    await s.CloseAsync(Channel.CloseReason.LocalClosing);
+                    await s.CloseAsync(CloseReason.LocalClosing);
                 }).BuildAsServer() as IServer)
             {            
-                Assert.True(await server.StartAsync());
+                Assert.True(await server.StartAsync(TestContext.Current.CancellationToken));
                 Assert.Equal(0, server.SessionCount);
 
                 var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                await client.ConnectAsync(hostConfigurator.GetServerEndPoint());                
+                await client.ConnectAsync(hostConfigurator.GetServerEndPoint(), TestContext.Current.CancellationToken);                
                 using (var stream = await hostConfigurator.GetClientStream(client))
                 using (var streamReader = new StreamReader(stream, Utf8Encoding, true))
                 using (var streamWriter = new StreamWriter(stream, Utf8Encoding, 1024 * 1024 * 4))
                 {
                     await streamWriter.WriteAsync("Hello World\r\n");
-                    await streamWriter.FlushAsync();
-                    var line = await streamReader.ReadLineAsync();
+                    await streamWriter.FlushAsync(TestContext.Current.CancellationToken);
+                    var line = await streamReader.ReadLineAsync(TestContext.Current.CancellationToken);
                     Assert.Equal("Hello World", line);
                 }
 
-                await server.StopAsync();
+                await server.StopAsync(TestContext.Current.CancellationToken);
             }
         }
 
@@ -399,6 +457,7 @@ namespace SuperSocket.Tests
         [InlineData(typeof(RegularHostConfigurator))]
         [InlineData(typeof(SecureHostConfigurator))]
         [InlineData(typeof(UdpHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
         public async Task TestMultipleHostStartup(Type hostConfiguratorType)
         {
             var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
@@ -425,6 +484,86 @@ namespace SuperSocket.Tests
                 });
 
             using(var host = hostBuilder.Build())
+            {
+                await host.StartAsync();
+                await host.StopAsync();
+            }
+        }
+
+        [Theory]
+        [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(SecureHostConfigurator))]
+        [InlineData(typeof(UdpHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
+        public async Task TestHostStartupMinimalApi(Type hostConfiguratorType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+
+            var hostBuilder = WebApplication.CreateBuilder()
+                .AsSuperSocketApplicationBuilder(serverHostBuilder =>
+                    serverHostBuilder
+                        .ConfigureAppConfiguration((hostingContext, config) =>
+                        {
+                            config.Sources.Clear();
+                            config.AddJsonFile("Config/multiple_server.json", optional: false, reloadOnChange: true);
+                        })
+                        .AddServer<TextPackageInfo, LinePipelineFilter>(builder =>
+                        {
+                            hostConfigurator.Configure(builder);
+
+                            builder
+                                .ConfigureServerOptions((ctx, config) =>
+                                {
+                                    return config.GetSection("TestServer1");
+                                })
+                                .UsePackageHandler(async (IAppSession s, TextPackageInfo p) =>
+                                {
+                                    await s.SendAsync(Utf8Encoding.GetBytes("Hello World\r\n"));
+                                });
+                        })
+                );
+
+            using (var host = hostBuilder.Build())
+            {
+                await host.StartAsync();
+                await host.StopAsync();
+            }
+        }
+
+        [Theory]
+        [InlineData(typeof(RegularHostConfigurator))]
+        [InlineData(typeof(SecureHostConfigurator))]
+        [InlineData(typeof(UdpHostConfigurator))]
+        [InlineData(typeof(KestralConnectionHostConfigurator))]
+        public async Task TestHostApplicationBuilderStartup(Type hostConfiguratorType)
+        {
+            var hostConfigurator = CreateObject<IHostConfigurator>(hostConfiguratorType);
+
+            var hostBuilder = Host.CreateApplicationBuilder()
+                .AsSuperSocketApplicationBuilder(serverHostBuilder =>
+                    serverHostBuilder
+                        .ConfigureAppConfiguration((hostingContext, config) =>
+                        {
+                            config.Sources.Clear();
+                            config.AddJsonFile("Config/multiple_server.json", optional: false, reloadOnChange: true);
+                        })
+                        .AddServer<TextPackageInfo, LinePipelineFilter>(builder =>
+                        {
+                            hostConfigurator.Configure(builder);
+
+                            builder
+                                .ConfigureServerOptions((ctx, config) =>
+                                {
+                                    return config.GetSection("TestServer1");
+                                })
+                                .UsePackageHandler(async (IAppSession s, TextPackageInfo p) =>
+                                {
+                                    await s.SendAsync(Utf8Encoding.GetBytes("Hello World\r\n"));
+                                });
+                        })
+                );
+
+            using (var host = hostBuilder.Build())
             {
                 await host.StartAsync();
                 await host.StopAsync();
@@ -647,6 +786,107 @@ namespace SuperSocket.Tests
                 Assert.Equal(2, testService2.Version);
                 Assert.Same(server2, server2.ServiceProvider.GetService<IServerInfo>());
                 Assert.Same(server2, server2.ServiceProvider.GetService<MyLocalTestService>().Server);
+
+                await host.StopAsync();
+            }
+        }
+
+        [Fact]
+        public async Task TestMultipleServerHostWithConfigureServerOptions()
+        {
+            var serverName1 = "TestServer1";
+            var serverName2 = "TestServer2";
+
+            var server1 = default(IServer);
+            var server2 = default(IServer);
+
+            IHostEnvironment actualHostEvn = null;
+
+            var hostBuilder = MultipleServerHostBuilder.Create()                
+                .AddServer<SuperSocketServiceA, TextPackageInfo, LinePipelineFilter>(builder =>
+                {
+                    builder
+                    .UseSessionHandler(async (s) =>
+                    {
+                        server1 = s.Server as IServer;
+                        await s.SendAsync(Utf8Encoding.GetBytes($"{s.Server.Name}\r\n"));
+                    })
+                    .UseInProcSessionContainer()
+                    .ConfigureServices((ctx, services) =>
+                    {
+                        services.AddSingleton<MyLocalTestService>();
+                        services.Configure<ServerOptions>(options =>
+                        {
+                            options.Name = serverName1;
+                            options.Listeners = new List<ListenOptions>
+                            {
+                                new ListenOptions
+                                {
+                                    Port = 4040,
+                                    Ip = "Any"
+                                }
+                            };
+
+                        });
+                    });
+                })
+                .AddServer<SuperSocketServiceB, TextPackageInfo, LinePipelineFilter>(builder =>
+                {
+                    builder
+                    .UseSessionHandler(async (s) =>
+                    {
+                        server2 = s.Server as IServer;
+                        await s.SendAsync(Utf8Encoding.GetBytes($"{s.Server.Name}\r\n"));
+                    })
+                    .UseInProcSessionContainer()
+                    .ConfigureServices((ctx, services) =>
+                    {
+                        services.AddSingleton<MyLocalTestService>();
+                        services.Configure<ServerOptions>(options =>
+                        {
+                            options.Name = serverName2;
+                            options.Listeners = new List<ListenOptions>
+                            {
+                                new ListenOptions
+                                {
+                                    Port = 4041,
+                                    Ip = "Any"
+                                }
+                            };
+                        });
+                    });
+                })
+                .ConfigureLogging((hostCtx, loggingBuilder) =>
+                {
+                    loggingBuilder.AddConsole();
+                    loggingBuilder.AddDebug();
+                });
+
+            using (var host = hostBuilder.Build())
+            {
+                await host.StartAsync();
+
+                var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                await client.ConnectAsync(GetDefaultServerEndPoint());
+
+                using (var stream = new NetworkStream(client))
+                using (var streamReader = new StreamReader(stream, Utf8Encoding, true))
+                using (var streamWriter = new StreamWriter(stream, Utf8Encoding, 1024 * 1024 * 4))
+                {
+                    var line = await streamReader.ReadLineAsync();
+                    Assert.Equal(serverName1, line);
+                }
+
+                client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                await client.ConnectAsync(GetAlternativeServerEndPoint());
+
+                using (var stream = new NetworkStream(client))
+                using (var streamReader = new StreamReader(stream, Utf8Encoding, true))
+                using (var streamWriter = new StreamWriter(stream, Utf8Encoding, 1024 * 1024 * 4))
+                {
+                    var line = await streamReader.ReadLineAsync();
+                    Assert.Equal(serverName2, line);
+                }
 
                 await host.StopAsync();
             }

@@ -38,5 +38,17 @@ namespace Simple
 
 			return true;
 		}
+
+		public static T? FindFirst<T>(this IEnumerable<T> collection, Func<T, bool> predicate)
+			where T : class
+		{
+			foreach (T item in collection)
+				if (predicate(item))
+					return item;
+
+			return default;
+		}
+
+		//public static bool Contains<T>(this IEnumerable<T> collection, Func<T, bool> predicate) where T : class => FindFirst(collection, predicate) != null;
 	}
 }

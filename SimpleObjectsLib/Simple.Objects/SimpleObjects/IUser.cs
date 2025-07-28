@@ -15,6 +15,7 @@ namespace Simple.Objects
 
 		Encoding CharacterEncoding { get; }
 
-		DefaultSecurityPolicy SecurityPolicy { get; }
+		//DefaultSecurityPolicy GraphPolicy { get; }
+		//DefaultSecurityPolicy ObjectPolicy { get; }
 	}
 }

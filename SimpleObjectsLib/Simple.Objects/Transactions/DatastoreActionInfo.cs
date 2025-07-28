@@ -14,7 +14,7 @@ namespace Simple.Objects
 		{
 		}
 
-		public DatastoreActionInfo(int tableId, long objectId, TransactionActionType actionType, PropertyIndexValuePair[]? propertyIndexValues)
+		public DatastoreActionInfo(int tableId, long objectId, TransactionActionType actionType, IList<PropertyIndexValuePair>? propertyIndexValues)
 			: base(tableId, objectId, actionType, propertyIndexValues)
 		{
 		}
@@ -27,7 +27,6 @@ namespace Simple.Objects
 
 			writer.WriteBits((byte)this.DatastoreStatus, 2);
 		}
-
 
 		// Datastore rollback data will encode TypeId in sequence, to be imunne on property model change over the time.
 		protected override void WritePropertyTypeId(ref SequenceWriter writer, int propertyTypeId) => writer.WriteInt32Optimized(propertyTypeId);
@@ -46,10 +45,9 @@ namespace Simple.Objects
 		protected override int ReadPropertyTypeId(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel, int propertyIndex) => reader.ReadInt32Optimized();
 		protected override bool ReadIsProperySerializationOptimizable(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel, int propertyIndex) => reader.ReadBoolean();
 
-		protected override int GetPropertyTypeId(IServerPropertyInfo propertyModel)
-		{
-			return propertyModel.DatastoreTypeId;
-		}
+		protected override int GetPropertyTypeId(IServerPropertyInfo propertyModel) => propertyModel.DatastoreTypeId;
+
+		protected override object? GetPropertyValue(object? value) => (value == DBNull.Value) ? null : value;
 	}
 
 	public enum DatastoreActionStatus

@@ -2,55 +2,107 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
-using SuperSocket.ProtoBase;
 using Microsoft.Extensions.Logging;
+using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Server.Abstractions.Middleware;
 
 namespace SuperSocket.Command
 {
-
+    /// <summary>
+    /// Represents a middleware for handling commands in a SuperSocket application.
+    /// </summary>
+    /// <typeparam name="TKey">The type of the command key.</typeparam>
+    /// <typeparam name="TPackageInfo">The type of the package information.</typeparam>
     public class CommandMiddleware<TKey, TPackageInfo> : CommandMiddleware<TKey, TPackageInfo, TPackageInfo>
         where TPackageInfo : class, IKeyedPackageInfo<TKey>
     {
-
-        class TransparentMapper : IPackageMapper<TPackageInfo, TPackageInfo>
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CommandMiddleware{TKey, TPackageInfo}"/> class.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <param name="commandOptions">The options for configuring commands.</param>
+        public CommandMiddleware(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions)
+            : base(serviceProvider, commandOptions)
         {
+        }
+
+        /// <summary>
+        /// Creates a package mapper for mapping packages to commands.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <returns>An instance of <see cref="IPackageMapper{TPackageInfo, TPackageInfo}"/>.</returns>
+        protected override IPackageMapper<TPackageInfo, TPackageInfo> CreatePackageMapper(IServiceProvider serviceProvider)
+        {
+            return new TransparentMapper();
+        }
+
+        private class TransparentMapper : IPackageMapper<TPackageInfo, TPackageInfo>
+        {
+            /// <summary>
+            /// Maps a package to itself.
+            /// </summary>
+            /// <param name="package">The package to map.</param>
+            /// <returns>The same package.</returns>
             public TPackageInfo Map(TPackageInfo package)
             {
                 return package;
             }
         }
-
-        public CommandMiddleware(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions)
-            : base(serviceProvider, commandOptions)
-        {
-
-        }
-
-        protected override IPackageMapper<TPackageInfo, TPackageInfo> CreatePackageMapper(IServiceProvider serviceProvider)
-        {
-            return new TransparentMapper();
-        }
     }
 
+    /// <summary>
+    /// Represents a middleware for handling commands with package mapping capability.
+    /// </summary>
+    /// <typeparam name="TKey">The type of the command key.</typeparam>
+    /// <typeparam name="TNetPackageInfo">The type of the network package information.</typeparam>
+    /// <typeparam name="TPackageInfo">The type of the package information after mapping.</typeparam>
     public class CommandMiddleware<TKey, TNetPackageInfo, TPackageInfo> : MiddlewareBase, IPackageHandler<TNetPackageInfo>
         where TPackageInfo : class, IKeyedPackageInfo<TKey>
         where TNetPackageInfo : class
     {
+        /// <summary>
+        /// Dictionary of available commands indexed by their keys.
+        /// </summary>
         private Dictionary<TKey, ICommandSet> _commands;
 
+        /// <summary>
+        /// Handler for processing packages with unknown keys.
+        /// </summary>
+        private Func<IAppSession, TPackageInfo, CancellationToken, ValueTask> _unknownPackageHandler;
+
+        /// <summary>
+        /// Logger instance for the command middleware.
+        /// </summary>
         private ILogger _logger;
 
-        protected IPackageMapper<TNetPackageInfo, TPackageInfo> PackageMapper { get; private set; }    
+        /// <summary>
+        /// Gets the package mapper that converts network packages to command packages.
+        /// </summary>
+        protected IPackageMapper<TNetPackageInfo, TPackageInfo> PackageMapper { get; private set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CommandMiddleware{TKey, TNetPackageInfo, TPackageInfo}"/> class.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <param name="commandOptions">The options for configuring commands.</param>
         public CommandMiddleware(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions)
             : this(serviceProvider, commandOptions, null)
         {
 
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CommandMiddleware{TKey, TNetPackageInfo, TPackageInfo}"/> class with a custom package mapper.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <param name="commandOptions">The options for configuring commands.</param>
+        /// <param name="packageMapper">A custom package mapper implementation.</param>
         public CommandMiddleware(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions, IPackageMapper<TNetPackageInfo, TPackageInfo> packageMapper)
         {
             _logger = serviceProvider.GetService<ILoggerFactory>().CreateLogger("CommandMiddleware");
@@ -132,6 +184,18 @@ namespace SuperSocket.Command
             _commands = commandDict;
             
             PackageMapper = packageMapper != null ? packageMapper : CreatePackageMapper(serviceProvider);
+
+            var unknownPackageHandler = commandOptions.Value.UnknownPackageHandler;
+
+            if (unknownPackageHandler != null)
+            {
+                _unknownPackageHandler = unknownPackageHandler as Func<IAppSession, TPackageInfo, CancellationToken, ValueTask>;
+
+                if (_unknownPackageHandler == null)
+                {
+                    _logger.LogError($"{nameof(commandOptions.Value.UnknownPackageHandler)} was registered with incorrectly. The expected typew is {typeof(Func<IAppSession, TPackageInfo, ValueTask>).Name}.");
+                }
+            }            
         }
 
         private void RegisterCommandInterfaces(List<CommandTypeInfo> commandInterfaces, List<ICommandSetFactory> commandSetFactories, IServiceProvider serviceProvider, Type sessionType, Type packageType, bool wrapRequired = false)
@@ -178,47 +242,96 @@ namespace SuperSocket.Command
                 if (commandWrapFactory != null)
                 {
                     var commandWrapType = commandWrapFactory(command.GetType());
-                    cmd = ActivatorUtilities.CreateInstance(null, commandWrapType, command) as ICommand;
+                    cmd = Activator.CreateInstance(commandWrapType, command) as ICommand;
                 }
 
                 var commandTypeInfo = new CommandTypeInfo(cmd);
                 commandTypeInfo.ActualCommandType = actualCommandType;
-                commandSetFactories.Add(ActivatorUtilities.CreateInstance(null, commandSetFactoryType, commandTypeInfo) as ICommandSetFactory);
+                commandSetFactories.Add(Activator.CreateInstance(commandSetFactoryType, commandTypeInfo) as ICommandSetFactory);
             }
         }
 
+        /// <summary>
+        /// Creates a package mapper for mapping network packages to command packages.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <returns>An instance of <see cref="IPackageMapper{TNetPackageInfo, TPackageInfo}"/>.</returns>
         protected virtual IPackageMapper<TNetPackageInfo, TPackageInfo> CreatePackageMapper(IServiceProvider serviceProvider)
         {
             return serviceProvider.GetService<IPackageMapper<TNetPackageInfo, TPackageInfo>>();
         }
 
-        protected virtual async ValueTask HandlePackage(IAppSession session, TPackageInfo package)
+        /// <summary>
+        /// Handles a package by executing the corresponding command.
+        /// </summary>
+        /// <param name="session">The application session.</param>
+        /// <param name="package">The package to handle.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
+        protected virtual async ValueTask HandlePackage(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)
         {
             if (!_commands.TryGetValue(package.Key, out ICommandSet commandSet))
             {
+                var unknownPackageHandler = _unknownPackageHandler;
+
+                if (unknownPackageHandler != null)
+                {
+                    await unknownPackageHandler.Invoke(session, package, cancellationToken);
+                }
+
                 return;
             }
 
-            await commandSet.ExecuteAsync(session, package);
+            await commandSet.ExecuteAsync(session, package, cancellationToken);
         }
 
-        protected virtual async Task OnPackageReceived(IAppSession session, TPackageInfo package)
+        /// <summary>
+        /// Called when a package is received.
+        /// </summary>
+        /// <param name="session">The application session.</param>
+        /// <param name="package">The package received.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        protected virtual async Task OnPackageReceived(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)
         {
-            await HandlePackage(session, package);
+            await HandlePackage(session, package, cancellationToken);
         }
 
-        ValueTask IPackageHandler<TNetPackageInfo>.Handle(IAppSession session, TNetPackageInfo package)
+        /// <summary>
+        /// Handles the package by implementing the <see cref="IPackageHandler{TNetPackageInfo}"/> interface.
+        /// </summary>
+        /// <param name="session">The application session.</param>
+        /// <param name="package">The network package.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
+        ValueTask IPackageHandler<TNetPackageInfo>.Handle(IAppSession session, TNetPackageInfo package, CancellationToken cancellationToken)
         {
-            return HandlePackage(session, PackageMapper.Map(package));
+            return HandlePackage(session, PackageMapper.Map(package), cancellationToken);
         }
 
+        /// <summary>
+        /// Represents a set of commands identified by a key.
+        /// </summary>
         interface ICommandSet
         {
+            /// <summary>
+            /// Gets the key that identifies this command set.
+            /// </summary>
             TKey Key { get; }
 
-            ValueTask ExecuteAsync(IAppSession session, TPackageInfo package);
+            /// <summary>
+            /// Executes the command asynchronously.
+            /// </summary>
+            /// <param name="session">The application session.</param>
+            /// <param name="package">The package containing command information.</param>
+            /// <param name="cancellationToken">The cancellation token.</param>
+            /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
+            ValueTask ExecuteAsync(IAppSession session, TPackageInfo package, CancellationToken cancellationToken);
         }
 
+        /// <summary>
+        /// Contains information about a command type and its factory.
+        /// </summary>
         class CommandTypeInfo
         {
             public Type CommandType { get; private set; }
@@ -256,26 +369,52 @@ namespace SuperSocket.Command
             {
                 var commandTyeInfo = new CommandTypeInfo(WrapRequired ? WrapFactory(type) : type, null);
                 commandTyeInfo.ActualCommandType = type;                
-                return ActivatorUtilities.CreateInstance(null, this.CommandSetFactoryType, commandTyeInfo) as ICommandSetFactory;
+                return Activator.CreateInstance(this.CommandSetFactoryType, commandTyeInfo) as ICommandSetFactory;
             }
         }
 
+        /// <summary>
+        /// Interface for factories that create command sets.
+        /// </summary>
         interface ICommandSetFactory
         {
+            /// <summary>
+            /// Creates a command set using the provided service provider and options.
+            /// </summary>
+            /// <param name="serviceProvider">The service provider for dependency injection.</param>
+            /// <param name="commandOptions">The command options.</param>
+            /// <returns>An instance of <see cref="ICommandSet"/>.</returns>
             ICommandSet Create(IServiceProvider serviceProvider, CommandOptions commandOptions);
         }
 
+        /// <summary>
+        /// Factory for creating command sets for a specific app session type.
+        /// </summary>
+        /// <typeparam name="TAppSession">The type of the application session.</typeparam>
         class CommandSetFactory<TAppSession> : ICommandSetFactory
             where TAppSession : IAppSession
         
         {
+            /// <summary>
+            /// Gets information about the command type.
+            /// </summary>
             public CommandTypeInfo CommandType { get; private set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="CommandSetFactory{TAppSession}"/> class.
+            /// </summary>
+            /// <param name="commandType">Information about the command type.</param>
             public CommandSetFactory(CommandTypeInfo commandType)
             {
                 CommandType = commandType;
             }
 
+            /// <summary>
+            /// Creates a command set using the provided service provider and options.
+            /// </summary>
+            /// <param name="serviceProvider">The service provider for dependency injection.</param>
+            /// <param name="commandOptions">The command options.</param>
+            /// <returns>An instance of <see cref="ICommandSet"/>.</returns>
             public ICommandSet Create(IServiceProvider serviceProvider, CommandOptions commandOptions)
             {
                 var commandSet = new CommandSet<TAppSession>();
@@ -284,26 +423,53 @@ namespace SuperSocket.Command
             }
         }
 
+        /// <summary>
+        /// Represents a set of commands for a specific application session type.
+        /// </summary>
+        /// <typeparam name="TAppSession">The type of the application session.</typeparam>
         class CommandSet<TAppSession> : ICommandSet
             where TAppSession : IAppSession
         {
+            /// <summary>
+            /// Gets the asynchronous command implementation.
+            /// </summary>
             public IAsyncCommand<TAppSession, TPackageInfo> AsyncCommand { get; private set; }
 
+            /// <summary>
+            /// Gets the synchronous command implementation.
+            /// </summary>
             public ICommand<TAppSession, TPackageInfo> Command { get; private set; }
 
+            /// <summary>
+            /// Gets the command filters applied to this command set.
+            /// </summary>
             public IReadOnlyList<ICommandFilter> Filters { get; private set; }
             
+            /// <summary>
+            /// Gets the metadata for this command.
+            /// </summary>
             public CommandMetadata Metadata { get; private set; }
 
+            /// <summary>
+            /// Gets the key that identifies this command set.
+            /// </summary>
             public TKey Key { get; private set; }
 
             private readonly bool _isKeyString = false;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="CommandSet{TAppSession}"/> class.
+            /// </summary>
             public CommandSet()
             {
                 _isKeyString = typeof(TKey) == typeof(string);
             }
 
+            /// <summary>
+            /// Gets the command metadata from command type attributes.
+            /// </summary>
+            /// <param name="commandType">The command type to extract metadata from.</param>
+            /// <returns>A <see cref="CommandMetadata"/> instance containing the command's metadata.</returns>
             private CommandMetadata GetCommandMetadata(Type commandType)
             {
                 var cmdAtt = commandType.GetCustomAttribute(typeof(CommandAttribute)) as CommandAttribute;
@@ -343,12 +509,22 @@ namespace SuperSocket.Command
                 return cmdMeta;
             }
 
+            /// <summary>
+            /// Sets the command for this command set.
+            /// </summary>
+            /// <param name="command">The command to set.</param>
             protected void SetCommand(ICommand command)
             {
                 Command = command as ICommand<TAppSession, TPackageInfo>;
                 AsyncCommand = command as IAsyncCommand<TAppSession, TPackageInfo>;
             }
 
+            /// <summary>
+            /// Initializes the command set with the provided dependencies.
+            /// </summary>
+            /// <param name="serviceProvider">The service provider for dependency injection.</param>
+            /// <param name="commandTypeInfo">Information about the command type.</param>
+            /// <param name="commandOptions">The command options.</param>
             public void Initialize(IServiceProvider serviceProvider, CommandTypeInfo commandTypeInfo, CommandOptions commandOptions)
             {
                 var command = commandTypeInfo.Command;
@@ -389,11 +565,11 @@ namespace SuperSocket.Command
                 Filters = filters;
             }
 
-            public async ValueTask ExecuteAsync(IAppSession session, TPackageInfo package)
+            public async ValueTask ExecuteAsync(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)
             {
                 if (Filters.Count > 0)
                 {
-                    await ExecuteAsyncWithFilter(session, package);
+                    await ExecuteAsyncWithFilter(session, package, cancellationToken);
                     return;
                 }
 
@@ -403,18 +579,19 @@ namespace SuperSocket.Command
 
                 if (asyncCommand != null)
                 {
-                    await asyncCommand.ExecuteAsync(appSession, package);
+                    await asyncCommand.ExecuteAsync(appSession, package, cancellationToken);
                     return;
                 }
 
                 Command.Execute(appSession, package);
             }
 
-            private async ValueTask ExecuteAsyncWithFilter(IAppSession session, TPackageInfo package)
+            private async ValueTask ExecuteAsyncWithFilter(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)
             {
                 var context = new CommandExecutingContext();
                 context.Package = package;
                 context.Session = session;
+                context.CancellationToken = cancellationToken;
 
                 var command = AsyncCommand != null ? (AsyncCommand as ICommand) : (Command as ICommand);
 
@@ -454,7 +631,7 @@ namespace SuperSocket.Command
 
                     if (asyncCommand != null)
                     {
-                        await asyncCommand.ExecuteAsync(appSession, package);
+                        await asyncCommand.ExecuteAsync(appSession, package, cancellationToken);
                     }
                     else
                     {

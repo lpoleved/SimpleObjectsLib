@@ -38,7 +38,6 @@ namespace Simple.Objects
 			this.ObjectManager = objectManager;
 			this.ObjectModel = objectModel;
 		}
-
 	
 		public SimpleObjectManager ObjectManager { get; private set; }
 
@@ -53,6 +52,8 @@ namespace Simple.Objects
 
 		public bool IsInCache(long objectId) => this.simpleObjectsByObjectId.ContainsKey(objectId);
 
+		public bool IsInCache(long objectId, out SimpleObject? simpleObject) => this.simpleObjectsByObjectId.TryGetValue(objectId, out simpleObject);
+
 		//public SimpleObjectCollection<T> GetObjectCollection<T>() where T : SimpleObject
 		//{
 		//	if (this.collection == null)
@@ -62,50 +63,52 @@ namespace Simple.Objects
 		//}
 
 		public abstract SimpleObject? GetObject(long objectId);
+		public abstract SimpleObjectCollection<T> GetObjectCollection<T>() where T : SimpleObject;
+
 		//public SimpleObject? GetObject(long objectId)
 		//{
 		//	lock (this.lockObject)
 		//	{
 		//		SimpleObject? simpleObject = this.GetObjectInternal(objectId);
 
-		//		if (simpleObject == null) // objectId is oldId (old temp Id) -> try to get object by old temp Id.
-		//		{
-		//			long newId;
+			//		if (simpleObject == null) // objectId is oldId (old temp Id) -> try to get object by old temp Id.
+			//		{
+			//			long newId;
 
-		//			if (this.newIdsByTempId.TryGetValue(objectId, out newId))
-		//				simpleObject = this.GetObjectInternal(newId);
-		//		}
+			//			if (this.newIdsByTempId.TryGetValue(objectId, out newId))
+			//				simpleObject = this.GetObjectInternal(newId);
+			//		}
 
-		//		return simpleObject;
-		//	}
-		//}
+			//		return simpleObject;
+			//	}
+			//}
 
-		//protected abstract SimpleObject? GetObjectInternal(long objectId);
+			//protected abstract SimpleObject? GetObjectInternal(long objectId);
 
-		//private SimpleObject? GetObjectInternal(long objectId)
-		//{
-		//	SimpleObject? simpleObject;
+			//private SimpleObject? GetObjectInternal(long objectId)
+			//{
+			//	SimpleObject? simpleObject;
 
-		//	if (!this.simpleObjectsByObjectId.TryGetValue(objectId, out simpleObject)) // <- IsInChache
-		//	{
-		//		// Object is not in cache. Lets check if object key exists in key list
-		//		if (this.ContainsId(objectId))
-		//		{
-		//			// object is not in cache -> go to local or remote datastore (remote object server), create and load the object.
-		//			simpleObject = this.CreateAndLoadObject(objectId, (simpleObject) => this.ObjectManager.Datastore.LoadObjectPropertyValues(simpleObject).GetAwaiter().GetResult());
-		//		}
-		//		else
-		//		{
-		//			simpleObject = null;
-		//		}
-		//	}
+			//	if (!this.simpleObjectsByObjectId.TryGetValue(objectId, out simpleObject)) // <- IsInChache
+			//	{
+			//		// Object is not in cache. Lets check if object key exists in key list
+			//		if (this.ContainsId(objectId))
+			//		{
+			//			// object is not in cache -> go to local or remote datastore (remote object server), create and load the object.
+			//			simpleObject = this.CreateAndLoadObject(objectId, (simpleObject) => this.ObjectManager.Datastore.LoadObjectPropertyValues(simpleObject).GetAwaiter().GetResult());
+			//		}
+			//		else
+			//		{
+			//			simpleObject = null;
+			//		}
+			//	}
 
-		//	return simpleObject;
-		//}
+			//	return simpleObject;
+			//}
 
-		// TODO: Select must have PropertyIndex Value pair to find required objects, so that can be fetched from server to client over remote (to be able to serialize select request)
-		//public abstract List<long> GetRelationCollectionObjectIds(int objectIdPropertyIndex, long objectId);
-		//public abstract List<long> GetRelationCollectionObjectIds(int tableIdPropertyIndex, int tableId, int objectIdPropertyIndex, long objectId);
+			// TODO: Select must have PropertyIndex Value pair to find required objects, so that can be fetched from server to client over remote (to be able to serialize select request)
+			//public abstract List<long> GetRelationCollectionObjectIds(int objectIdPropertyIndex, long objectId);
+			//public abstract List<long> GetRelationCollectionObjectIds(int tableIdPropertyIndex, int tableId, int objectIdPropertyIndex, long objectId);
 
 		public abstract List<long> GetOneToManyForeignObjectIds(int primaryTableId, long primaryObjectId, IOneToManyRelationModel oneToManyRelationModel);
 
@@ -233,7 +236,7 @@ namespace Simple.Objects
 		/// <exception cref="T:System.ArgumentNullException">The <see cref="SimpleObject"/> is null.</exception>
 		/// <exception cref="T:System.ArgumentException">The <see cref="SimpleObject"/> is not the same type as declared.</exception>
 		/// <exception cref="T:System.ArgumentException">The <see cref="SimpleObject"/> IsNew property must be true.</exception>
-		internal long AddNewObject(SimpleObject simpleObject)
+		internal long AddNewObjectInternal(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
 		{
 			if (simpleObject == null)
 				throw new ArgumentNullException("The simpleObject argument is null.");
@@ -248,41 +251,44 @@ namespace Simple.Objects
 				simpleObject.SetId(newId);
 				this.simpleObjectsByObjectId.Add(simpleObject.Id, simpleObject);
 				//this.collection?.Add(simpleObject.Id);
-				this.OnNewObjectAdded(simpleObject);
+				this.OnNewObjectAdded(simpleObject, changeContainer, requester);
 			}
 
 			return simpleObject.Id;
 		}
 
-		protected void OnNewObjectAdded(SimpleObject simpleObject) { }
+		protected virtual void OnNewObjectAdded(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester) { }
 
 		protected abstract long CreateNewId();
 
-		internal protected abstract bool RemoveObject(long objectId);
+		internal protected abstract bool RemoveObjectInternal(long objectId, ChangeContainer? changeContainer, object? requester);
 
-		internal SimpleObject CreateAndLoadObject(IEnumerable<PropertyIndexValuePair> propertyIndexValues)
+		//internal SimpleObject CreateAndLoadObjectInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues)
+		//{
+		//	return this.CreateAndLoadObjectInternal(objectId: 0, propertyIndexValues); // objectId will be loaded by propertyIndexValues
+		//}
+
+		//internal SimpleObject CreateAndLoadObjectInternal(long objectId, IEnumerable<PropertyIndexValuePair> propertyIndexValues)
+		//{
+		//	return this.CreateAndLoadObjectInternal(objectId, (simpleObject) => simpleObject.LoadFromServer(propertyIndexValues));
+		//}
+
+		internal SimpleObject CreateObjectFromPropertyValueDataInternal(Action<SimpleObject> loadPropertyValueData, ChangeContainer? changeContainer, ObjectActionContext context)
 		{
-			return this.CreateAndLoadObject(objectId: 0, propertyIndexValues); // objectId will be loaded by propertyIndexValues
+			return this.CreateAndLoadObjectInternal(objectId: 0, (simpleObject) => loadPropertyValueData(simpleObject), changeContainer, context);
 		}
 
-		internal SimpleObject CreateAndLoadObject(long objectId, IEnumerable<PropertyIndexValuePair> propertyIndexValues)
+		internal SimpleObject CreateAndLoadObjectInternal(long objectId, Action<SimpleObject> loadAction, ChangeContainer? changeContainer, ObjectActionContext context)
 		{
-			return this.CreateAndLoadObject(objectId, (simpleObject) => simpleObject.LoadFromServer(propertyIndexValues));
-		}
+			lock (this.lockObject)
+			{
+				SimpleObject simpleObject = this.ObjectManager.CreateNewEmptyObject(this.ObjectModel.ObjectType, isNew: false, objectId, changeContainer, context, requester: this);
 
-		internal SimpleObject CreateObjectFromPropertyValueData(Action<SimpleObject> loadPropertyValueData, ChangeContainer? changeContainer)
-		{
-			return this.CreateAndLoadObject(objectId: 0, (simpleObject) => loadPropertyValueData(simpleObject), changeContainer);
-		}
+				loadAction(simpleObject);
+				this.simpleObjectsByObjectId.Add(simpleObject.Id, simpleObject);
 
-		internal SimpleObject CreateAndLoadObject(long objectId, Action<SimpleObject> loadAction, ChangeContainer? changeContainer = null)
-		{
-			SimpleObject simpleObject = this.ObjectManager.CreateNewEmptyObject(this.ObjectModel.ObjectType, isNew: false, objectId, changeContainer, requester: this);
-
-			loadAction(simpleObject);
-			this.simpleObjectsByObjectId.Add(simpleObject.Id, simpleObject);
-
-			return simpleObject;
+				return simpleObject;
+			}
 		}
 
 		//internal IPropertyModel[] GetPropertyModelsByDataReaderFieldIndex(IDataReader dataReader)

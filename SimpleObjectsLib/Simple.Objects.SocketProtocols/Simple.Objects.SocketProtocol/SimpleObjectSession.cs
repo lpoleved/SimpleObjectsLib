@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SuperSocket;
+using SuperSocket.Server.Abstractions.Session;
 
 namespace Simple.Objects.SocketProtocol
 {

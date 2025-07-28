@@ -9,7 +9,7 @@ namespace Simple.Objects
     {
 		static SystemServer()
 		{
-			Model.TableInfo = SystemTables.SystemServers;
+			Model.TableInfo = SystemTablesBase.SystemServers;
 			Model.AutoGenerateKey = false;
 		}
 

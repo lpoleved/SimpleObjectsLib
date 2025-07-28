@@ -98,18 +98,21 @@ namespace Simple.Objects.ServerMonitor
 			TransactionCompletedMessageArgs? messageArgs = this.PackageInfoRow?.RequestOrMessagePackageInfo.PackageArgs as TransactionCompletedMessageArgs;
 
 			//this.labelControlTransactionRequestNumOfActions.Text = String.Format("({0} Action{1}):", messageArgs.TransactionActions.Count(), messageArgs.TransactionActions.Count() > 1 ? "s" : "");
-			this.gridViewTransactionDetails.BeginUpdate();
-			this.dataSourceTransactionRequestDetails.Clear();
+			if (messageArgs?.TransactionServerActionInfos != null)
+			{
+				this.gridViewTransactionDetails.BeginUpdate();
+				this.dataSourceTransactionRequestDetails.Clear();
 
-			for (int i = 0; i < messageArgs.TransactionActions.Count(); i++)
-				this.AppendTransactionRequestActionRow(i, messageArgs.TransactionActions.ElementAt(i));
+				for (int i = 0; i < messageArgs.TransactionServerActionInfos.Count(); i++)
+					this.AppendTransactionRequestActionRow(i, messageArgs.TransactionServerActionInfos.ElementAt(i));
 
-			this.columnIndex.BestFit();
-			this.columnAction.BestFit();
-			this.columnTableId.BestFit();
-			this.columnObjectId.BestFit();
-			//this.gridViewGetRequestDetails.BestFitColumns();
-			this.gridViewTransactionDetails.EndUpdate();
+				this.columnIndex.BestFit();
+				this.columnAction.BestFit();
+				this.columnTableId.BestFit();
+				this.columnObjectId.BestFit();
+				//this.gridViewGetRequestDetails.BestFitColumns();
+				this.gridViewTransactionDetails.EndUpdate();
+			}
 
 			//this.editorTransactionSucceed.Text = messageArgs.TransactionSucceeded.ToString();
 			//this.editorTransactionId.Text = responseArgs.TransactionId.ToString();
@@ -168,7 +171,7 @@ namespace Simple.Objects.ServerMonitor
 
 		private void AppendTransactionRequestActionRow(int actionNumber, TransactionActionInfo transactionActionWithDataInfo)
 		{
-			ServerObjectModelInfo? objectModel = this.GetServerObjectModel(transactionActionWithDataInfo.TableId);
+			ServerObjectModelInfo? objectModel = this.Context?.GetServerObjectModel(transactionActionWithDataInfo.TableId);
 			string action = transactionActionWithDataInfo.ActionType.ToString();
 			//string objectKey = String.Format("{0} ({1})", transactionAction.ObjectKey.ToObjectKeyString(), transactionAction.ObjectModel.ObjectType.Name);
 			string tableIdText = String.Format("{0} ({1})", transactionActionWithDataInfo.TableId, objectModel?.ObjectName);
@@ -200,7 +203,6 @@ namespace Simple.Objects.ServerMonitor
 					string propertyValueString = this.GePropertyValueString(propertyModel, item.PropertyValue);
 
 					result += String.Format("{0} {1}={2}", propertyModel.PropertyIndex, propertyModel.PropertyName, propertyValueString);
-
 				}
 			}
 

@@ -26,7 +26,7 @@ namespace Simple.Objects
 
 		public new T DefaultValue
 		{
-			get { return (T)base.DefaultValue; }
+			get { return (T)base.DefaultValue!; }
 			set { base.DefaultValue = value; }
 		}
 	}

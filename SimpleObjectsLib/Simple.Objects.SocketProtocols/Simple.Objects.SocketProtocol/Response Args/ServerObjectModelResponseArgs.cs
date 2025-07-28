@@ -26,21 +26,21 @@ namespace Simple.Objects.SocketProtocol
 
 		public override int GetBufferCapacity()
 		{
-			return this.ServerObjectModelInfo!.SerializablePropertyIndexes.Length * 40 + 5;
+			return this.ServerObjectModelInfo?.ClientSerializablePropertyIndexes.Length + this.ServerObjectModelInfo?.ServerSerializablePropertyIndexes.Length + this.ServerObjectModelInfo?.StorablePropertyIndexes.Length ?? 20 * 40 + 5;
 		}
 
 		public override void WriteTo(ref SequenceWriter writer, ISimpleSession session)
 		{
 			base.WriteTo(ref writer, session);
 
-			this.ServerObjectModelInfo!.WriteTo(ref writer);
+			this.ServerObjectModelInfo!.WriteTo(ref writer, session);
 		}
 
 		public override void ReadFrom(ref SequenceReader reader, ISimpleSession session)
 		{
 			base.ReadFrom(ref reader, session);
 
-			this.ServerObjectModelInfo = new ServerObjectModelInfo(ref reader);
+			this.ServerObjectModelInfo = new ServerObjectModelInfo(ref reader, session);
 		}
 	}
 }

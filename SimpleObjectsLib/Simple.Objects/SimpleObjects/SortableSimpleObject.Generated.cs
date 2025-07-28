@@ -17,7 +17,7 @@ namespace Simple.Objects
         public long PreviousId
         {
             get { return this.previousId; }
-            internal set { base.SetPropertyValue(this.GetModel().PreviousIdPropertyModel, value); }
+            protected internal set { base.SetPropertyValue(this.GetModel().PreviousIdPropertyModel, value); }
         }
 
         public int OrderIndex

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Simple.Serialization;
 using Simple.SocketEngine;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 
 namespace Simple.Objects.MonitorProtocol
 {

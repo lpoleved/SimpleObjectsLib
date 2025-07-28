@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BenchmarkDotNet;
 using BenchmarkDotNet.Attributes;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
 
 namespace SuperSocket.Benchmarks
@@ -27,26 +27,27 @@ namespace SuperSocket.Benchmarks
             
             for (var i = 0; i < ConcurrentLevel; i++)
             {
-                tasks[i] = Send(pool, new ChannelOptions(), Iteration);
+                tasks[i] = Send(pool, new ConnectionOptions(), Iteration);
             }
 
             await Task.WhenAll(tasks);
         }
 
-        private async Task Send(ArrayPool<byte> pool, ChannelOptions options, int iteration)
+        private async Task Send(ArrayPool<byte> pool, ConnectionOptions options, int iteration)
         {
-            var channel = new TransparentPipeChannel<StringPackageInfo>(new CommandLinePipelineFilter(), options);
-            channel.Start();
+            var connection = new TransparentPipeConnection(options);
+            
+            _ = connection.RunAsync(new CommandLinePipelineFilter());
 
             for (var i = 0; i < iteration; i++)
             {
                 var text = Guid.NewGuid().ToString() + "\r\n";
                 var buffer = pool.Rent(Encoding.UTF8.GetMaxByteCount(text.Length));
-                await channel.SendAsync(new ReadOnlyMemory<byte>(buffer));
+                await connection.SendAsync(new ReadOnlyMemory<byte>(buffer));
                 pool.Return(buffer);
             }
 
-            await channel.CloseAsync(CloseReason.ServerShutdown);
+            await connection.CloseAsync(CloseReason.ServerShutdown);
         }
     }
 }

@@ -14,7 +14,9 @@ using Simple.Objects.MonitorProtocol;
 using Simple.Controls;
 using DevExpress.XtraEditors;
 using DevExpress.XtraSplashScreen;
+using DevExpress.XtraBars.Ribbon;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Simple.Objects.Controls;
 
 namespace Simple.Objects.ServerMonitor
 {
@@ -26,13 +28,14 @@ namespace Simple.Objects.ServerMonitor
         private static HashList<ServerObjectModelInfo> serverObjectPropertyInfoByTableId = new HashList<ServerObjectModelInfo>();
         internal const int DefaultMonitorPort = 2021;
 		public const string DefaultServer = "localhost";
-        public const string DefaultUsername = "Monitor Admin";
+		public const string DefaultUsername = "System Admin"; // "Monitor Admin";
+		public const string DefaultPassword = "manager";
 
 		//public static SimpleObjectModelDiscovery? ModelDiscovery;
-		public static SimpleObjectMonitorClient MonitorClient; // = SimpleObjectMonitorClient.Empty;
+		public static SimpleObjectMonitorClient MonitorClient = new SimpleObjectMonitorClient(); // = SimpleObjectMonitorClient.Empty;
         public static MonitorAppContext AppContext => MonitorAppContext.Instance;
 
-        public static FormMain? MonitorForm = null;
+        public static RibbonForm? MonitorForm = null;
 
 		/// <summary>
 		/// The main entry point for the application.
@@ -40,7 +43,20 @@ namespace Simple.Objects.ServerMonitor
 		[STAThread]
         public static void Main()
         {
-            AppContext.UserSettings.DefaultServer = DefaultServer;
+			// Get .NET version info
+			//Assembly asm = Assembly.GetExecutingAssembly();
+			Assembly? asm = Assembly.GetAssembly(typeof(FormMainOld2));
+
+			Console.WriteLine("Compiled on .NET Version: {0}", asm?.ImageRuntimeVersion.ToString());
+			Console.WriteLine("Running on .NET Version: {0}", Environment.Version.ToString());
+
+			AppContext.Version = Assembly.GetEntryAssembly()?.GetName().Version;
+
+			AppContext.UserSettings.DefaultRibonSkinName = "WXI"; // "Office 2010 Blue"; // "Office 2013 Dark Gray";;
+			AppContext.UserSettings.DefaultRibbonStyle = (int)RibbonControlStyle.Default;
+			AppContext.UserSettings.DefaultRibbonControlColorScheme = (int)RibbonControlColorScheme.Orange;
+
+			AppContext.UserSettings.DefaultServer = DefaultServer;
 			AppContext.UserSettings.DefaultPort = DefaultMonitorPort;
 			AppContext.UserSettings.DefaultUsername = DefaultUsername;
 
@@ -61,14 +77,16 @@ namespace Simple.Objects.ServerMonitor
 			//Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
 			//ModelDiscovery = new SimpleObjectModelDiscovery(assemblies);
-			MonitorClient = new SimpleObjectMonitorClient(); // ModelDiscovery);
+			//MonitorClient = new SimpleObjectMonitorClient(); // ModelDiscovery);
 
 			//if (Program.ConnectToServerAndAuthorize(Program.AppClient))
 
 
 
-			MonitorForm = new FormMain(); 
-			//Application.Run(new frmMain());
+			//MonitorForm = new FormMain();
+			//MonitorForm = new FormMainNew();
+			MonitorForm = new FormMain();
+
 			Application.Run(MonitorForm);
 
 			//// Open Login form
@@ -161,7 +179,7 @@ namespace Simple.Objects.ServerMonitor
 
                 while ((!connected || !authorized) && retry++ < numOfRetry)
                 {
-#if DEBUG
+#if !DEBUG
                     IPEndPoint endPoint = IpHelper.ParseIpEndPoint(server, port);
                     
                     connected = (appClient.IsConnected) ? true : await appClient.ConnectAsync(endPoint);
@@ -173,7 +191,7 @@ namespace Simple.Objects.ServerMonitor
 
                     if (connected)
                     {
-                        var response = await appClient.AuthenticateSession(username, "manager");
+                        var response = await appClient.AuthenticateSession(username, Program.DefaultPassword);
 
 						authorized = response.ResponseSucceeded && response.IsAuthenticated;
                     }
@@ -206,8 +224,12 @@ namespace Simple.Objects.ServerMonitor
 					}
 
 					formLogin.Close();
+                   
+					if (escape)
+                       break;
 #endif
-                    if (!connected)
+
+                   if (!connected)
                     {
                         string serverInfo = formLogin?.Server ?? server;
 
@@ -218,10 +240,10 @@ namespace Simple.Objects.ServerMonitor
                         XtraMessageBox.Show("Wrong username or password.", "Authorization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
 
-                    if (escape)
-                        break;
+					if (escape)
+						break;
 
-                    Thread.Sleep(500);
+					Thread.Sleep(500);
                 }
             }
             catch (Exception ex)

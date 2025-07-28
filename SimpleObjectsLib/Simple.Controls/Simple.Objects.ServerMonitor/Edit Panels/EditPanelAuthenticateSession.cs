@@ -27,20 +27,16 @@ namespace Simple.Objects.ServerMonitor
 
 			PackageInfo? request = this.PackageInfoRow?.RequestOrMessagePackageInfo;
 			PackageInfo? response = this.PackageInfoRow?.ResponsePackageInfo;
-			bool? isAuthenticatedNullable = (response?.PackageArgs as AuthenticateSessionResponseArgs)?.IsAuthenticated;
-			bool isAuthenticated = isAuthenticatedNullable ?? false;
+			bool isAuthenticated = (response?.PackageArgs as AuthenticateSessionResponseArgs)?.IsAuthenticated ?? false;
 
 
-			this.labelControlUserId.Visible = isAuthenticated;
-			this.editorUserId.Visible = isAuthenticated;
-			this.labelControlUsername2.Visible = isAuthenticated;
-			this.editorUsername2.Visible = isAuthenticated;
-
+			this.labelControlUserId.Enabled = isAuthenticated;
+			this.editorUserId.Enabled = isAuthenticated;
 			this.editorUsername.Text = (request?.PackageArgs as AuthenticateSessionRequestArgs)?.Username ?? String.Empty;
 			this.editorPassword.Text = (request?.PackageArgs as AuthenticateSessionRequestArgs)?.PasswordHash ?? String.Empty;
 
-
 			this.editorIsAuthenticated.Text = isAuthenticated.ToString();
+			this.editorUserId.Text = ((response?.PackageArgs as AuthenticateSessionResponseArgs)?.UserId ?? 0).ToString();
 
 			//if (isAuthenticated)
 			//{

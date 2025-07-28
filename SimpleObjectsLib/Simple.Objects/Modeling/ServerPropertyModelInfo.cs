@@ -11,8 +11,8 @@ namespace Simple.Objects
 {
 	public class ServerPropertyModelInfo
 	{
-		private PropertyModel clientPropertyModel = null;
-		private PropertyModel serverPropertyModel = null;
+		private PropertyModel clientPropertyModel;
+		private PropertyModel serverPropertyModel;
 
 		public ServerPropertyModelInfo(PropertyModel clientPropertyModel, int propertyIndex, int propertyTypeId, bool isSerializationOptimizable)
 		{

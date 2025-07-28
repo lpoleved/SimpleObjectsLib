@@ -9,8 +9,9 @@ using Simple.Objects;
 
 namespace Simple.Objects.SocketProtocol
 {
-	[SystemRequestArgs((int)SystemRequest.GetOneToManyForeignObjectCollection)]
 	[SystemRequestArgs((int)SystemRequest.GetOneToOneForeignObject)]
+	[SystemRequestArgs((int)SystemRequest.GetOneToManyForeignObjectCollection)]
+	[SystemRequestArgs((int)SystemRequest.GetGroupMembershipCollection)]
 
 	public class RelationKeyTableIdObjectIdRequestArgs : ObjectIdTableIdRequestArgs
 	{

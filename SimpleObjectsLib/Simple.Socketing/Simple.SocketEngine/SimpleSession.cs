@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
 //using Simple.Objects;
 
 namespace Simple.SocketEngine
@@ -127,6 +129,12 @@ namespace Simple.SocketEngine
 
 		#endregion |   Public Methods   |
 
+		#region |   Internal Methods   |
+
+		internal void SetIsObjectModelFetchedByTableIdArray(bool[] isObjectModelFetchedByTableIdArray) => this.isObjectModelFetchedByTableId = isObjectModelFetchedByTableIdArray;
+
+		#endregion |   Internal Methods   |
+
 		#region |   Protected Methods   |
 
 		protected virtual ValueTask OnMessageSent(byte[] packageData) => new ValueTask();
@@ -135,8 +143,7 @@ namespace Simple.SocketEngine
 
 		#endregion |   Protected Methods   |
 
-		internal void SetIsObjectModelFetchedByTableIdArray(bool[] isObjectModelFetchedByTableIdArray) => this.isObjectModelFetchedByTableId = isObjectModelFetchedByTableIdArray;
-
+		
 
 		#region |   Private Methods   |
 
@@ -250,9 +257,9 @@ namespace Simple.SocketEngine
 
 		#region |   Interfaces Implementation   |
 
-		ValueTask ISimpleSession.SendAsync(ReadOnlyMemory<byte> data) => this.Channel.SendAsync(data);
+		ValueTask ISimpleSession.SendAsync(ReadOnlyMemory<byte> data) => this.Connection.SendAsync(data);
 
-		ValueTask ISimpleSession.SendAsync<TPackage>(IPackageEncoder<TPackage> packageEncoder, TPackage package) => this.Channel.SendAsync(packageEncoder, package);
+		ValueTask ISimpleSession.SendAsync<TPackage>(IPackageEncoder<TPackage> packageEncoder, TPackage package) => this.Connection.SendAsync(packageEncoder, package);
 
 		void ISimpleSession.ResponseIsReceived(PackageReader response)
 		{

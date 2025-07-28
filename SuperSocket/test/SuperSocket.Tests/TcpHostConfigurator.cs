@@ -8,7 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
 using SuperSocket.ProtoBase;
 
@@ -42,13 +44,20 @@ namespace SuperSocket.Tests
             return socket;
         }
 
+        public async ValueTask<Socket> CreateConnectedClientAsync()
+        {
+            var serverAddress = this.GetServerEndPoint();
+            var client = new TcpClient();
+            await client.ConnectAsync(serverAddress);
+            return client.Client;
+        }
 
         public TextReader GetStreamReader(Stream stream, Encoding encoding)
         {
             return new StreamReader(stream, encoding, true);
         }
 
-        public abstract IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options)
+        public abstract IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
             where TPackageInfo : class;
 
         public abstract ValueTask<Stream> GetClientStream(Socket socket);

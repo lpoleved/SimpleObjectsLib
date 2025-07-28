@@ -75,8 +75,7 @@ namespace Simple.Objects
 	/// PreviousId property  is not seriazable and is not sent via client <-> Server communication.
 	/// PreviousId is set on client side when inserting objects into SimpleObjectCollection
 	/// OrderIndex property is not storable but is seriazable and is sent via client <-> server communication.
-	/// OrderIndex can be set to change the order of the object inside sorting collection. When the OrderIndex is set, its value is set over the client <-> server when inserting or updating object.
-	/// 
+	/// OrderIndex can be set to change the order of the object inside sorting collection. When the OrderIndex is set, its value is set over the client <-> server communication when inserting or updating object.
 	/// </summary>
 	public abstract partial class SortableSimpleObject : SimpleObject, ISortableBindingSimpleObject, IBindingSimpleObject, IDisposable  // SimpleObject
 	{
@@ -84,13 +83,22 @@ namespace Simple.Objects
 		//protected int orderIndex, oldOrderIndex;
 		//protected int? actionSetOrderIndex, oldActionSetOrderIndex;
 
+		protected SortableSimpleObject()
+		{
+		}
+
 		public SortableSimpleObject(SimpleObjectManager objectManager)
 			: base(objectManager)
 		{
 		}
 
-		public SortableSimpleObject(SimpleObjectManager objectManager, ChangeContainer changeContainer)
-			: base(objectManager, changeContainer)
+		public SortableSimpleObject(SimpleObjectManager objectManager, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
+			: this(objectManager, objectManager.DefaultChangeContainer, context, requester)
+		{
+		}
+
+		public SortableSimpleObject(SimpleObjectManager objectManager, ChangeContainer? changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
+			: base(objectManager, changeContainer, context, requester)
 		{ 
 		}
 
@@ -102,15 +110,9 @@ namespace Simple.Objects
 
 		internal void SetOrderIndexInternal(int value) => this.AcceptPropertyChangeInternal(this.GetModel().OrderIndexPropertyModel.PropertyIndex, value);
 
-		public bool IsFirst
-		{
-			get { return this.PreviousId == 0; }
-		}
+		public bool IsFirst => this.PreviousId == 0;
 
-		public bool IsLast
-		{
-			get { return this.NextId == 0; }
-		}
+		public bool IsLast => this.NextId == 0;
 
 		///// <summary>
 		/////  Gets or sets PreviousId property value.
@@ -121,17 +123,12 @@ namespace Simple.Objects
 		//	internal set { base.SetPropertyValue<long>(this.GetModel().PreviousIdPropertyModel, value, ref this.previousId, this.oldPreviousId); }
 		//}
 
-		public SortableSimpleObject Previous
-		{
-			get { return this.Manager.GetObject(this.GetModel().TableInfo.TableId, this.PreviousId) as SortableSimpleObject; }
-		}
+		public SortableSimpleObject? Previous => this.Manager.GetObject(this.GetModel().TableInfo.TableId, this.PreviousId) as SortableSimpleObject;
 
 		public long NextId { get; internal set; }
 
-		public SortableSimpleObject Next
-		{
-			get { return this.Manager.GetObject(this.GetModel().TableInfo.TableId, this.NextId) as SortableSimpleObject; }
-		}
+		public SortableSimpleObject? Next => this.Manager.GetObject(this.GetModel().TableInfo.TableId, this.NextId) as SortableSimpleObject;
+
 		//public int? ActionSetOrderIndex
 		//{
 		//	get { return this.actionSetOrderIndex; }
@@ -241,33 +238,35 @@ namespace Simple.Objects
 		//	}                                                                                                   // == ObjectManagerWorkingMode.Server
 		//}
 
-		protected override void OnNewObjectCreated(object? requester)
+		protected override void OnNewObjectCreated(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnNewObjectCreated(requester);
+			base.OnNewObjectCreated(changeContainer, context, requester);
 
 			if (this.GetModel().SortingModel == SortingModel.BySingleObjectTypeCollection)
 			{
-				SimpleObjectCollection? sortingCollection = this.GetSortingCollection();
+				SimpleObjectCollection? sortingCollection = this.GetSortingCollection(); //?.Sort();
 
 				if (sortingCollection != null && !sortingCollection.Contains(this))
-					sortingCollection.Add(this);
+					sortingCollection.Add(this, changeContainer, requester);
 			}
 		}
 
-		protected override void OnObjectIdChange(long oldTempId, long newId)
+		protected override void OnObjectIdChange(long oldTempId, long newId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnObjectIdChange(oldTempId, newId);
+			base.OnObjectIdChange(oldTempId, newId, changeContainer, context, requester);
+
+			//TODO: Check is this needed
 
 			if (this.PreviousId != 0)
-				this.Previous.NextId = this.Id;
+				this.Previous!.NextId = this.Id;
 			
 			if (this.NextId != 0)
-				this.Next.PreviousId = this.Id;
+				this.Next!.SetPropertyValueInternal(this.Next.GetModel().PreviousIdPropertyModel, this.Id, changeContainer, context, requester);
 		}
 
-		protected override void OnPropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, bool isSaveable, ChangeContainer changeContainer, object? requester)
+		protected override void OnPropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, isSaveable, changeContainer, requester);
+			base.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
 
 			//if (propertyModel.IsActionSetOrderIndex && value != null) // && requester != SetOrderIndexRequester)
 			//{
@@ -293,7 +292,7 @@ namespace Simple.Objects
 			//	{
 			//		this.actionSetOrderIndex = null;
 			//		this.oldActionSetOrderIndex = null;
-			//	}
+//	}
 
 			//	//this.SetOrderIndexInternal((int)value, changeContainer, requester);
 
@@ -302,23 +301,35 @@ namespace Simple.Objects
 			//}
 			if (propertyModel.IsOrderIndex)
 			{
-				int orderIndex = (int)value;
-				int oldOrderIndex = (int)oldValue!;
+				int orderIndex = (int)value!;
+				int oldOrderIndex = (int)oldValue!; // (int)oldValue!;
+				var collection = this.GetSortingCollection(); // if not sorted it will be sorted and oldOrderIndex 
+				//int collectionOldOrderIndex = collection?.IndexOf(this.Id) ?? -1;
 
-				this.GetSortingCollection()?.SetOrderIndex(orderIndex, oldOrderIndex);
-				this.OnOrderIndexChange(orderIndex, oldOrderIndex, changeContainer, requester);
-				this.Manager.OrderIndexIsChanged(this, (int)value, (int)oldValue, requester);
+				//if (oldOrderIndex != collectionOldOrderIndex)
+				//	throw new InvalidOperationException("Something is wrong with sorting collection and set oldOrderIndex");
+
+				if (collection != null)
+				{
+					collection.SetOrderIndex(orderIndex, oldOrderIndex, changeContainer, context, requester);
+					this.OnOrderIndexChange(orderIndex, oldOrderIndex, changeContainer, context, requester);
+					this.Manager.OrderIndexIsChanged(this, orderIndex, oldOrderIndex, requester);
+				}
+				//else
+				//{
+				//	this.SetOrderIndexInternal(orderIndex);
+				//}
 			}
 		}
 
-		protected override void OnGraphElementOrderIndexChange(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer changeContainer, object? requester)
+		protected override void OnGraphElementOrderIndexChange(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnGraphElementOrderIndexChange(graphElement, orderIndex, oldOrderIndex, changeContainer, requester);
+			base.OnGraphElementOrderIndexChange(graphElement, orderIndex, oldOrderIndex, changeContainer, context, requester);
 
 			_ = this.GetSortingCollection(); // Initialize sorting collection, if not, to get the correct OrderIndexes of its elements.
 		}
 
-		protected virtual void OnOrderIndexChange(int orderIndex, int oldOrderIndex, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnOrderIndexChange(int orderIndex, int oldOrderIndex, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 	}
 
 	public interface ISortableBindingSimpleObject : IBindingSimpleObject
@@ -326,8 +337,8 @@ namespace Simple.Objects
 		bool IsFirst { get; }
 		bool IsLast { get; }
 		int OrderIndex { get; }
-		SortableSimpleObject Next { get; }
-		SortableSimpleObject Previous { get; }
+		SortableSimpleObject? Next { get; }
+		SortableSimpleObject? Previous { get; }
 		//void SetOrderIndex(int orderIndex);
 		//void SetOrderIndex(int orderIndex, ChangeContainer changeContainer, object requester);
 	}

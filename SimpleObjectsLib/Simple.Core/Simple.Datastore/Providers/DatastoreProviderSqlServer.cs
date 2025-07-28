@@ -37,8 +37,12 @@ namespace Simple.Datastore
 
 				dataReader.Close();
 			}
-			//this.ExecuteSelectQuery(String.Format("USE master; ALTER DATABASE {0} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;", connectionStringBuilder.InitialCatalog));
-            this.datastoreName = connectionStringBuilder.InitialCatalog;
+
+			// Comment this line if you wish more DB connection instances !!!!
+			//this.ExecuteSelectQuery(String.Format("USE master; ALTER DATABASE {0} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;", connectionStringBuilder.InitialCatalog)); // Only one database connection at the time
+			//this.ExecuteSelectQuery(String.Format("USE master; ALTER DATABASE {0} SET MULTI_USER WITH ROLLBACK IMMEDIATE;", connectionStringBuilder.InitialCatalog)); // Allow multi user database acess
+
+			this.datastoreName = connectionStringBuilder.InitialCatalog;
         }
 
         public override void Disconnect()

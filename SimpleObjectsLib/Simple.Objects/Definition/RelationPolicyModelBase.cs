@@ -121,9 +121,14 @@ namespace Simple.Objects
 			base.OnCreateDictionaryElement<TKey, TFieldType>(fieldInfo, fieldName, key, model, modelDictionary);
 
 			//FieldInfo fieldInfo = this.fieldInfosByName[fieldName];
-			
-			(model as RelationModel).DefinitionFieldName = fieldName;
-			(model as RelationModel).DefinitionObjectClassType = fieldInfo.ReflectedType;
+
+			if (model is RelationModel relationModel)
+			{
+				relationModel.DefinitionFieldName = fieldName;
+
+				if (fieldInfo.ReflectedType != null)
+					relationModel.DefinitionObjectClassType = fieldInfo.ReflectedType;
+			}
 		}
 
 		public IList<int> PredefinedRelationKeys 
@@ -203,6 +208,20 @@ namespace Simple.Objects
             CascadeDelete = true,
 			CanBeNull = false,
         };
+
+		//public static readonly OneToManyRelationModel OneToManyGraphElementToUser = new OneToManyRelationModel()
+		//{
+		//	PrimaryObjectType = typeof(IUser),
+		//	PrimaryObjectExcludedTypes = new Type[] { typeof(GraphElement) },
+		//	ForeignObjectType = typeof(GraphElement),
+		//	PrimaryAccessModifier = AccessModifier.Public | AccessModifier.Virtual,
+		//	//PrimaryTableIdPropertyModel = GraphElementModel.PropertyModel.ObjectTableId,
+		//	PrimaryObjectIdPropertyModel = GraphElementModel.PropertyModel.UserId,
+		//	//dodati ForeignModifier = "private"
+		//	//dodati i ForeignKeyModifier po 
+		//	CascadeDelete = true,
+		//	CanBeNull = false,
+		//};
 
 		//public static readonly OneToOneRelationModel OneToOneRelationModelGraphElementToPreviousGraphElement = new OneToOneRelationModel()
 		//{

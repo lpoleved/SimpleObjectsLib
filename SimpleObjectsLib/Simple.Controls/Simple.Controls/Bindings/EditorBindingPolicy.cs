@@ -33,7 +33,7 @@ namespace Simple.Controls
         public XtraTabPage? TabPage { get; set; }
         public Func<object, object?>? GetPropertyValueFromControlValue { get; set; }
         public Func<object?, object>? GetControlValueFromPropertyValue { get; set; }
-        public Action<object>? SetControlValue { get; set; }
+        public Action<object?>? SetControlValue { get; set; }
     }
 
 	public enum EditorBindingType

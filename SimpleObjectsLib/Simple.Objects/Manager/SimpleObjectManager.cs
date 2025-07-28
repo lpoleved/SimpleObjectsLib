@@ -15,7 +15,7 @@ using Simple.Modeling;
 using Simple.Serialization;
 using Simple.Compression;
 using Simple.Security;
-//using Simple.SocketProtocol;
+using ZLibNet;
 
 namespace Simple.Objects
 {
@@ -60,7 +60,7 @@ namespace Simple.Objects
 		private ObjectCache? graphElementObjectCache = null;
 		//private ObjectCache manyToManyRelationElementCache = null;
 		private UniqueKeyGenerator<long> clientTempObjectIdGenerator = new UniqueKeyGenerator<long>(1);
-		private ChangeContainer defaultChangeContainer = null;
+		private ChangeContainer defaultChangeContainer;
 		private IUser? systemAdmin = null;
 
 		//private ReadOnlyDictionary<Type, SimpleObjectModel> objectModelsByOriginObjectType;
@@ -70,7 +70,7 @@ namespace Simple.Objects
 
 		private SystemObjectCollectionByObjectKey<int, SystemGraph> systemGraphs = new SystemObjectCollectionByObjectKey<int, SystemGraph>();
 		private SystemObjectCollectionByObjectKey<string, SystemSetting> systemSettings = new SystemObjectCollectionByObjectKey<string, SystemSetting>();
-		private SystemObjectCollectionByObjectKey<int, SystemTableInfos> systemTables = new SystemObjectCollectionByObjectKey<int, SystemTableInfos>();
+		private SystemObjectCollectionByObjectKey<int, SystemTables> systemTables = new SystemObjectCollectionByObjectKey<int, SystemTables>();
 		private SystemObjectCollectionByObjectKey<int, SystemProperty> systemProperties = new SystemObjectCollectionByObjectKey<int, SystemProperty>();
 		private SystemObjectCollectionByObjectKey<int, SystemRelation> systemRelations = new SystemObjectCollectionByObjectKey<int, SystemRelation>();
 
@@ -108,7 +108,7 @@ namespace Simple.Objects
 
 		private SystemTransaction activeTransaction = null;
 		private SystemTransaction lastTransaction = null;
-		private ForeignClientRequester foreignClientRequester = new ForeignClientRequester();
+		private long currentUserId = 0; // Has no meaning for Server mode
 
 		//private Dictionary<SimpleObject, TransactionAction> transactionsActionsBySimpleObject = new Dictionary<SimpleObject, TransactionAction>();
 		//private Dictionary<SimpleObject, TransactionAction> oldTransactionsActionsBySimpleObject = new Dictionary<SimpleObject, TransactionAction>();
@@ -139,7 +139,11 @@ namespace Simple.Objects
 		//	int objectKeyNullableGuidTypeId = SerializationReader.SetNewReadAction((reader) => reader.ReadGuid(), ReadNullableObjectKeyGuidOptimized, ReadNullableObjectKeyGuidOptimized);
 		//}
 
-		public SimpleObjectManager(SimpleObjectModelDiscovery modelDiscovery)
+		//public SimpleObjectManager(SimpleObjectModelDiscovery modelDiscovery)
+		//{
+		//}
+
+		public SimpleObjectManager(SimpleObjectModelDiscovery modelDiscovery, byte[] cryptoKey, byte[] cryptoIV, PaddingMode paddingModel = PaddingMode.PKCS7)
 		{
 			this.modelDiscovery = modelDiscovery;
 			this.objectCachesByTableId = new HashArray<ObjectCache>(modelDiscovery.GetObjectModelCollection().Max(item => item.TableInfo.TableId) + 1);
@@ -147,11 +151,8 @@ namespace Simple.Objects
 			this.defaultChangeContainer = new ChangeContainer();
 			this.defaultChangeContainer.RequireCommitChange += DefaultChangeContainer_RequireCommitChange;
 			//this.defaultChangeContainer.CountChange += this.DefaultChangeContainer_TransactionCountChange;
-		}
 
-		public SimpleObjectManager(SimpleObjectModelDiscovery modelDiscovery, byte[] cryptoKey, byte[] cryptoIV, PaddingMode paddingModel = PaddingMode.PKCS7)
-			: this(modelDiscovery)
-		{
+
 			Aes aes = Aes.Create();
 
 			//aes.GenerateKey();
@@ -178,6 +179,9 @@ namespace Simple.Objects
 
 			//this.Encryptor = crypto.CreateEncryptor(cryptoKey, initializationVector);
 			//this.Decryptor = crypto.CreateDecryptor(cryptoKey, initializationVector);
+
+			if (Instance is null)
+				Instance = this;
 		}
 
 		public ServerObjectModelInfo[] AllServerObjectModels => this.ModelDiscovery.AllServerObjectModels;
@@ -302,7 +306,7 @@ namespace Simple.Objects
 			this.systemGraphs.Load(this);
 
 			// Remove non existing models in datastore
-			IEnumerable<SystemTableInfos> systemTableNamesForDelete = from systemTableName in this.SystemTables.Values
+			IEnumerable<SystemTables> systemTableNamesForDelete = from systemTableName in this.SystemTables.Values
 																 where this.GetObjectModelSafely(systemTableName.TableId) == null
 																 select systemTableName;
 
@@ -319,11 +323,12 @@ namespace Simple.Objects
 				if (!objectModel.IsStorable)
 					continue;
 
-				SystemTableInfos systemTableName;
+				SystemTables? systemTableName;
 
+				
 				if (!this.SystemTables.TryGetValue(objectModel.TableInfo.TableId, out systemTableName))
 				{
-					systemTableName = new SystemTableInfos(this, ref this.systemTables, objectModel.TableInfo.TableId, objectModel.TableInfo.TableName);
+					systemTableName = new SystemTables(this, ref this.systemTables, objectModel.TableInfo.TableId, objectModel.TableInfo.TableName);
 					systemTableName.Save();
 				}
 				else if (systemTableName.TableName != objectModel.TableInfo.TableName)
@@ -804,11 +809,12 @@ namespace Simple.Objects
 
 		#region |   Events   |
 
-		public event GroupMembershipRequesterEventHandler? GroupMembershipJoined;
-		public event GroupMembershipRequesterEventHandler? GroupMembershipDisjoined;
-		public event GraphElementRequesterEventHandler? NewGraphElementCreated;
-		public event BeforeChangeParentGraphElementRequesterEventHandler? BeforeGraphElementParentChange;
-		public event ChangeParentGraphElementRequesterEventHandler? GraphElementParentChange;
+		public event GroupMembershiphangeContainerContextRequesterEventHandler? GroupMembershipJoined;
+		public event GroupMembershiphangeContainerContextRequesterEventHandler? GroupMembershipDisjoined;
+		public event GraphElementChangeContainerContextRequesterEventHandler? NewGraphElementCreated;
+		public event BeforeChangeParentGraphElementChangeContainerContextRequesterEventHandler? BeforeGraphElementParentChange;
+		public event OldParentGraphElemenChangeContainertContextRequesterEventHandler? GraphElementParentChange;
+		public event GraphElementEventHandler? GraphElementHasChildrenUpdate;
 		public event RelationForeignObjectSetEventHandler? RelationForeignObjectSet;
 		public event ChangeOrderIndexSimpleObjectRequesterEventHandler? OrderIndexChange;
 		public event ValidationInfoEventHandler? ValidationInfo;
@@ -825,6 +831,8 @@ namespace Simple.Objects
 
 		#region |   Public Properties   |
 
+		public static SimpleObjectManager? Instance { get; private set; }
+		
 		//     public int ServerId
 		//     {
 		//         get { return this.serverID; }
@@ -984,14 +992,14 @@ namespace Simple.Objects
 		//	get { return this.GetObjectCache(GraphModel.TableId).SelectAll<Graph>(); }
 		//}
 
-		public IUser? SystemAdmin
+		public IUser SystemAdmin
 		{
 			get
 			{
 				if (this.systemAdmin == null)
 				{
 					int tableId = this.GetUserModelTableId();
-					this.systemAdmin = this.GetObjectCache(tableId)?.GetObject(objectId: 1) as IUser;
+					this.systemAdmin = (this.GetObjectCache(tableId)!.GetObject(objectId: 1) as IUser)!;
 					//this.systemAdmin = this.Users.FirstOrDefault(item => item.Username == SystemAdminUsername);
 				}
 
@@ -999,15 +1007,30 @@ namespace Simple.Objects
 			}
 		}
 
-		protected IUser? GetUser(string username)
+		//protected IUser? GetUser(string username)
+		//{
+		//	int tableId = this.GetUserModelTableId();
+
+		//	if (this.GetObjectCache(tableId) is ServerObjectCache serverObjectCache)
+		//		return serverObjectCache.FindFirst(so => (so as IUser)?.Username == username) as IUser;
+
+		//	return default;
+		//}
+
+		protected IUser? GetUser(long userId)
 		{
 			int tableId = this.GetUserModelTableId();
+			var objectCache = this.GetObjectCache(tableId);
 
-			if (this.GetObjectCache(tableId) is ServerObjectCache serverObjectCache)
-				return serverObjectCache.FindFirst(so => (so as IUser)?.Username == username) as IUser;
+			return objectCache?.GetObject(userId) as IUser;
 
-			return default;
+			//if (this.GetObjectCache(tableId) is ServerObjectCache serverObjectCache)
+			//	return serverObjectCache.FindFirst(so => (so as IUser)?.Id == userId) as IUser;
+			//else
+
+			//return default;
 		}
+
 
 		//public new static SimpleObjectManager Instance
 		//      {
@@ -1033,7 +1056,7 @@ namespace Simple.Objects
 			get { return this.systemSettings.AsReadOnly(); }
 		}
 
-		protected IDictionary<int, SystemTableInfos> SystemTables
+		protected IDictionary<int, SystemTables> SystemTables
 		{
 			get { return this.systemTables.AsReadOnly(); }
 		}
@@ -1171,7 +1194,7 @@ namespace Simple.Objects
 		//	return result;
 		//}
 
-		#endregion |   Private Methods   |
+		#endregion |   Private Methods   |g
 
 		#region |   Public Methods   |
 
@@ -1214,14 +1237,20 @@ namespace Simple.Objects
 		public bool AuthenticateSession(string username, string passwordHash, out long userId)
 		{
 			userId = 0;
+			//this.currentUserId = 0;
 
 			if (this.WorkingMode != ObjectManagerWorkingMode.Client)
 			{
-				IUser user = this.GetUser(username);
+				IUser? user = null; // this.GetUser(username);
+				int userTableId = this.GetUserModelTableId();
+
+				if (this.GetObjectCache(userTableId) is ServerObjectCache serverObjectCache)
+					user = serverObjectCache.FindFirst(so => (so as IUser)?.Username == username) as IUser;
 
 				if (user != null && user.PasswordHash == passwordHash)
 				{
 					userId = user.Id;
+					//this.currentUserId = user.Id;
 
 					return true;
 				}
@@ -1233,6 +1262,41 @@ namespace Simple.Objects
 				throw new Exception("ObjectManager can authorize session only in Server working mode");
 			}
 		}
+
+		public bool AuthenticateMonitorSession(string username, string passwordHash, out long userId)
+		{
+			return this.AuthenticateSession(username, passwordHash, out userId);
+		}
+
+		/// <summary>
+		/// Get the current User in not Server working mode
+		/// </summary>
+		/// <returns>The current user set by SetCurrentUser(long userId)</returns>
+		public IUser? GetCurrentUser()
+		{
+			if (this.WorkingMode == ObjectManagerWorkingMode.Server)
+				new Exception("You cannot get current authorized user only in Server working mode");
+
+			return this.GetUser(this.currentUserId);
+		}
+
+		public void SetCurrentUser(long userId)
+		{
+			if (this.WorkingMode == ObjectManagerWorkingMode.Server)
+				new Exception("You cannot set current authorized user only in Server working mode");
+				
+			this.currentUserId = userId;
+		}
+
+		//public long GetUserId(string username)
+		//{
+		//	if (this.WorkingMode != ObjectManagerWorkingMode.Server)
+		//		throw new Exception("ObjectManager can get userId only in Server working mode");
+			
+		//	return this.GetUser(username)?.Id ?? 0;
+		//}
+
+
 
 		//public SimpleObject GetSimpleObject(Guid objectKey)
 		//      {
@@ -1253,29 +1317,40 @@ namespace Simple.Objects
 			{
 				if (parentGraphElementId == 0)
 				{
-					return this.GetSystemGraph(graphKey).GetRootGraphElements(); //out hasChildrenInfo);
+					return this.GetSystemGraph(graphKey).RootGraphElements; //out hasChildrenInfo);
 				}
-				else
+				else if (parentGraphElementId > 0)
 				{
 					// Now determine if the first or any of child graph elements are in the cache. If so, probably the all other requred objects are in the cache
-					ObjectCache? graphElementObjectCache = this.GetObjectCache(GraphElementModel.TableId);
-					GraphElement? parent = graphElementObjectCache?.GetObject(parentGraphElementId) as GraphElement;
+					//ObjectCache? graphElementObjectCache = this.GetObjectCache(GraphElementModel.TableId);
+					GraphElement? parent = this.GetObject(GraphElementModel.TableId, parentGraphElementId) as GraphElement; //,  graphElementObjectCache?.GetObject(parentGraphElementId) as GraphElement;
 
-					if (!parent!.IsChildrenLoadedInClientMode)
+					if (parent != null && !parent.IsChildrenLoadedInClientMode)
 					{
-						this.CacheGraphElementsWithObjectsFromServer(graphKey, parentGraphElementId, out List<long> graphElementObjectIds); //, out hasChildrenInfo);
+						if (parent.HasChildrenInClientModeWhenNotLoaded)
+						{
+							this.CacheGraphElementsWithObjectsFromServer(graphKey, parentGraphElementId, out List<long> graphElementObjectIds); //, out hasChildrenInfo);
 
-						var graphElements = new SimpleObjectCollection<GraphElement>(this, GraphElementModel.TableId, graphElementObjectIds);
+							var graphElements = new SimpleObjectCollection<GraphElement>(this, GraphElementModel.TableId, graphElementObjectIds);
 
-						parent.SetGraphElementCollectionInternal(graphElements);
-						parent!.IsChildrenLoadedInClientMode = true;
+							parent.SetClientGraphElementCollectionInternal(graphElements);
+							result = graphElements;
+						}
+						else
+						{
+							result = new SimpleObjectCollection<GraphElement>(this, GraphElementModel.TableId, new List<long>(0));
+						}
 
-						return graphElements;
+						parent.IsChildrenLoadedInClientMode = true;
 					}
 					else
 					{
-						result = parent.GraphElements;
+						result = parent?.GraphElements ?? new SimpleObjectCollection<GraphElement>(this, GraphElementModel.TableId, new List<long>(0));
 					}
+				}
+				else // parentGraphElementId is negatve => find this at client local
+				{
+					result = this.GetLocalGraphElements(graphKey, parentGraphElementId);
 				}
 			}
 			else
@@ -1291,6 +1366,22 @@ namespace Simple.Objects
 			return result;
 		}
 
+		public bool DoesGraphElementHaveChildren(GraphElement graphElement)
+		{
+			if (this.WorkingMode == ObjectManagerWorkingMode.Client)
+				return this.RemoteDatastore!.DoesGraphElementHaveChildren(graphElement.Id).GetAwaiter().GetResult(); // Ask Server
+			else
+				return graphElement.HasChildren;
+		}
+
+		public bool DoesGraphElementHaveChildren(long graphElementId)
+		{
+			if (this.WorkingMode == ObjectManagerWorkingMode.Client)
+				return this.RemoteDatastore!.DoesGraphElementHaveChildren(graphElementId).GetAwaiter().GetResult(); // Ask Server
+			else
+				return (this.GraphElementObjectCache.GetObject(graphElementId) as GraphElement)?.HasChildren ?? false;
+		}
+
 		public SimpleObjectCollection<GraphElement> GetLocalGraphElements(int graphKey, long parentGraphElementId)
 		{
 			GraphElement? parent = this.GetObject(GraphElementModel.TableId, parentGraphElementId) as GraphElement;
@@ -1303,7 +1394,7 @@ namespace Simple.Objects
 		{
 			SystemGraph graph = this.GetSystemGraph(graphKey);
 
-			return graph.GetRootGraphElements(); //out hasChildrenInfo);
+			return graph.RootGraphElements; //out hasChildrenInfo);
 		}
 
 
@@ -1606,9 +1697,9 @@ namespace Simple.Objects
 			this.RaiseLargeUpdateEnded();
 		}
 
-		public void UndoTransaction(SystemTransaction transaction, object requester)
+		public void UndoTransaction(SystemTransaction transaction, ObjectActionContext context, object? requester)
 		{
-			this.RollbackTransactionInternal(transaction, requester);
+			this.RollbackTransactionInternal(transaction, context, requester);
 		}
 
 		public override string ToString()
@@ -1652,17 +1743,20 @@ namespace Simple.Objects
 
 		#region |   Object Cache   |
 
-		public ObjectCache GetObjectCache<T>()
+		public ObjectCache? GetObjectCache<T>()
 			where T : SimpleObject
 		{
 			return this.GetObjectCache(typeof(T));
 		}
 
-		public ObjectCache GetObjectCache(Type objectType)
+		public ObjectCache? GetObjectCache(Type objectType)
 		{
-			ISimpleObjectModel objectModel = this.GetObjectModel(objectType);
+			ISimpleObjectModel? objectModel = this.GetObjectModel(objectType);
 
-			return this.GetObjectCache(objectModel.TableInfo.TableId);
+			if (objectModel != null)
+				return this.GetObjectCache(objectModel.TableInfo.TableId);
+
+			return default;
 		}
 
 		//public ObjectCache GetObjectCache(ISimpleObjectModel objectModel)
@@ -1832,13 +1926,11 @@ namespace Simple.Objects
 			{
 
 				result = serverObjectCache.FindFirst<GroupMembership>(gm => gm.RelationKey == membershipKey &&
-																		    ((gm.Object1TableId == object1TableId && gm.Object1Id == object1Id && gm.Object2TableId == object2TableId && gm.Object2Id == object2Id) ||
-																			 (gm.Object1TableId == object2TableId && gm.Object1Id == object2Id && gm.Object2TableId == object1TableId && gm.Object2Id == object1Id)));
+																		  ((gm.Object1TableId == object1TableId && gm.Object1Id == object1Id && gm.Object2TableId == object2TableId && gm.Object2Id == object2Id) ||
+																		   (gm.Object1TableId == object2TableId && gm.Object1Id == object2Id && gm.Object2TableId == object1TableId && gm.Object2Id == object1Id)));
 			}
 			else if (objectCache is ClientObjectCache clientObjectCache)
 			{
-				
-				
 				result = null;
 			}
 			else
@@ -1849,7 +1941,7 @@ namespace Simple.Objects
 			return result;
 		}
 
-		public SimpleObject? GetObject(SimpleObjectKey objectKey) => this.GetObject(objectKey.TableId, objectKey.ObjectId);
+		//public SimpleObject? GetObject(SimpleObjectKey objectKey) => this.GetObject(objectKey.TableId, objectKey.ObjectId);
 
 		public T? GetObject<T>(int tableId, long objectId)
 			where T : SimpleObject
@@ -1870,7 +1962,7 @@ namespace Simple.Objects
 
 		public bool ContainsObject(int tableId, long objectId)
 		{
-			ObjectCache objectCache = this.GetObjectCache(tableId);
+			ObjectCache? objectCache = this.GetObjectCache(tableId);
 
 			if (objectCache != null)
 				return objectCache.ContainsId(objectId);
@@ -1878,13 +1970,21 @@ namespace Simple.Objects
 			return false;
 		}
 
-		public bool IsObjectInCache(int tableId, long objectId)
+		//public bool IsObjectInCache(int tableId, long objectId, out SimpleObject? simpleObject)
+
+
+		public bool IsObjectInCache(int tableId, long objectId) => this.IsObjectInCache(tableId, objectId, out SimpleObject? simpleObject);
+
+		public bool IsObjectInCache(int tableId, long objectId, out SimpleObject? simpleObject)
 		{
-			ObjectCache objectCache = this.GetObjectCache(tableId);
+			ObjectCache? objectCache = this.GetObjectCache(tableId);
 
 			if (objectCache != null)
-				return objectCache.IsInCache(objectId);
+				return objectCache.IsInCache(objectId, out simpleObject);
 
+
+			simpleObject = null;
+			
 			return false;
 		}
 
@@ -2083,42 +2183,54 @@ namespace Simple.Objects
 		//	return this.CreateNewEmptyObject(objectType, isNew, objectId, requester: null);
 		//}
 
-		//public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, object requester)
+		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, object? requester = null)
+		{
+			return this.CreateNewEmptyObject(objectType, isNew, objectId, ObjectActionContext.Unspecified, requester);
+		}
+
+		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, ObjectActionContext context, object? requester = null)
+		{
+			return this.CreateNewEmptyObject(objectType, isNew, objectId, this.DefaultChangeContainer, context, requester);
+		}
+
+		//public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId)
+		//{
+		//	return this.CreateNewEmptyObject(objectType, isNew, objectId, requester: null);
+		//}
+
+		//public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, object? requester)
 		//{
 		//	return this.CreateNewEmptyObject(objectType, isNew, objectId, this.DefaultChangeContainer, requester);
 		//}
 
-		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId)
+		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
 		{
-			return this.CreateNewEmptyObject(objectType, isNew, objectId, requester: null);
-		}
+		//	return this.CreateNewEmptyObjectInternal(objectType, isNew, objectId, changeContainer, context, requester);
+		//}
 
-		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, object? requester)
-		{
-			return this.CreateNewEmptyObject(objectType, isNew, objectId, this.DefaultChangeContainer, requester);
-		}
-
-		public SimpleObject CreateNewEmptyObject(Type objectType, bool isNew, long objectId, ChangeContainer? changeContainer, object? requester)
-		{
+		//protected internal SimpleObject CreateNewEmptyObjectInternal(Type objectType, bool isNew, long objectId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		//{
 			//SimpleObject simpleObject = (objectType == typeof(GraphElement)) ? new GraphElement(this, changeContainer) : Activator.CreateInstance(objectType, this) as SimpleObject;
 			if (Activator.CreateInstance(objectType, this) is SimpleObject simpleObject)
 			{
+				if (context == ObjectActionContext.Unspecified)
+					context = (this.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
+				
+				//simpleObject.DefaultChangeContainer = changeContainer;
 				simpleObject.ChangeContainer = changeContainer;
+				//simpleObject.DefaultContext = context;
+				simpleObject.Context = context;
+				//simpleObject.DefaultRequester = requester;
 				simpleObject.Requester = requester;
 				simpleObject.SetIsNew(isNew);
 
 				if (objectId > 0)
-				{
 					simpleObject.SetId(objectId);
-				}
 				else
-				{
-					// Enforce new Id creation;
-					_ = simpleObject.Id;
-				}
+					_ = simpleObject.Id; // Enforce new Id creation;
 
-				if (changeContainer != null)
-					changeContainer.Set(simpleObject, TransactionRequestAction.Save, requester);
+				if (isNew)
+					changeContainer?.Set(simpleObject, TransactionRequestAction.Save, requester);
 
 				return simpleObject;
 			}
@@ -2132,51 +2244,56 @@ namespace Simple.Objects
 		//{
 		//	GraphElement graphElement = new GraphElement(this, graphKey, parentGraphElement, simpleObject);
 
-		//	graphElement.SetIsNew(true);
+			//	graphElement.SetIsNew(true);
 
-		//	if (!simpleObject.IsNew)
-		//		graphElement.Save();
+			//	if (!simpleObject.IsNew)
+			//		graphElement.Save();
 
-		//	return graphElement;
-		//}
+			//	return graphElement;
+			//}
 
 
-		//public void AddNewObjectInCache(SimpleObject simpleObject)
-		//{
-		//	ObjectCache objectCache = this.GetObjectCache(simpleObject.GetModel().TableInfo.TableId);
+			//public void AddNewObjectInCache(SimpleObject simpleObject)
+			//{
+			//	ObjectCache objectCache = this.GetObjectCache(simpleObject.GetModel().TableInfo.TableId);
 
-		//	if (objectCache.IsObjectInCache(simpleObject.Id))
-		//		return;
+			//	if (objectCache.IsObjectInCache(simpleObject.Id))
+			//		return;
 
-		//	objectCache.AddNewObject(simpleObject);
-		//	//objectCache.AddNewObjectWithKey(simpleObject);
-		//}
+			//	objectCache.AddNewObject(simpleObject);
+			//	//objectCache.AddNewObjectWithKey(simpleObject);
+			//}
 
-		internal long AddNewObjectInCache(SimpleObject simpleObject, ChangeContainer changeContainer, object requester)
+		internal long AddNewObjectInCache(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			ObjectCache objectCache = this.GetObjectCache(simpleObject.GetModel().TableInfo.TableId);
-			long id = objectCache.AddNewObject(simpleObject);
+			ObjectCache? objectCache = this.GetObjectCache(simpleObject.GetModel().TableInfo.TableId);
+			long id = objectCache?.AddNewObjectInternal(simpleObject, changeContainer, requester) ?? 0;
 
 			simpleObject.InternalState = SimpleObjectInternalState.Normal;
 
-			if (simpleObject.IsNew && this.WorkingMode != ObjectManagerWorkingMode.Server)
-			{
-				this.NewObjectIsCreated(simpleObject, requester);
+			//if (simpleObject.IsNew && this.WorkingMode != ObjectManagerWorkingMode.Server)
+			//{
+			//	this.NewClientObjectIsCreated(simpleObject, changeContainer, requester);
 
-				ChangeContainer cc = changeContainer ?? this.DefaultChangeContainer;
-				
-				cc.Set(simpleObject, TransactionRequestAction.Save, requester);
-			}
+			//	if (changeContainer != null)
+			//		changeContainer.Set(simpleObject, TransactionRequestAction.Save, requester);
+			//}
+
+			if (simpleObject.IsNew)
+				this.NewObjectIsCreated(simpleObject, changeContainer, context, requester);
 
 			return id;
 		}
 
 
-		internal bool RemoveObjectFromCache(int tableId, long objectId)
+		internal bool RemoveObjectFromCache(int tableId, long objectId, ChangeContainer? changeContainer, object? requester)
 		{
-			ObjectCache objectCache = this.GetObjectCache(tableId);
+			ObjectCache? objectCache = this.GetObjectCache(tableId);
 
-			return objectCache.RemoveObject(objectId);
+			if (objectCache != null)
+				return objectCache.RemoveObjectInternal(objectId, changeContainer, requester);
+			else
+				return false;
 		}
 
 		//internal SimpleObject CreateObject(ObjectCache objectCache, Guid objectKey)
@@ -2265,7 +2382,7 @@ namespace Simple.Objects
 					{
 						lock (this.lockObject)
 						{
-							SimpleObjectCollection<GraphElement> childGraphElements = (parentGraphElement != null) ? parentGraphElement.GraphElements : this.GetSystemGraph(graphKey).GetRootGraphElements();
+							SimpleObjectCollection<GraphElement> childGraphElements = (parentGraphElement != null) ? parentGraphElement.GraphElements : this.GetSystemGraph(graphKey).RootGraphElements;
 
 							foreach (GraphElement childGraphElement in childGraphElements)
 							{
@@ -2346,11 +2463,16 @@ namespace Simple.Objects
 			return this.ValidateGraphPolicy(graphElement, graphElement.Parent);
 		}
 
-		private ValidationResult ValidateGraphPolicy(GraphElement graphElement, GraphElement parentGraphElement)
+		private ValidationResult ValidateGraphPolicy(GraphElement graphElement, GraphElement? parentGraphElement)
 		{
 			if (graphElement.SimpleObject == null)
-				return new ValidationResult(false, "GraphElement SimpleObject is null");
-
+			{
+				if (graphElement.IsNew)
+					return new ValidationResult(false, "GraphElement SimpleObject is null");
+				else
+					return new ValidationResult(true); // Allow alredy existing object to be changed for corrupted GE without SO
+			}
+			
 			return this.ValidateGraphPolicy(graphElement.GraphKey, graphElement.SimpleObject.GetType(), parentGraphElement);
 		}
 
@@ -2434,18 +2556,23 @@ namespace Simple.Objects
 						return new ValidationResult(false, simpleObjectType.GetType() + " cannot be in root as specified by graph policy model");
 
 					// Check if neighbor policy is accepted
-					long parentGraphElementId = parentGraphElement?.Id ?? 0;
-					SimpleObjectCollection<GraphElement>? neighborGraphElements = (graphPolicyModel.IsAnchorMode) ? this.GetGraphElements(graphKey, parentGraphElement?.Id ?? 0) :
-																											        this.GetSystemGraph(graphKey).GetRootGraphElements();
+					//long parentGraphElementId = parentGraphElement?.Id ?? 0;
+					SimpleObjectCollection<GraphElement>? neighborGraphElements; 
+
+					if (graphPolicyModel.IsAnchorMode)
+						neighborGraphElements = (parentGraphElement != null) ? this.GetGraphElements(graphKey, parentGraphElement.Id) : null;
+					else
+						neighborGraphElements = this.GetSystemGraph(graphKey).RootGraphElements;
+
 					if (neighborGraphElements != null)
 					{
 						foreach (GraphElement neighborGraphElement in neighborGraphElements)
 						{
-							if (neighborGraphElement.SimpleObject is Folder) // SimpleObjectTableId == FolderModel.TableId) //.SimpleObject is Folder) // Allow Folder to be in group with any objects.
+							if (neighborGraphElement.SimpleObject is Folder) // SimpleObjectTableId == FolderModel.TableId) //.SimpleObject is Folder) // Allow Folder can be in a group with any objects.
 								continue;
 
-							if (objectGraphPolicyModel != null && objectGraphPolicyModel.CanBeInRoot) // parentGraphElement == null
-								continue;
+							//if (objectGraphPolicyModel != null && objectGraphPolicyModel.CanBeInRoot) // parentGraphElement == null
+							//	continue;
 
 							IGraphPolicyModelElement? neighborObjectGraphPolicyModel = graphPolicyModel.GetGraphPolicyModelElement(neighborGraphElement.SimpleObject!.GetType());
 
@@ -2510,16 +2637,19 @@ namespace Simple.Objects
 					{
 						// Check if neighbor policy is accepted
 						SimpleObjectCollection<GraphElement> neighbourGraphElements = (realParentGraphElement != null) ? this.GetGraphElements(graphKey, realParentGraphElement.Id) 
-																													   : graph.GetRootGraphElements();
-
+																													   : graph.RootGraphElements;
 						//if (neighbourGraphElements.Count < 5)
 						//{
-							foreach (GraphElement neighborGraphElement in neighbourGraphElements)
-							{
-								if (neighborGraphElement.SimpleObject is Folder) // SimpleObjectTableId == FolderModel.TableId) //.SimpleObject is Folder) // Allow Folder to be in group with any objects.
-									continue;
+						foreach (GraphElement neighborGraphElement in neighbourGraphElements)
+						{
+							if (neighborGraphElement.SimpleObject is Folder) // SimpleObjectTableId == FolderModel.TableId) //.SimpleObject is Folder) // Allow Folder to be in group with any objects.
+								continue;
 
-								IGraphPolicyModelElement? neighborObjectGraphPolicyModel = graphPolicyModel.GetGraphPolicyModelElement(neighborGraphElement.SimpleObject!.GetType());
+							SimpleObject? simpleObject = neighborGraphElement.SimpleObject;
+
+							if (simpleObject != null)
+							{
+								IGraphPolicyModelElement? neighborObjectGraphPolicyModel = graphPolicyModel.GetGraphPolicyModelElement(simpleObject.GetType());
 
 								if (neighborObjectGraphPolicyModel != null && objectGraphPolicyModel != null && neighborObjectGraphPolicyModel.Priority < objectGraphPolicyModel.Priority)
 								{
@@ -2528,6 +2658,7 @@ namespace Simple.Objects
 										return new ValidationResult(false, "Some child GraphElement has a lower graph priority.");
 								}
 							}
+						}
 						//}
 					}
 
@@ -2587,68 +2718,76 @@ namespace Simple.Objects
 		{
 			lock (lockObject)
 			{
-				bool isValidationTest = graphElement.SimpleObject?.IsValidationTest ?? false;
-				
-				if (graphElement.SimpleObject != null)
-					graphElement.SimpleObject.IsValidationTest = true;
+				//bool isValidationTest = graphElement.SimpleObject?.IsValidationTest ?? false;
+
+				//if (graphElement.SimpleObject != null)
+				//	graphElement.SimpleObject.IsValidationTest = true;
+				// the same object cannot be parent											// Inserting parent into child is not allowed.
+				if (newParentGraphElement == graphElement || (newParentGraphElement != null && newParentGraphElement.HasAsParent(graphElement)))
+					return false;
 
 				bool result = this.CanAddGraphElement(graphElement.GraphKey, graphElement.SimpleObject.GetType(), newParentGraphElement);
 
-				if (result == true)
-				{
-					if (newParentGraphElement != null)
-					{
-						// Inserting parent into child is not allowed.
-						if (newParentGraphElement.HasAsParent(graphElement))
-						{
-							graphElement.SimpleObject.IsValidationTest = isValidationTest;
+				//if (result == true)
+				//{
+				//	if (newParentGraphElement != null)
+				//	{
+				//		// Inserting parent into child is not allowed.
+				//		if (newParentGraphElement.HasAsParent(graphElement))
+				//		{
+				//			//graphElement.SimpleObject.IsValidationTest = isValidationTest;
 
-							return false;
-						}
+				//			return false;
+				//		}
 
-						//GraphElement parent = newParentGraphElement.Parent;
+				//		//GraphElement parent = newParentGraphElement.Parent;
 
-						//while (parent != null)
-						//{
-						//	if (parent == graphElement)
-						//	{
-						//		graphElement.SimpleObject.IsValidationTest = isValidationTest;
+				//		//while (parent != null)
+				//		//{
+				//		//	if (parent == graphElement)
+				//		//	{
+				//		//		graphElement.SimpleObject.IsValidationTest = isValidationTest;
 
-						//		return false;
-						//	}
+				//		//		return false;
+				//		//	}
 
-						//	parent = parent.Parent;
-						//}
-					}
+				//		//	parent = parent.Parent;
+				//		//}
+				//	}
 
-					result = this.ValidateGraphPolicy(graphElement, newParentGraphElement).Passed;
-					//result = this.IsGraphElementNormalizedByModelIfChangeParent(graphElement, newParentGraphElement);
+				//	// TODO: Check why is this call doubled: this.CanAddGraphElement invoke ValidateGraphPolicy
 
-					//if (enforceSetParentAndValidate && result == true)
-					//{
-					//	GraphElement originalParentGraphElement = graphElement.Parent;
-					//	int orderIndex = graphElement.OrderIndex;
+				//	//result = this.ValidateGraphPolicy(graphElement, newParentGraphElement).Passed;
 
-					//	//graphElement.Parent = newParentGraphElement;
-					//	graphElement.SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(newParentGraphElement);
 
-					//	try
-					//	{
-					//                       SimpleObjectValidationResult validationResult = graphElement.SimpleObject.Validate();
-					//		result = validationResult.Passed;
-					//	}
-					//	catch
-					//	{
-					//		result = false;
-					//	}
-					//	finally
-					//	{
-					//		//graphElement.Parent = originalParentGraphElement;
-					//		graphElement.SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(originalParentGraphElement);
-					//		graphElement.SetOrderIndex(orderIndex, requester: this);
-					//	}
-					//}
-				}
+
+				//	//result = this.IsGraphElementNormalizedByModelIfChangeParent(graphElement, newParentGraphElement);
+
+				//	//if (enforceSetParentAndValidate && result == true)
+				//	//{
+				//	//	GraphElement originalParentGraphElement = graphElement.Parent;
+				//	//	int orderIndex = graphElement.OrderIndex;
+
+				//	//	//graphElement.Parent = newParentGraphElement;
+				//	//	graphElement.SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(newParentGraphElement);
+
+				//	//	try
+				//	//	{
+				//	//                       SimpleObjectValidationResult validationResult = graphElement.SimpleObject.Validate();
+				//	//		result = validationResult.Passed;
+				//	//	}
+				//	//	catch
+				//	//	{
+				//	//		result = false;
+				//	//	}
+				//	//	finally
+				//	//	{
+				//	//		//graphElement.Parent = originalParentGraphElement;
+				//	//		graphElement.SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(originalParentGraphElement);
+				//	//		graphElement.SetOrderIndex(orderIndex, requester: this);
+				//	//	}
+				//	//}
+				//}
 
 				//foreach (SimpleObjectDependencyAction objectDependencyAction in this.ObjectDependencyActions)
 				//{
@@ -2658,7 +2797,7 @@ namespace Simple.Objects
 				//    }
 				//}
 
-				graphElement.SimpleObject.IsValidationTest = isValidationTest;
+				////graphElement.SimpleObject.IsValidationTest = isValidationTest;
 
 				return result;
 			}
@@ -2754,17 +2893,15 @@ namespace Simple.Objects
 			{
 				bool canDelete = true;
 
-				if (simpleObject is GraphElement) // & checkSimpleObjectGraphElements)
+				if (simpleObject is GraphElement graphElement) // & checkSimpleObjectGraphElements)
 				{
-					GraphElement graphElement = simpleObject as GraphElement;
-
 					//if (graphElement.ParentGraphElements.Count == 1) // no neighbors, childs will change parent on delete request
 					//{
 					//	canDelete = true;
 					//}
 					//else
 					//{
-					canDelete &= graphElement.GraphElements.Count == 0;   //this.CanDeleteGraphElement(simpleObject as GraphElement);
+					canDelete &= !graphElement.HasChildren;   //this.CanDeleteGraphElement(simpleObject as GraphElement);
 																		  //}
 				}
 
@@ -2777,7 +2914,7 @@ namespace Simple.Objects
 		//	return this.ValidateDelete(simpleObject, this.DefaultChangeContainer.TransactionRequests);
 		//}
 
-		public virtual SimpleObjectValidationResult ValidateDelete(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
+		public virtual SimpleObjectValidationResult ValidateDelete(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction>? transactionRequests)
 		{
 			lock (this.lockObject)
 			{
@@ -2801,37 +2938,49 @@ namespace Simple.Objects
 								return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Child graph elements will not be saved.", simpleObject.GetName(), simpleObject.GetType().Name), null, TransactionRequestAction.Delete);
 				}
 
-				// We need to check if any of foreign key exists in any related objects and is not in transaction requests for delete
-				// one to one
-				foreach (IOneToOneRelationModel oneToOneRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations)
+
+				// 
+				// !!! This is temporary !!!
+				//
+				// TODO: Implement CancelDelete with restoring all RemoveAllRelatedObjectsFromAllRelatedObjectCaches to its original state (ChangeContainter -> reject changes)
+				//       Or remove SimpleObject.CamcelDelete. The only way to reject all changes is rollback transaction.
+				//if (true) // Skip this validation temporary sice one-to-one relation object will be deleted after the transaction succeeded
+				//{
+
+				if (false) // RemoveAllRelatedObjectsFromAllRelatedObjectCaches will delete related foreign keys
 				{
-					SimpleObject foreignObject = simpleObject.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey);
+					// We need to check if any of foreign key exists in any related objects and is not in transaction requests for delete
+					// one to one
+					foreach (IOneToOneRelationModel oneToOneRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations)
+					{
+						SimpleObject foreignObject = simpleObject.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey);
 
-					if (foreignObject != null && !(transactionRequests.ContainsKey(foreignObject) && transactionRequests[foreignObject] == TransactionRequestAction.Delete))
-						return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Key holder object from {2} relation will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, oneToOneRelationModel.Name), null, TransactionRequestAction.Delete);
-				}
-
-				// one to many
-				foreach (IOneToManyRelationModel oneToManyRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToManyRelations)
-				{
-					SimpleObjectCollection foreignCollection = simpleObject.GetOneToManyForeignObjectCollection(oneToManyRelationModel.RelationKey);
-
-					foreach (SimpleObject foreignObject in foreignCollection)
 						if (foreignObject != null && !(transactionRequests.ContainsKey(foreignObject) && transactionRequests[foreignObject] == TransactionRequestAction.Delete))
-							return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Key holder object from {2} relation will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, oneToManyRelationModel.Name), null, TransactionRequestAction.Delete);
+							return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Key holder object from {2} relation will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, oneToOneRelationModel.Name), null, TransactionRequestAction.Delete);
+					}
+
+					// one to many
+					foreach (IOneToManyRelationModel oneToManyRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToManyRelations)
+					{
+						SimpleObjectCollection foreignCollection = simpleObject.GetOneToManyForeignObjectCollection(oneToManyRelationModel.RelationKey);
+
+						foreach (SimpleObject foreignObject in foreignCollection)
+							if (foreignObject != null && !(transactionRequests.ContainsKey(foreignObject) && transactionRequests[foreignObject] == TransactionRequestAction.Delete))
+								return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Key holder object from {2} relation will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, oneToManyRelationModel.Name), null, TransactionRequestAction.Delete);
+					}
+
+					// many to many
+					foreach (IManyToManyRelationModel relationModel in simpleObject.GetModel().RelationModel.AsObjectInGroupMembership)
+					{
+						SimpleObjectCollection groupMemberCollection = simpleObject.GetGroupMemberCollection(relationModel.RelationKey);
+
+						foreach (GroupMembership groupMembership in simpleObject.GetGroupMemberCollection(relationModel.RelationKey).GetGroupMembershipCollection())
+							if (groupMembership != null && !(transactionRequests.ContainsKey(groupMembership) && transactionRequests[groupMembership] == TransactionRequestAction.Delete))
+								return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Group membership relation {2} contains this object and will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, relationModel.Name), null, TransactionRequestAction.Delete);
+					}
 				}
 
-				// many to many
-				foreach (IManyToManyRelationModel relationModel in simpleObject.GetModel().RelationModel.AsObjectInGroupMembership)
-				{
-					SimpleObjectCollection groupMemberCollection = simpleObject.GetGroupMemberCollection(relationModel.RelationKey);
-
-					foreach (GroupMembership groupMembership in simpleObject.GetGroupMemberCollection(relationModel.RelationKey).GetGroupMembershipCollection())
-						if (groupMembership != null && !(transactionRequests.ContainsKey(groupMembership) && transactionRequests[groupMembership] == TransactionRequestAction.Delete))
-							return new SimpleObjectValidationResult(simpleObject, false, String.Format("{0} ({1}) delete validation failed: Group membership relation {2} contains this object and will not be deleted.", simpleObject.GetName(), simpleObject.GetType().Name, relationModel.Name), null, TransactionRequestAction.Delete);
-				}
-
-				return SimpleObjectValidationResult.DefaultSuccessResult;
+				return new SimpleObjectValidationResult(simpleObject, passed: true, TransactionRequestAction.Delete);
 			}
 		}
 
@@ -2895,11 +3044,11 @@ namespace Simple.Objects
 		//	return this.ValidateSave(simpleObject, this.DefaultChangeContainer.TransactionRequests);
 		//}
 
-		public virtual SimpleObjectValidationResult ValidateSave(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
+		public virtual SimpleObjectValidationResult ValidateSave(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction>? transactionRequests)
 		{
 			lock (this.lockObject)
 			{
-				ISimpleObjectModel objectModel = this.GetObjectModel(simpleObject.GetType());
+				ISimpleObjectModel? objectModel = this.GetObjectModel(simpleObject.GetType());
 
 				foreach (ValidationRule validationRule in objectModel.UpdateValidationRules)
 				{
@@ -2912,7 +3061,7 @@ namespace Simple.Objects
 				// OneToOne relations
 				foreach (IOneToOneRelationModel oneToOneRelationModel in simpleObject.GetModel().RelationModel.AsForeignObjectInOneToOneRelations) // objectRelationModel.OneToOneRelationForeignKeyObjectDictionary)
 				{
-					SimpleObject foregnObject = simpleObject.GetOneToOnePrimaryObject(oneToOneRelationModel.RelationKey);
+					SimpleObject? foregnObject = simpleObject.GetOneToOnePrimaryObject(oneToOneRelationModel.RelationKey);
 
 					if (foregnObject == null)
 					{
@@ -2923,26 +3072,26 @@ namespace Simple.Objects
 					{
 						TransactionRequestAction requestAction;
 
-						if (transactionRequests.TryGetValue(foregnObject, out requestAction))
+						if (transactionRequests != null && transactionRequests.TryGetValue(foregnObject, out requestAction))
 						{
 							if (requestAction != TransactionRequestAction.Save)
-								return new SimpleObjectValidationResult(simpleObject, false, null, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " will be deleted by current transaction.", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
+								return new SimpleObjectValidationResult(simpleObject, passed: false, message: String.Empty, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " will be deleted by current transaction.", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
 						}
 						else if (foregnObject.IsNew) // is new but not included in transaction action
 						{
-							return new SimpleObjectValidationResult(simpleObject, false, null, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " must be saved also.", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
+							return new SimpleObjectValidationResult(simpleObject, passed: false, message: String.Empty, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " must be saved also.", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
 						}
 
 
 						if (!foregnObject.IsStorable)
-							return new SimpleObjectValidationResult(simpleObject, false, null, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " is not storable", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
+							return new SimpleObjectValidationResult(simpleObject, passed: false, message: String.Empty, new PropertyValidationResult(false, "Related foreign object " + oneToOneRelationModel.PrimaryObjectType.ToString() + " is not storable", oneToOneRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
 					}
 				}
 
 				// OneToMany relations
 				foreach (IOneToManyRelationModel oneToManyRelationModel in simpleObject.GetModel().RelationModel.AsForeignObjectInOneToManyRelations) // objectRelationModel.OneToManyRelationForeignKeyObjectDictionary)
 				{
-					SimpleObject foregnObject = simpleObject.GetOneToManyPrimaryObject(oneToManyRelationModel.RelationKey);
+					SimpleObject? foregnObject = simpleObject.GetOneToManyPrimaryObject(oneToManyRelationModel.RelationKey);
 
 					if (foregnObject == null)
 					{
@@ -2953,7 +3102,7 @@ namespace Simple.Objects
 					{
 						TransactionRequestAction requestAction;
 
-						if (transactionRequests.TryGetValue(foregnObject, out requestAction))
+						if (transactionRequests != null && transactionRequests.TryGetValue(foregnObject, out requestAction))
 						{
 							if (requestAction != TransactionRequestAction.Save)
 								return new SimpleObjectValidationResult(simpleObject, false, null, new PropertyValidationResult(false, "Related foreign object " + oneToManyRelationModel.PrimaryObjectType.ToString() + " will be deleted by current transaction.", oneToManyRelationModel.PrimaryObjectIdPropertyModel), TransactionRequestAction.Save);
@@ -2988,7 +3137,7 @@ namespace Simple.Objects
 
 				//}
 
-				return SimpleObjectValidationResult.DefaultSuccessResult;
+				return new SimpleObjectValidationResult(simpleObject, true, TransactionRequestAction.Save);
 			}
 		}
 
@@ -3038,7 +3187,7 @@ namespace Simple.Objects
 						return false;
 				}
 
-				SimpleObjectCollection<GraphElement> neighbourGraphElements = (newParentGraphElement != null) ? newParentGraphElement.GraphElements : graphElement.Graph.GetRootGraphElements();
+				SimpleObjectCollection<GraphElement> neighbourGraphElements = newParentGraphElement?.GraphElements ?? graphElement.Graph.RootGraphElements;
 
 				foreach (GraphElement neighborGraphElement in neighbourGraphElements)
 				{
@@ -3494,16 +3643,16 @@ namespace Simple.Objects
 		/// <param name="simpleObject"></param>
 		/// <param name="changeContainer"></param>
 		/// <param name="requester"></param>
-		protected virtual void OnBeforeSave(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		protected virtual void OnBeforeSave(SimpleObject simpleObject, ChangeContainer changeContainer, ObjectActionContext context, object? requester)
 		{
 		}
 
-		internal void ActionBeforeSaving(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		internal void ActionBeforeSaving(SimpleObject simpleObject, ChangeContainer changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (this.WorkingMode != ObjectManagerWorkingMode.Server)
 			{
-				simpleObject.BeforeSave(changeContainer, requester);
-				this.OnBeforeSave(simpleObject, changeContainer, requester);
+				simpleObject.BeforeSave(changeContainer, context, requester);
+				this.OnBeforeSave(simpleObject, changeContainer, context, requester);
 			}
 		}
 
@@ -3521,26 +3670,28 @@ namespace Simple.Objects
 			this.RequestDelete(simpleObject, this.DefaultChangeContainer, requester);
 		}
 
-		public void RequestDelete(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		public void RequestDelete(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
 		{
-			this.RequestDelete(simpleObject, changeContainer, findRelatedObjectsForDelete: true, requester);
+			this.RequestDelete(simpleObject, changeContainer, simpleObject.Context, requester);
 		}
 
-		internal void RequestDelete(SimpleObject simpleObject, ChangeContainer changeContainer, bool findRelatedObjectsForDelete, object? requester)
+		public void RequestDelete(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.RequestDeleteInternal(simpleObject, findRelatedObjectsForDelete: true, changeContainer, context, requester);
+		}
+
+		internal void RequestDeleteInternal(SimpleObject simpleObject, bool findRelatedObjectsForDelete, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//lock (this.lockObject)
 			//{
 			if (simpleObject.DeleteStarted || simpleObject.DeleteRequested)
 				return;
 
-			if (changeContainer == null)
-				changeContainer = this.DefaultChangeContainer;
+			//if (changeContainer == null)
+			//	changeContainer = this.DefaultChangeContainer;
 
-			changeContainer.Set(simpleObject, TransactionRequestAction.Delete, requester);
-			simpleObject.DeleteIsRequested(changeContainer, requester); // new changes are not validated, so in order to rollback or restore object old saved (and thus validated) data must be used.
-
-			if (simpleObject is GraphElement graphElement)
-				graphElement.SimpleObject?.GraphElementDeleteIsRequested(graphElement, changeContainer, requester);
+			if (context == ObjectActionContext.Unspecified)
+				context = (this.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
 
 			if (this.WorkingMode != ObjectManagerWorkingMode.Server)
 			{
@@ -3588,13 +3739,15 @@ namespace Simple.Objects
 				//this.StratNewTransaction();
 				//this.OnAfterStartNewDeleteTransaction(simpleObject);
 
-				this.OnRequestDelete(simpleObject, changeContainer, requester);
+
+				simpleObject.DeleteIsRequested(changeContainer, context, requester); // new changes are not validated, so in order to rollback or restore object old saved (and thus validated) data must be used.
+				this.OnRequestDelete(simpleObject, changeContainer, context, requester);
 
 				if (findRelatedObjectsForDelete)
 				{
 					this.FindRelatedObjectsForDelete(simpleObject, ref relatedObjectsForDelete, checkSimpleObjectGraphElements);
 
-					foreach (SimpleObject relatedSimpleObject in relatedObjectsForDelete)
+					foreach (SimpleObject relatedSimpleObject in relatedObjectsForDelete.Reverse())
 						relatedSimpleObject.RequestDelete(changeContainer, requester);
 				}
 
@@ -3634,6 +3787,18 @@ namespace Simple.Objects
 				//	this.RaiseDeleteRequested(simpleObject, changeContainer, requester);
 				//}
 			}
+
+			changeContainer?.Set(simpleObject, TransactionRequestAction.Delete, requester);
+			simpleObject.DeleteIsRequested(changeContainer, context, requester); // new changes are not validated, so in order to rollback or restore object old saved (and thus validated) data must be used.
+
+			if (simpleObject is GraphElement graphElement)
+				graphElement.SimpleObject?.GraphElementDeleteIsRequested(graphElement, changeContainer, context, requester);
+
+
+
+			//simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester);
+
+
 			//else
 			//{
 			//	if (!simpleObject.DeleteRequested)
@@ -3642,7 +3807,7 @@ namespace Simple.Objects
 			//	}
 			//}
 
-			this.RaiseDeleteRequested(simpleObject, changeContainer, requester);
+			this.RaiseDeleteRequested(simpleObject, changeContainer, context, requester);
 
 
 			//}
@@ -3810,12 +3975,10 @@ namespace Simple.Objects
 		//this.simpleObjectReadyToBeDeletedInTransaction.Add(simpleObject);
 
 
-		protected virtual void OnRequestDelete(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		protected virtual void OnRequestDelete(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			if (simpleObject is GraphElement)
+			if (simpleObject is GraphElement graphElement)
 			{
-				GraphElement graphElement = simpleObject as GraphElement;
-
 				if (graphElement.Parent != null)
 				{
 					int status = 0;
@@ -3825,14 +3988,14 @@ namespace Simple.Objects
 			}
 		}
 
-		public void CancelDeleteRequest(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		public void CancelDeleteRequest(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (simpleObject.DeleteRequested)
 			{
-				simpleObject.DeleteRequestIsCancelled(changeContainer, requester);
-				changeContainer.CancelDeleteRequested(simpleObject, requester);
-				this.OnCancelDeleteRequest(simpleObject, changeContainer, requester);
-				this.RaiseDeleteRequestCancelled(simpleObject, changeContainer, requester);
+				simpleObject.DeleteRequestIsCancelled(changeContainer, context, requester);
+				changeContainer?.CancelDeleteRequested(simpleObject, requester);
+				this.OnCancelDeleteRequest(simpleObject, changeContainer, context, requester);
+				this.RaiseDeleteRequestCancelled(simpleObject, changeContainer, context, requester);
 			}
 		}
 
@@ -3846,20 +4009,17 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		protected void OnCancelDeleteRequest(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		protected void OnCancelDeleteRequest(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			if (simpleObject is GraphElement)
+			if (simpleObject is GraphElement graphElement)
 			{
-				GraphElement graphElement = simpleObject as GraphElement;
-
-				if (graphElement.Parent != null)
+				if (graphElement?.Parent != null)
 				{
 					int status = graphElement.Status;
 					int oldStatus = 0;
 					this.OnChildGraphElementStatusChange(graphElement.Parent, graphElement, status, oldStatus);
 				}
 			}
-
 		}
 
 		//internal void ActionBeforeDeleting(SimpleObject simpleObject, ChangeContainer changeContainer, object requester)
@@ -3910,7 +4070,7 @@ namespace Simple.Objects
 		/// <param name="simpleObject"></param>
 		/// <param name="changeContainer"></param>
 		/// <param name="requester"></param>
-		protected virtual void OnBeforeDelete(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester)
+		protected virtual void OnBeforeDelete(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			////simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester);
 			//bool createTransactionAction = true; // !this.isLocalDatastoreInitialized;
@@ -3958,7 +4118,7 @@ namespace Simple.Objects
 			////        objectDependencyAction.OnBeforeDelete(simpleObject);
 		}
 
-		protected virtual void OnAfterDelete(SimpleObject simpleObject, ChangeContainer changeContainer, object? requester) { }
+		protected internal virtual void OnAfterDelete(SimpleObject simpleObject, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 		protected virtual HashSet<SimpleObject> GetRelatedObjectsForDelete(SimpleObject simpleObject)
 		{
@@ -3979,29 +4139,18 @@ namespace Simple.Objects
 			// We need to check if any of foreign key exists in any related objects and is not in transaction requests for delete
 			// one to one
 			foreach (IOneToOneRelationModel oneToOneRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations)
-			{
-				if (oneToOneRelationModel.CascadeDelete)
-				{
-					SimpleObject? foreignObject = simpleObject.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey);
+				if (oneToOneRelationModel.CascadeDelete && simpleObject.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey) is SimpleObject foreignObject)
+					relatedObjectsForDelete.Add(foreignObject);
 
-					if (foreignObject != null)
-						relatedObjectsForDelete.Add(foreignObject);
-				}
-			}
+			foreach (IOneToOneRelationModel oneToOneRelationModel in simpleObject.GetModel().RelationModel.AsForeignObjectInOneToOneRelations)
+				if (oneToOneRelationModel.CascadeDelete && simpleObject.GetOneToOnePrimaryObject(oneToOneRelationModel.RelationKey) is SimpleObject foreignObject)
+					relatedObjectsForDelete.Add(foreignObject);
 
 			// one to many
 			foreach (IOneToManyRelationModel oneToManyRelationModel in simpleObject.GetModel().RelationModel.AsPrimaryObjectInOneToManyRelations)
-			{
-				if (oneToManyRelationModel.CascadeDelete)
-				{
-					SimpleObjectCollection? foreignCollection = simpleObject.GetOneToManyForeignObjectCollection(oneToManyRelationModel.RelationKey);
-
-					if (foreignCollection != null)
-						foreach (SimpleObject foreignObject in foreignCollection)
-							if (foreignObject != null)
-								relatedObjectsForDelete.Add(foreignObject);
-				}
-			}
+				if (oneToManyRelationModel.CascadeDelete && simpleObject.GetOneToManyForeignObjectCollection(oneToManyRelationModel.RelationKey) is SimpleObjectCollection foreignCollection)
+					foreach (SimpleObject foreignObject in foreignCollection)
+						relatedObjectsForDelete.Add(foreignObject);
 
 			// many to many
 			//var objectModalsAsFirst = simpleObject.GetModel().RelationModel.AsFirstObjectInManyToManyRelations;
@@ -4026,7 +4175,6 @@ namespace Simple.Objects
 					
 					return;
 				}
-
 
 				if (checkSimpleObjectGraphElements && graphElement.SimpleObject != null)
 				{
@@ -4106,12 +4254,11 @@ namespace Simple.Objects
 
 				foreach (SimpleObject relatedObject in relatedObjectsForDelete)
 				{
-					if (relatedObject is GraphElement)
+					if (relatedObject is GraphElement relatedGraphElement)
 					{
-						SimpleObject relatedSimpleObject = (relatedObject as GraphElement).SimpleObject;
+						SimpleObject? relatedSimpleObject = relatedGraphElement.SimpleObject;
 
-						if (relatedSimpleObject != null && relatedSimpleObject != (simpleObject as SimpleObject) && !additionalObjectsForDelete.Contains(relatedSimpleObject) &&
-							relatedSimpleObject.GetModel().DeleteSimpleObjectOnLastGraphElementDelete)
+						if (relatedSimpleObject != null && relatedSimpleObject != simpleObject && !additionalObjectsForDelete.Contains(relatedSimpleObject) && relatedSimpleObject.GetModel().DeleteSimpleObjectOnLastGraphElementDelete)
 						{
 							// Check if all graph elements are ready to be deleted
 							bool areAllGraphElementsReadyForDelete = true;
@@ -4700,71 +4847,81 @@ namespace Simple.Objects
 			return this.CommitChanges(requester: null);
 		}
 
-		public TransactionResult CommitChanges(ChangeContainer changeContainer)
+		public TransactionResult CommitChanges(ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
-			return this.CommitChanges(changeContainer, requester: null);
+			return this.CommitChanges(this.DefaultChangeContainer, context, requester);
 		}
 
-		public TransactionResult CommitChanges(object? requester)
+		//public TransactionResult CommitChanges(ChangeContainer changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified)
+		//{
+		//	return this.CommitChanges(changeContainer, context, requester: null);
+		//}
+
+		public TransactionResult CommitChanges(ChangeContainer changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
-			return this.CommitChanges(this.DefaultChangeContainer, requester);
+			return this.CommitChanges(saveTransaction: true, changeContainer, context, requester);
 		}
 
-		public TransactionResult CommitChanges(ChangeContainer changeContainer, object? requester)
+		public TransactionResult CommitChanges(bool saveTransaction, ChangeContainer changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
-			return this.CommitChanges(changeContainer, saveTransaction: true, requester);
+			IUser? transactionUser = (requester is IUser) ? requester as IUser : this.SystemAdmin;
+
+			if (transactionUser != null)
+				return this.CommitChanges(transactionUser.Id, transactionUser.CharacterEncoding, saveTransaction, changeContainer, context, requester);
+			else
+				return new TransactionResult(transactionSucceeded: false, transactionId: 0, userId: 0, clientId: 0, serverId: 0, codePage: 0, transactionServerActionInfos: new TransactionActionInfo[0], validationErrorResult: null, message: null);
 		}
 
-		public TransactionResult CommitChanges(ChangeContainer changeContainer, bool saveTransaction, object? requester)
+		public TransactionResult CommitChanges(long userId, Encoding characterEncoding, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
-			IUser transactionUser = (requester is IUser) ? requester as IUser : this.SystemAdmin;
-
-			return this.CommitChanges(changeContainer, transactionUser.Id, transactionUser.CharacterEncoding, saveTransaction, requester);
+			return this.CommitChanges(userId, characterEncoding, this.DefaultChangeContainer, context, requester);
 		}
 
-		public TransactionResult CommitChanges(long userId, Encoding characterEncoding, object? requester)
+		public TransactionResult CommitChanges(long userId, Encoding characterEncoding, ChangeContainer changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
-			return this.CommitChanges(this.DefaultChangeContainer, userId, characterEncoding, requester);
+			return this.CommitChanges(userId, characterEncoding, saveTransaction: true, changeContainer, context, requester);
 		}
 
-		public TransactionResult CommitChanges(ChangeContainer changeContainer, long userId, Encoding characterEncoding, object? requester)
-		{
-			return this.CommitChanges(changeContainer, userId, characterEncoding, saveTransaction: true, requester);
-		}
-
-		public TransactionResult CommitChanges(ChangeContainer changeContainer, long userId, Encoding characterEncoding, bool saveTransaction, object? requester)
+		public TransactionResult CommitChanges(long userId, Encoding characterEncoding, bool saveTransaction, ChangeContainer changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
 			//if (this.WorkingMode == ObjectManagerWorkingMode.Server)
 			//	throw new Exception("You cannot commit changes in server mode!");
 
 			if (changeContainer == null || !changeContainer.RequireCommit)
-				return new TransactionResult(transactionSucceeded: true);
+				return new TransactionResult(transactionSucceeded: true, transactionId: 0, userId: 0, clientId: 0, serverId: 0, codePage: 0, transactionServerActionInfos: new TransactionActionInfo[0], validationErrorResult: null, message: "No need for transaction");
 
+			if (context == ObjectActionContext.Unspecified)
+				context = (this.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
+			
 			lock (this.lockTransaction)
 			{
 				TransactionResult result;
-				string errorDescription = null;
-				SimpleObjectValidationResult validationResult = SimpleObjectValidationResult.DefaultSuccessResult;
+				string errorDescription = String.Empty;
+				//SimpleObjectValidationResult validationResult;
 				bool transactionSucceed = false;
 				bool onlyDeleteNewObjects = false;
 				//Dictionary<SimpleObject, TransactionRequestAction> transactionActions = new Dictionary<SimpleObject, TransactionRequestAction>();
 				//KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionActions = null;
+				KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionRequests;
+				//TransactionActionInfo[] transactionClientSeriazableRequestActionInfos = new TransactionActionInfo[0];
+				IList<TransactionActionInfo> transactionRequestActionInfos = new TransactionActionInfo[0];
 				SystemTransaction? systemTransaction = null;
 				List<DatastoreActionInfo>? datastoreActions = null;
 
-				//if (changeContainer.RequestCount == 0)
-				//	return new TransactionResult(transactionSucceeded: true);
+				if (changeContainer.RequestCount == 0)
+					return new TransactionResult(transactionSucceeded: true, transactionId: 0, userId: 0, clientId: 0, serverId: 0, codePage: 0, transactionServerActionInfos: new TransactionActionInfo[0], validationErrorResult: null, message: "No need for transaction");
 
 				//// Try to remove this to the ChangeContainer class.....
 				if (this.WorkingMode != ObjectManagerWorkingMode.Server)
 				{
 					// Collect all related objects that requires changes, update or delete.
-
 					foreach (SimpleObject simpleObject in changeContainer.TransactionRequests.Keys)
 						this.RaiseActiveEditorsPushData(simpleObject);
 
 					//for (int i = 0; i < changeContainer.TransactionRequests.Count; i++)
-					foreach (var item in changeContainer.TransactionRequests.ToArray())
+					transactionRequests = changeContainer.TransactionRequests.ToArray();
+
+					foreach (var item in transactionRequests)
 					{
 						//var item = changeContainer.TransactionRequests.ElementAt(i);
 						SimpleObject simpleObject = item.Key;
@@ -4775,16 +4932,19 @@ namespace Simple.Objects
 							if (!simpleObject.RequireSaving())
 								continue;
 
-							this.OnBeforeSave(simpleObject, changeContainer, requester);
-							simpleObject.BeforeSave(changeContainer, requester);
+							this.OnBeforeSave(simpleObject, changeContainer, context, requester);
+							simpleObject.BeforeSave(changeContainer, context, requester);
+
+							if (simpleObject is GraphElement graphElement && graphElement.GetChangedPropertyIndexes().Contains(GraphElementModel.PropertyModel.ParentId.PropertyIndex))
+								this.MoveNeighborGraphElementsOnGraphElementCreationOrParentChangeIfRequired(graphElement);
 						}
 						else // if (transactionAction == TransactionRequestAction.Delete)
 						{
-							this.OnBeforeDelete(simpleObject, changeContainer, requester);
-							simpleObject.BeforeDelete(changeContainer, requester);
+							this.OnBeforeDelete(simpleObject, changeContainer, context, requester);
+							simpleObject.BeforeDelete(changeContainer, context, requester);
 
 							if (simpleObject is GraphElement graphElement && graphElement.SimpleObject != null)
-								graphElement.SimpleObject.BeforeGraphElementIsDeleted(graphElement, changeContainer, requester);
+								graphElement.SimpleObject.BeforeGraphElementIsDeleted(graphElement, changeContainer, context, requester);
 
 							HashSet<SimpleObject> relatedSimpleObjectsForDelete = this.GetRelatedObjectsForDelete(simpleObject);
 
@@ -4802,14 +4962,24 @@ namespace Simple.Objects
 					//		foreach (SimpleObject so in this.GetRelatedObjectsForDelete(item.Key))
 					//			changeContainer.SetTransactionRequest(so, TransactionRequestAction.Delete, requester);
 				}
+				//else
+				//{
+				//	transactionRequests = changeContainer.TransactionRequests.ToArray();
+				//}
+				
+				transactionRequests = changeContainer.TransactionRequests.ToArray();
 
-
-				foreach (var item in changeContainer.TransactionRequests.ToArray())
+				foreach (var item in transactionRequests)
 				{
 					SimpleObject simpleObject = item.Key;
 					TransactionRequestAction transactionAction = item.Value;
 
-					if (transactionAction == TransactionRequestAction.Delete)
+					if (transactionAction == TransactionRequestAction.Save)
+					{
+						//if (simpleObject is GraphElement graphElement && this.WorkingMode != ObjectManagerWorkingMode.Server && graphElement.GetChangedPropertyIndexes().Contains(GraphElementModel.PropertyModel.ParentId.PropertyIndex))
+						//	this.MoveNeighborGraphElementsOnGraphElementCreationOrParentChangeIfRequired(graphElement);
+					}
+					else // if (transactionAction == TransactionRequestAction.Delete)
 					{
 						simpleObject.DeleteStarted = true;
 
@@ -4828,7 +4998,7 @@ namespace Simple.Objects
 						//	this.OnBeforeGraphElementDeleted(graphElement, requester);
 						//}
 
-						this.RaiseBeforeDelete(simpleObject, requester);
+						this.RaiseBeforeDelete(simpleObject, changeContainer, context, requester);
 						//simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester);
 						//}
 					}
@@ -4848,40 +5018,97 @@ namespace Simple.Objects
 				changeContainer.Sort();
 				//transactionActions = changeContainer.TransactionRequests.ToArray();
 
-				validationResult = changeContainer.Validate();
+				ValidationResult validationResult = changeContainer.Validate();
 
 				//if (changeContainer.RequestCount != requestCount) // If Validation from few lines up activates new property changes
 				//	validationResult = changeContainer.Validate();
 
 				if (!validationResult.Passed)
 				{
-					this.RaiseValidationInfo(validationResult); // new SimpleObjectValidationResult(changeContainer.ValidationErrorObject, passed: true, message: null, failedRuleResult: null));
+					//var errorValidationResult = changeContainer.GetFirstErrorValidationResult();
+
+					foreach (var item in transactionRequests)
+						item.Key.InternalState = SimpleObjectInternalState.Normal; //  item.Key == SimpleObject simpleObject
+
+					SimpleObjectValidationResult? simpleObjectValidationResult = validationResult as SimpleObjectValidationResult;
+
+					if (simpleObjectValidationResult != null)
+						this.RaiseValidationInfo(simpleObjectValidationResult); // new SimpleObjectValidationResult(changeContainer.ValidationErrorObject, passed: true, message: null, failedRuleResult: null));
+
 					changeContainer.UnlockChanges();
 
-					return new TransactionResult(false, -1, validationResult.Message) { ValidationResult = validationResult };
+					if (this.WorkingMode == ObjectManagerWorkingMode.Server)
+					{
+						var rollbackTransactionActions = this.CreateRolbackTransactionActionsFromTransactionRequests(changeContainer.TransactionRequests);
+
+						systemTransaction = new SystemTransaction(this, ref this.systemTransactions, userId, characterEncoding, this.ClientId, this.ServerId, rollbackTransactionActions, TransactionStatus.Started);
+
+						this.RollbackTransaction(systemTransaction, requester: this);
+						systemTransaction.Status = TransactionStatus.Rollbacked;
+
+						foreach (var item in transactionRequests)
+							item.Key.InternalState = SimpleObjectInternalState.Normal; //  item.Key == SimpleObject simpleObject
+
+						systemTransaction.ErrorDescription = errorDescription;
+
+						if (saveTransaction)
+							systemTransaction.Save();
+
+						this.RaiseTransactionFinished(transactionRequestActionInfos, systemTransaction, datastoreActions, requester);
+
+						result = new TransactionResult(transactionSucceeded: systemTransaction.Status == TransactionStatus.Completed, transactionId: systemTransaction.TransactionId, userId: systemTransaction.UserId, clientId: systemTransaction.ClientId,
+													   serverId: systemTransaction.ServerId, systemTransaction.CodePage, transactionRequestActionInfos, validationResult as SimpleObjectValidationResult, errorDescription);
+
+						if (this.DeleteTransactionLogIfTransactionSucceeded)
+							systemTransaction.Delete();
+
+						this.lastTransaction = systemTransaction;
+
+						changeContainer.Clear();
+					}
+					else
+					{
+						string message = (simpleObjectValidationResult != null) ? simpleObjectValidationResult.Message : validationResult.Message;
+
+						result = new TransactionResult(transactionSucceeded: false, transactionId: 0, userId: 0, clientId: 0, serverId: 0, codePage: 0, transactionServerActionInfos: new TransactionActionInfo[0], simpleObjectValidationResult, message);
+					}
+
+					return result;
 				}
 
-				//changeContainer.UnlockChanges();
+				//
+				// TODO:
+				// In CLIENT MODE: don't use RemoveAllRelatedObjectsFromAllRelatedObjectCaches before sending request to server.
+				// If validation succeed send transaction request to server and if transaction succeed invoke this method using separate ChangeContainer that will accept all changes without any new transaction request to server again
+				// If server transaction wasn't succeed, just reject changes from changed objects and cancel transaction delete requests (no any transaction action needed)
+				//
 
-				//foreach (var item in changeContainer.TransactionRequests.ToArray())
-				//{
-				//	SimpleObject simpleObject = item.Key;
-				//	TransactionRequestAction transactionAction = item.Value;
+				changeContainer.UnlockChanges();
 
-				//	if (transactionAction == TransactionRequestAction.Delete)
-				//		simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester); // Remove all relations values, may
-				//}
+				//transactionRequests = changeContainer.TransactionRequests.ToArray();
 
-				//changeContainer.LockChanges();
-				//changeContainer.Sort();
+				foreach (var item in transactionRequests)
+				{
+					SimpleObject simpleObject = item.Key;
+					TransactionRequestAction transactionAction = item.Value;
+
+					if (transactionAction == TransactionRequestAction.Delete)
+						simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCachesInternal(changeContainer, context, requester); // Remove all relations values
+				}
+
+				changeContainer.LockChanges();
+				//changeContainer.Sort(); No more sorting after removing related objects. The nju update will be added at first
 
 				// Check if only delete new objects transactionRequests contains in non server mode, then
 				if (this.WorkingMode != ObjectManagerWorkingMode.Server && changeContainer.TransactionRequests.Count > 0)
 					onlyDeleteNewObjects = changeContainer.TransactionRequests.All(item => item.Key.IsNew && item.Value == TransactionRequestAction.Delete);
 
+				transactionRequestActionInfos = this.CreateTransactionRequestActionInfos(transactionRequests);
+				
 				if (onlyDeleteNewObjects)
 				{
 					transactionSucceed = true; // No need for transaction, only delete new objects from cache
+					//transactionClientSeriazableRequestActionInfos = new TransactionActionInfo[0];
 				}
 				else
 				{
@@ -4892,10 +5119,22 @@ namespace Simple.Objects
 					if (this.WorkingMode != ObjectManagerWorkingMode.Client)
 						datastoreActions = this.CreateDatastoreActionsFromTransactionRequests(changeContainer.TransactionRequests);
 
-					this.RaiseTransactionStarted(systemTransaction, datastoreActions, requester);
+					//if (this.TransactionStarted != null || this.TransactionFinished != null)
+					//{
 
-					foreach (SimpleObject simpleObject in changeContainer.TransactionRequests.Keys)
+						//if (this.TransactionStarted != null)
+							this.RaiseTransactionStarted(transactionRequestActionInfos, systemTransaction, datastoreActions, requester);
+					//}
+
+					//if (this.TransactionFinished != null)
+					//	transactionRequestActionInfos = this.CreateServerSeriazableTransactionRequestActionInfos(transactionRequests);
+					
+					foreach (var item in transactionRequests)
+					{
+						SimpleObject simpleObject = item.Key;
+
 						simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+					}
 
 					if (this.WorkingMode == ObjectManagerWorkingMode.Client)
 					{
@@ -4904,25 +5143,14 @@ namespace Simple.Objects
 
 						transactionSucceed = clientTransactionResult.TransactionSucceeded; // && clientTransactionResult.TransactionResult.TransactionSucceeded;
 
-						if (transactionSucceed)
+						if (transactionSucceed) 
 						{
-							List<ClientObjectCache> cacheshesWithTempIds = new List<ClientObjectCache>();
-
+							//List<ClientObjectCache> cacheshesWithTempIds = new List<ClientObjectCache>();
+							Dictionary<long, ClientObjectCache> objectCachesByTempIds = new Dictionary<long, ClientObjectCache>();
 							//result = clientTransactionResult.TransactionResult;
 
-							// Sets the new object Ids values through the simpleObject properties with temp object Id values.
-							foreach (var item in clientTransactionResult.SimpleObjectPropertiesWithTempClientObjectIdNeedsToChange!)
-							{
-								SimpleObject simpleObject = this.GetObject(item.TableId, item.ObjectId)!;
-								IPropertyModel propertyModel = simpleObject.GetModel().PropertyModels[item.PropertyIndex];
-								long temptClientPropertyObjectId = (long)simpleObject.GetPropertyValue(item.PropertyIndex)!;
-								long newPropertyObjectId = clientTransactionResult.NewObjectIdsByTempClientObjectId![temptClientPropertyObjectId];
-
-								simpleObject.SetPropertyValue(propertyModel, newPropertyObjectId, changeContainer: null, requester);
-							}
-
 							// Replace temp client Id with the new one
-							foreach (var transactionRequest in changeContainer.TransactionRequests)
+							foreach (var transactionRequest in transactionRequests)
 							{
 								SimpleObject simpleObject = transactionRequest.Key;
 
@@ -4933,14 +5161,32 @@ namespace Simple.Objects
 									ClientObjectCache objectCache = (this.GetObjectCache(simpleObject.GetModel().TableInfo.TableId) as ClientObjectCache)!;
 
 									objectCache.ReplaceTempId(simpleObject, newId);
-									this.ObjectIdIsChanged(simpleObject, tempId, newId);
+									this.ObjectIdIsChanged(simpleObject, tempId, newId, changeContainer, context, requester);
 									this.ClientTempObjectIdGenerator.RemoveKey(-tempId);
-									cacheshesWithTempIds.Add(objectCache);
+									//cacheshesWithTempIds.Add(objectCache);
+									objectCachesByTempIds.Add(tempId, objectCache);
 								}
 							}
 
-							foreach (ClientObjectCache objectCache in cacheshesWithTempIds)
-								objectCache.ClearTempIds();
+							// Sets the new object Ids values through the simpleObject properties with temp object Id values.
+							foreach (var item in clientTransactionResult.SimpleObjectPropertiesWithTempClientObjectIdNeedsToChange!)
+							{
+								SimpleObject simpleObject = this.GetObject(item.TableId, item.ObjectId)!;
+								IPropertyModel propertyModel = simpleObject.GetModel().PropertyModels[item.PropertyIndex];
+								long temptClientPropertyObjectId = (long)simpleObject.GetPropertyValue(item.PropertyIndex)!;
+								long newPropertyObjectId = clientTransactionResult.NewObjectIdsByTempClientObjectId![temptClientPropertyObjectId];
+
+								simpleObject.SetPropertyValueInternal(propertyModel, newPropertyObjectId, changeContainer: null, context, requester);
+							}
+
+							// Remove old temp Id's from caches
+							foreach (var item in objectCachesByTempIds)
+							{
+								long tempId = item.Key;
+								ClientObjectCache objectCache = item.Value;
+
+								objectCache.RemoveTempId(tempId);
+							}
 						}
 						//else
 						//{
@@ -4959,7 +5205,6 @@ namespace Simple.Objects
 
 						////byte[] uncompressedActionData = SimpleObjectManager.SerializeTransactionActions(this.ActiveTransaction.TransactionActionLogs);
 						////this.ActiveTransaction.ActionData = uncompressedActionData; // this.CompressData(uncompressedActionData);
-
 						systemTransaction.Save();
 
 						// Checking if serialization/deserialization is working
@@ -5022,20 +5267,20 @@ namespace Simple.Objects
 					}
 				}
 
-				
 				// Acknowledge or Rollback transaction
 				if (transactionSucceed)
 				{
-					var transactionRequests = changeContainer.TransactionRequests.ToArray();
+					//var transactionRequests = changeContainer.TransactionRequests.ToArray();
 
-					changeContainer.UnlockChanges();
+					//changeContainer.LockChanges();
 
-					// Remove all relations values, without track changes for deleted objects
-					foreach (var item in transactionRequests)
-						if (item.Value == TransactionRequestAction.Delete)
-							item.Key.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester); 
+					//// Remove all relations values, without track changes for deleted objects
+					//foreach (var item in transactionRequests)
+					//	if (item.Value == TransactionRequestAction.Delete)
+					//		item.Key.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester); 
 
 					// Acknowledge transaction by accepting changes of the envolved SimpleObjects
+
 					foreach (KeyValuePair<SimpleObject, TransactionRequestAction> item in transactionRequests)
 					{
 						SimpleObject simpleObject = item.Key;
@@ -5059,19 +5304,19 @@ namespace Simple.Objects
 							//}
 
 							//this.RaiseNewObjectCreated(simpleObject, requester);
-							simpleObject.AcceptChanges(changeContainer: null, requester: this);
+							simpleObject.AcceptChangesInternal(changeContainer: null, requester: this);
 							simpleObject.SetIsNew(false);
 						}
 						else //if (transactionAction == TransactionRequestAction.Delete)
 						{
-							this.RemoveObjectFromCache(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id);
-
+							this.RemoveObjectFromCache(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, changeContainer, requester);
+							
 							simpleObject.IsDeleted = true;
 
 							//if (requester != this) // Requester is this when transaction rollback is in progress.
 							//{
-							this.OnAfterDelete(simpleObject, changeContainer, requester);
-							this.RaiseAfterDelete(simpleObject, requester);
+							this.OnAfterDelete(simpleObject, changeContainer, context, requester);
+							this.RaiseAfterDelete(simpleObject, changeContainer, context, requester);
 							//}
 
 							simpleObject.Dispose();
@@ -5079,6 +5324,8 @@ namespace Simple.Objects
 							//simpleObject = null;
 						}
 					}
+
+					changeContainer.AcceptChanges();
 
 					if (systemTransaction != null)
 						systemTransaction.Status = TransactionStatus.Completed;
@@ -5101,17 +5348,21 @@ namespace Simple.Objects
 					changeContainer.UnlockChanges();
 				}
 
-				foreach (SimpleObject simpleObject in changeContainer.TransactionRequests.Keys)
-					simpleObject.InternalState = SimpleObjectInternalState.Normal;
+				foreach (var item in transactionRequests)
+					item.Key.InternalState = SimpleObjectInternalState.Normal; //  item.Key == SimpleObject simpleObject
 
 				if (systemTransaction != null)
 				{
+					systemTransaction.ErrorDescription = errorDescription;
+					
 					if (this.WorkingMode == ObjectManagerWorkingMode.Server && saveTransaction)
 						systemTransaction.Save();
 
-					this.RaiseTransactionFinished(systemTransaction, datastoreActions!, requester); //, this.transactionsActionsBySimpleObject.Values);
+					if (this.TransactionFinished != null)
+						this.RaiseTransactionFinished(transactionRequestActionInfos, systemTransaction, datastoreActions, requester);
 
-					result = new TransactionResult(systemTransaction.Status == TransactionStatus.Completed, systemTransaction.TransactionId, errorDescription);
+					result = new TransactionResult(transactionSucceeded: systemTransaction.Status == TransactionStatus.Completed, transactionId: systemTransaction.TransactionId, userId: systemTransaction.UserId, clientId: systemTransaction.ClientId, 
+												   serverId: systemTransaction.ServerId, systemTransaction.CodePage, transactionRequestActionInfos, validationResult as SimpleObjectValidationResult, errorDescription);
 
 					if (this.WorkingMode == ObjectManagerWorkingMode.Client || this.DeleteTransactionLogIfTransactionSucceeded)
 						systemTransaction.Delete();
@@ -5120,12 +5371,16 @@ namespace Simple.Objects
 				}
 				else
 				{
-					result = new TransactionResult(transactionSucceeded: true, errorDescription);
+					result = new TransactionResult(transactionSucceeded: true, transactionId: 0, userId: 0, clientId: 0, serverId: 0, codePage: 0, transactionServerActionInfos: new TransactionActionInfo[0], validationResult as SimpleObjectValidationResult, errorDescription);
 				}
 
 				changeContainer.Clear();
 				changeContainer.UnlockChanges();
-				result.ValidationResult = validationResult;
+
+				//if (this.WorkingMode == ObjectManagerWorkingMode.Client && systemTransaction != null)
+				//	systemTransaction.Delete();
+					
+				//result.ValidationErrorResult = validationResult;
 
 				return result;
 			}
@@ -5138,6 +5393,154 @@ namespace Simple.Objects
 			//	simpleObject.SetInternalState(SimpleObjectInternalState.TransactionRequestProcessing);
 
 		}
+
+		public List<TransactionActionInfo> CreateTransactionRequestActionInfos(KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionRequests)
+		{
+			List<TransactionActionInfo> result = new List<TransactionActionInfo>(transactionRequests.Length);
+
+			for (int i = 0; i < transactionRequests.Length; i++)
+			{
+				//var item = transactionRequests.ElementAt(i);
+				SimpleObject simpleObject = transactionRequests[i].Key;
+				TransactionRequestAction requestAction = transactionRequests[i].Value;
+				int tableId = simpleObject.GetModel().TableInfo.TableId;
+				long objectId = simpleObject.Id;
+				TransactionActionType actionType;
+				List<PropertyIndexValuePair>? propertyIndexValues;
+
+				if (requestAction == TransactionRequestAction.Save)
+				{
+					actionType = (simpleObject.IsNew) ? TransactionActionType.Insert : TransactionActionType.Update;
+					propertyIndexValues = simpleObject.GetChangedPropertyIndexValues();
+
+					if (actionType == TransactionActionType.Update && simpleObject is GraphElement graphElement)
+					{
+						if (!propertyIndexValues.ContainsPropertyValue(GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex))
+							propertyIndexValues.Add(new PropertyIndexValuePair(GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex, graphElement.PreviousParentId)); // graphElement.GetOldPropertyValue(GraphElementModel.PropertyModel.ParentId.PropertyIndex)));
+						
+						if (!propertyIndexValues.ContainsPropertyValue(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex))
+							propertyIndexValues.Add(new PropertyIndexValuePair(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex, graphElement.DoesPreviousParentHaveChildren));
+					}
+				}
+				else
+				{
+					actionType = TransactionActionType.Delete;
+					
+					if (simpleObject is GraphElement graphElement)
+					{
+						propertyIndexValues = new List<PropertyIndexValuePair>() { new PropertyIndexValuePair(GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex, graphElement.ParentId),
+																				   new PropertyIndexValuePair(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex, graphElement.Parent?.GraphElements.Count > 1) 
+																				 };
+					}
+					else
+						propertyIndexValues = null;
+				}
+
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); //, this.GetServerObjectModelInfo));
+			}
+
+			return result;
+		}
+
+		public TransactionActionInfo[] CreateClientSeriazableTransactionRequestActionInfos(KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionRequests)
+		{
+			TransactionActionInfo[] result = new TransactionActionInfo[transactionRequests.Length];
+
+			for (int i = 0; i < transactionRequests.Length; i++)
+			{
+				//var item = transactionRequests.ElementAt(i);
+				SimpleObject simpleObject = transactionRequests[i].Key;
+				TransactionRequestAction requestAction = transactionRequests[i].Value;
+				int tableId = simpleObject.GetModel().TableInfo.TableId;
+				long objectId = simpleObject.Id;
+				TransactionActionType actionType;
+				PropertyIndexValuePair[]? propertyIndexValues;
+
+				if (requestAction == TransactionRequestAction.Save)
+				{
+					actionType = (simpleObject.IsNew) ? TransactionActionType.Insert : TransactionActionType.Update;
+
+					propertyIndexValues = simpleObject.GetChangedClientSeriazablePropertyIndexValuePairs().ToArray();
+				}
+				else
+				{
+					actionType = TransactionActionType.Delete;
+					propertyIndexValues = null;
+				}
+
+				result[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues); //, this.GetServerObjectModelInfo));
+			}
+
+			return result;
+		}
+
+		public IEnumerable<TransactionActionInfo> CreateServerSeriazableTransactionRequestActionInfos(KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionRequests)
+		{
+			List<TransactionActionInfo> result = new List<TransactionActionInfo>(transactionRequests.Length);
+
+			foreach (var item in transactionRequests)
+			{
+				//var item = transactionRequests.ElementAt(i);
+				SimpleObject simpleObject = item.Key;
+				TransactionRequestAction requestAction = item.Value;
+				int tableId = simpleObject.GetModel().TableInfo.TableId;
+				long objectId = simpleObject.Id;
+				TransactionActionType actionType;
+				PropertyIndexValuePair[]? propertyIndexValues;
+
+				if (requestAction == TransactionRequestAction.Save)
+				{
+					actionType = (simpleObject.IsNew) ? TransactionActionType.Insert : TransactionActionType.Update;
+
+					propertyIndexValues = simpleObject.GetChangedServerSeriazablePropertyIndexValuePairs().ToArray();
+
+					if (propertyIndexValues.Length == 0)
+						continue;
+				}
+				else
+				{
+					actionType = TransactionActionType.Delete;
+					propertyIndexValues = null;
+				}
+
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); //, this.GetServerObjectModelInfo));
+			}
+
+			return result;
+		}
+
+		public TransactionActionInfo[] CreateStorableTransactionRequestActionInfos(KeyValuePair<SimpleObject, TransactionRequestAction>[] transactionRequests)
+		{
+			TransactionActionInfo[] result = new TransactionActionInfo[transactionRequests.Length];
+
+			for (int i = 0; i < transactionRequests.Length; i++)
+			{
+				//var item = transactionRequests.ElementAt(i);
+				SimpleObject simpleObject = transactionRequests[i].Key;
+				TransactionRequestAction requestAction = transactionRequests[i].Value;
+				int tableId = simpleObject.GetModel().TableInfo.TableId;
+				long objectId = simpleObject.Id;
+				TransactionActionType actionType;
+				List<PropertyIndexValuePair>? propertyIndexValues;
+
+				if (requestAction == TransactionRequestAction.Save)
+				{
+					actionType = (simpleObject.IsNew) ? TransactionActionType.Insert : TransactionActionType.Update;
+
+					propertyIndexValues = simpleObject.GetChangedStorablePropertyIndexValuePairs(this.NormalizeForWritingByPropertyType);
+				}
+				else
+				{
+					actionType = TransactionActionType.Delete;
+					propertyIndexValues = null;
+				}
+
+				result[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues); //, this.GetServerObjectModelInfo));
+			}
+
+			return result;
+		}
+
 
 		public List<TransactionActionInfo> CreateClientSeriazableTransactionActionsFromTransactionRequests(IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
 		{
@@ -5174,8 +5577,9 @@ namespace Simple.Objects
 		private List<TransactionActionInfo> CreateRolbackTransactionActionsFromTransactionRequests(IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
 		{
 			List<TransactionActionInfo> result = new List<TransactionActionInfo>(transactionRequests.Count);
+			//var rollbackTransactionRequests = transactionRequests.Reverse();
 
-			for (int i = 0; i < transactionRequests.Count; i++)
+			for (int i = transactionRequests.Count; i-- > 0;) // for (int i = transactionRequests.Count - 1; i >= 0; i--)
 			{
 				var item = transactionRequests.ElementAt(i);
 				SimpleObject simpleObject = item.Key;
@@ -5187,12 +5591,12 @@ namespace Simple.Objects
 
 				if (requestAction == TransactionRequestAction.Save && simpleObject.IsNew)
 				{
-					actionType = TransactionActionType.Insert;
+					actionType = TransactionActionType.Delete;
 					propertyIndexValues = null;
 				}
 				else if (requestAction == TransactionRequestAction.Save)
 				{
-					propertyIndexValues = simpleObject.GetChangedSaveableOldPropertyIndexValues(propertySelector: propertyModel => propertyModel.IncludeInTransactionActionLog);
+					propertyIndexValues = simpleObject.GetChangedOldPropertyIndexValues(propertySelector: propertyModel => propertyModel.IncludeInTransactionActionLog);
 
 					if (propertyIndexValues.Count == 0)
 						continue;
@@ -5201,7 +5605,7 @@ namespace Simple.Objects
 				}
 				else
 				{
-					actionType = TransactionActionType.Delete;
+					actionType = TransactionActionType.Insert;
 					propertyIndexValues = simpleObject.GetNonDefaultPropertyIndexValuesInternal(propertySelector: propertyModel => propertyModel.IncludeInTransactionActionLog, getFieldValue: propertyIndex => simpleObject.GetOldPropertyValue(propertyIndex)); ;
 				}
 
@@ -5227,8 +5631,12 @@ namespace Simple.Objects
 				if (transactionRequestAction == TransactionRequestAction.Save)
 				{
 					transactionAction = (simpleObject.IsNew) ? TransactionActionType.Insert : TransactionActionType.Update;
-					propertyIndexValues = simpleObject.GetChangedSaveablePropertyIndexValuePairs((propertyModel, propertyValue) =>
-										  (propertyValue != null && propertyModel.IsEncrypted) ? this.EncryptProperty(propertyValue) : propertyValue);
+					propertyIndexValues = simpleObject.GetChangedClientSeriazablePropertyIndexValuePairs().ToArray();
+
+					if (propertyIndexValues.Length == 0 && transactionAction == TransactionActionType.Update)
+						continue;
+					//propertyIndexValues = simpleObject.GetChangedSaveablePropertyIndexValuePairs((propertyModel, propertyValue) =>
+					//					  (propertyValue != null && propertyModel.IsEncrypted) ? this.EncryptProperty(propertyValue) : propertyValue);
 				}
 				else
 				{
@@ -5262,20 +5670,20 @@ namespace Simple.Objects
 				{
 					case TransactionRequestAction.Save:
 
-						PropertyIndexValuePair[] propertyIndexValues;
+						List<PropertyIndexValuePair> propertyIndexValues;
 
 						if (simpleObject.IsNew)
 						{
-							propertyIndexValues = simpleObject.GetStorablePropertyIndexValuePairs(this.NormalizeForWritingByDatastoreType);
+							propertyIndexValues = simpleObject.GetStorablePropertyIndexValuePairs(this.NormalizeForWritingToDatastore);
 
 							datastoreAction = new DatastoreActionInfo(tableId, simpleObject.Id, TransactionActionType.Insert, propertyIndexValues);
 							//datastoreAction.SetActionInsert(objectModel.TableInfo.TableId, simpleObject.Id, propertyValues);
 						}
 						else // Update
 						{
-							propertyIndexValues = simpleObject.GetChangedStorablePropertyIndexValuePairs(this.NormalizeForWritingByDatastoreType);
+							propertyIndexValues = simpleObject.GetChangedStorablePropertyIndexValuePairs(this.NormalizeForWritingToDatastore);
 
-							if (propertyIndexValues.Length > 0)
+							if (propertyIndexValues.Count > 0)
 								datastoreAction = new DatastoreActionInfo(tableId, simpleObject.Id, TransactionActionType.Update, propertyIndexValues);
 							//datastoreAction.SetActionUpdate(objectModel.TableInfo.TableId, simpleObject.Id, propertyValues);
 						}
@@ -5299,16 +5707,17 @@ namespace Simple.Objects
 
 		public ProcessTransactionRequestResult ProcessTransactionRequestFromClient(IEnumerable<TransactionActionInfo> transactionRequestWithDataInfo)
 		{
-			ChangeContainer changeContainer = new ChangeContainer();
+			//ChangeContainer changeContainer = new ChangeContainer();
 			object requester = this;
-			List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet = new List<SimpleObjectPropertyRelationArgs>();
+			//List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet = new List<SimpleObjectPropertyRelationArgs>();
+			//List<SimpleObjectPropertyIndexValuePair> postponedPropertiesToSet = new List<SimpleObjectPropertyIndexValuePair>();
 			//List<SimpleObjectKeyArgs> objectsWithTempClientKeys = new List<SimpleObjectKeyArgs>();
 			//Dictionary<long, int> newObjectTableIdsByTempClientObjectId = new Dictionary<long, int>();
 			Dictionary<long, long> newObjectIdsByTempClientObjectId = new Dictionary<long, long>();
 			//Dictionary<long, object[]> propertyValuesByTempClientId = new Dictionary<long, object[]>();
 			//Dictionary<long, Dictionary<int, object>> propertyValuesByIndexByTempClientObjectId = new Dictionary<long, Dictionary<int, object>>();
 			//HashSet<SimpleObject> transactionSimpleObjectsList = new HashSet<SimpleObject>();
-			List<SimpleObject> simpleObjectList = new List<SimpleObject>(transactionRequestWithDataInfo.Count());
+			//List<SimpleObject> simpleObjectList = new List<SimpleObject>(transactionRequestWithDataInfo.Count());
 
 			// Can we change this with a list???, why HashSet needed???
 
@@ -5317,7 +5726,16 @@ namespace Simple.Objects
 			//int graphElementTableId = this.GetObjectModel(typeof(GraphElement)).TableInfo.TableId; // GraphElementModel.TableId;
 
 			bool revokeTransaction = false;
-			string infoMessage = String.Empty;
+			StringBuilder infoMessage = new StringBuilder();
+			ChangeContainer changeContainer = this.DefaultChangeContainer; // = new ChangeContainer();
+			ObjectActionContext context = ObjectActionContext.ServerTransaction;
+			//bool requireCommit = !changeContainer.RequireCommit;
+
+			if (changeContainer.RequireCommit)
+				this.CommitChanges(changeContainer, context, requester);
+
+			//throw new InvalidOperationException("The DefaultChangeContainer is not empty");
+
 			//long[] newObjectIds = null;
 
 			// Insert new non GraphElements first <- Not need any more
@@ -5329,7 +5747,7 @@ namespace Simple.Objects
 				if (objectModel == null)
 				{
 					revokeTransaction = true;
-					infoMessage.WriteLine("SimpleObject server model doesn't exists: TableId=" + item.TableId);
+					infoMessage.AppendLine("SimpleObject server model doesn't exists: TableId=" + item.TableId);
 					Debug.WriteLine("ProcessTransactionRequestArgs: Server has no object info of TableId: " + item.TableId);
 
 					break;
@@ -5339,21 +5757,27 @@ namespace Simple.Objects
 				if (item.ActionType == TransactionActionType.Insert) // && tableId != graphElementTableId) // Insert non GraphElement first
 				{
 					long tempClientObjectId = item.ObjectId;
-					simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, objectId: 0, changeContainer, requester: this);
+
+					simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, objectId: 0, changeContainer, context, requester); // changeContainer
 					simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+
+					//if (simpleObject is GraphElement graphElement)
+					//	this.NewGraphElementIsCreated(graphElement, changeContainer, requester);
+
 					long newObjectId = simpleObject.Id; // enforce ObjectId creation and adding object into object cache.
+
 					newObjectIdsByTempClientObjectId.Add(tempClientObjectId, newObjectId);
 					item.ObjectId = newObjectId;
 					//objectsWithTempClientKeys.Add(new SimpleObjectKeyArgs(simpleObject, tableId, tempClientObjectId)); // Check if this is necessary
 				}
-				else 
+				else
 				{
 					simpleObject = this.GetObject(item.TableId, item.ObjectId);
 
 					if (simpleObject is null)
 					{
 						revokeTransaction = true;
-						infoMessage.WriteLine("SimpleObject does not exists: TableId=" + item.TableId + ", ObjectId=" + item.ObjectId);
+						infoMessage.AppendLine("SimpleObject does not exists: TableId=" + item.TableId + ", ObjectId=" + item.ObjectId);
 						Debug.WriteLine("ProcessTransactionRequestArgs: Server has no object of TableId=" + item.TableId + " and ObjectId=" + item.ObjectId);
 
 						break;
@@ -5362,120 +5786,41 @@ namespace Simple.Objects
 					simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
 
 					if (item.ActionType == TransactionActionType.Delete)
-						simpleObject.RequestDelete(changeContainer, requester: this);
+						simpleObject.RequestDelete(changeContainer, context, requester);
 				}
 
-				if (item.PropertyIndexValues != null)
-				{
-					simpleObject.LoadPropertyValuesWithoutRelations(item.PropertyIndexValues, changeContainer, ref objectRelationPropertiesToSet, out string info, requester: this);
-
-					if (!info.IsNullOrEmpty())
-						infoMessage.WriteLine(info);
-				}
-
-				simpleObjectList.Add(simpleObject);
+				item.SimpleObject = simpleObject;
+				
+				// This should be 
+				//simpleObjectList.Add(simpleObject);
 			}
 
+			//TODO: 1. Create method to remove relation fron object chaches SimpleObject.RemoveRelationPrimaryObjectFromCachea
+			//      2. Than populate all relation property keys, replacing negative with newones (
+			//      3. Than set new properties changes without relation
+			//      4. Than set postponed property changes like OrderIndex - NOT FOR NOW- POSTPONE THIS FEATURE
 
-			//if (!revokeTransaction)
-			//{
-			//// Second, insert GraphElements
-			//foreach (TransactionActionInfo transactionActionWithDataInfo in transactionActionWithDataInfoList)
-			//{
-			//	int tableId = transactionActionWithDataInfo.TableId;
-
-			//	if (transactionActionWithDataInfo.ActionType == TransactionActionType.Insert && tableId == graphElementTableId) // Second, insert GraphElements
-			//	{
-			//		long tempClientObjectId = transactionActionWithDataInfo.ObjectId;
-			//		ISimpleObjectModel objectModel = this.GetObjectModel(tableId);
-			//		Dictionary<int, object> propertyValuesByPropertyIndex = new Dictionary<int, object>(transactionActionWithDataInfo.PropertyIndexes.Count());
-			//		long newObjectId;
-
-
-			//		for (int i = 0; i < transactionActionWithDataInfo.PropertyIndexes.Count(); i++)
-			//		{
-			//			int propertyIndex = transactionActionWithDataInfo.PropertyIndexes.ElementAt(i);
-			//			object propertyValue = transactionActionWithDataInfo.PropertyValues.ElementAt(i);
-
-			//			propertyValuesByPropertyIndex.Add(propertyIndex, propertyValue);
-			//		}
-
-
-			//		int graphKey = (int)propertyValuesByPropertyIndex[GraphElementModel.PropertyModel.GraphKey.PropertyIndex];
-			//		int simpleObjectTableId = (int)propertyValuesByPropertyIndex[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex];
-			//		long simpleObjectId = (long)propertyValuesByPropertyIndex[GraphElementModel.PropertyModel.ObjectId.PropertyIndex];
-
-			//		if (simpleObjectId < 0)
-			//			simpleObjectId = newObjectIdsByTempClientObjectId[simpleObjectId];
-
-			//		SimpleObject simpleObject = this.GetObject(simpleObjectTableId, simpleObjectId);
-
-			//		if (simpleObject == null)
-			//		{
-			//			revokeTransaction = true;
-			//			infoMessage.WriteLine("GraphElement SimpleObject doesn't exists: GraphElement Id=" + tempClientObjectId);
-			//			Debug.WriteLine("ProcessTransactionRequestArgs: GraphElement SimpleObject doesn't exists: GraphElement Id=" + tempClientObjectId);
-
-			//			break;
-			//		}
-
-			//		//SystemGraph graph = this.GetSystemGraph(graphKey);
-			//		GraphElement graphElement = new GraphElement(this, graphKey, simpleObject, parent: null, changeContainer); // parent will be set by setting relation property
-
-			//		graphElement.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
-			//		newObjectId = graphElement.Id; // enforce ObjectId creation and adding object in object cache.
-
-			//		newObjectIdsByTempClientObjectId.Add(tempClientObjectId, newObjectId);
-			//		objectsWithTempClientKeys.Add(new SimpleObjectKeyArgs(graphElement, tableId, tempClientObjectId));
-			//		transactionSimpleObjectsList.Add(graphElement);
-
-			//		//objectsWithNewKeys.Add(new SimpleObjectKeyArgs(graphElement, tableId, newObjectId));
-
-			//		foreach (var propertyItem in propertyValuesByPropertyIndex)
-			//		{
-			//			int propertyIndex = propertyItem.Key;
-			//			object propertyValue = propertyItem.Value;
-			//			IPropertyModel propertyModel = objectModel.PropertyModels[propertyIndex];
-
-			//			if (propertyModel.PropertyIndex == GraphElementModel.PropertyModel.GraphKey.PropertyIndex || propertyModel.PropertyIndex == GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex
-			//																									  || propertyModel.PropertyIndex == GraphElementModel.PropertyModel.ObjectId.PropertyIndex)
-			//				continue; // This is already has been set;
-
-			//			if (propertyModel.IsRelationTableId)
-			//			{
-			//				foreignTableId = (int)propertyValue;
-			//			}
-			//			else if (propertyModel.IsRelationObjectId)
-			//			{
-			//				long foreignObjectId = (long)propertyValue;
-			//				IRelationModel relationModel = this.GetRelationModel(propertyModel.RelationKey);
-
-			//				if (relationModel is IOneToOneOrManyRelationModel)
-			//				{
-			//					if (foreignTableId == 0)
-			//						foreignTableId = (relationModel as IOneToOneOrManyRelationModel).PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
-
-			//					objectRelationPropertiesToSet.Add(new SimpleObjectPropertyRelationArgs(graphElement, foreignTableId, foreignObjectId, relationModel as IOneToOneOrManyRelationModel));
-			//				}
-			//				else
-			//				{
-			//					simpleObject.SetPropertyValue(propertyModel, propertyValue, changeContainer, requester: this);
-			//				}
-
-			//				foreignTableId = 0;
-			//			}
-			//			else
-			//			{
-			//				//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
-
-			//				if (propertyModel.IsEncrypted)
-			//					propertyValue = this.DecryptProperty(propertyValue);
-
-			//				graphElement.SetPropertyValue(propertyModel, propertyValue, changeContainer, requester: this);
-			//			}
-			//		}
-			//	}
-			//}
+			// 3.
+			foreach (TransactionActionInfo item in transactionRequestWithDataInfo) // First pass, just create new object without loadind data, but collecting new ObjectId's
+			{
+				if (item.PropertyIndexValues != null && item.SimpleObject != null) // && this.GetObject(item.TableId, item.ObjectId) is SimpleObject simpleObject)
+				{
+					item.SimpleObject.SetNonRelationPropertyValuesAndCollectRelationsInternal(item.PropertyIndexValues, newObjectIdsByTempClientObjectId, out RelationListInfo relationInfo, changeContainer, context, requester);
+					item.RelationInfo = relationInfo;
+				}
+			}
+			
+			// 1. + 2. 
+			foreach (TransactionActionInfo item in transactionRequestWithDataInfo) // First pass, just create new object without loadind data, but collecting new ObjectId's
+			{
+				if (item.SimpleObject != null && item.RelationInfo != null)
+				{
+					if (item.SimpleObject.IsNew)
+						item.SimpleObject.SetAllRelationPrimaryObjectsInternal(item.RelationInfo, changeContainer, context, requester);
+					else
+						item.SimpleObject.SetRelationPrimaryObjectsInternal(item.RelationInfo, changeContainer, context, requester);
+				}
+			}
 
 			if (!revokeTransaction)
 			{
@@ -5574,68 +5919,72 @@ namespace Simple.Objects
 				//	}
 				//}
 
-				// Replace client temp negative SimpleObject Id's with realone in input variable transactionRequestWithDataInfo to be used for sending transaction info to the other clients with correct server SimpleObject Id's for new objects.
-				foreach (TransactionActionInfo item in transactionRequestWithDataInfo)
-				{
-					if (item.propertyIndexValueArray != null)
-					{
-						ISimpleObjectModel objectModel = this.GetObjectModel(item.TableId)!;
+				//// Replace client temp negative SimpleObject Id's with realone in input variable transactionRequestWithDataInfo to be used for sending transaction info to the other clients with correct server SimpleObject Id's for new objects.
+				//foreach (TransactionActionInfo item in transactionRequestWithDataInfo)
+				//{
+				//	if (item.PropertyIndexValues != null)
+				//	{
+				//		ISimpleObjectModel objectModel = this.GetObjectModel(item.TableId)!;
 
-						for (int i = 0; i < item.propertyIndexValueArray!.Length; i++)
-						{
-							var propertyModel = objectModel.PropertyModels[item.propertyIndexValueArray[i].PropertyIndex];
+				//		for (int i = 0; i < item.PropertyIndexValues.Count; i++)
+				//		{
+				//			var propertyModel = objectModel.PropertyModels[item.PropertyIndexValues[i].PropertyIndex];
 
-							if (propertyModel.IsRelationObjectId)
-							{
-								long foreignObjectId = (long)item.propertyIndexValueArray[i].PropertyValue!;
+				//			if (propertyModel.IsRelationObjectId)
+				//			{
+				//				long foreignObjectId = (long)item.PropertyIndexValues[i].PropertyValue!;
 
-								if (foreignObjectId < 0)
-									item.propertyIndexValueArray[i].PropertyValue = newObjectIdsByTempClientObjectId[foreignObjectId];
-							}
-						}
-					}
-				}
+				//				if (foreignObjectId < 0)
+				//				{
+				//					var propertyValue = item.PropertyIndexValues[i];
 
-				// Sets relation foreign objects
-				// TODO: What about Many to Many relations and its negative Id's values for new ones!!!
-				foreach (var item in objectRelationPropertiesToSet)
-				{
-					//foreignTableId = item.ForeignTableId; ;
-					long foreignObjectId = (item.ForeignObjectId < 0) ? newObjectIdsByTempClientObjectId[item.ForeignObjectId] : item.ForeignObjectId;
+				//					propertyValue.PropertyValue = newObjectIdsByTempClientObjectId[foreignObjectId];
 
-					//foreignTableId = 0;
-					//long foreignObjectId = 0;
+				//					item.PropertyIndexValues[i] = propertyValue;
+				//				}
+				//			}
+				//		}
+				//	}
+				//}
 
-					//// Try to find foreign object within old object keys (if was deleted and now is recreated with new Id)
-					//SimpleObjectKeyArgs oldKeyArgs = objectsWithTempClientKeys.FirstOrDefault(x => x.TableId == item.ForeignTableId && x.ObjectId == item.ForeignObjectId);
+				//// Sets relation foreign objects
+				//// TODO: What about Many to Many relations and its negative Id's values for new ones!!!
+				//foreach (var item in objectRelationPropertiesToSet)
+				//{
+				//	//foreignTableId = item.ForeignTableId; ;
+				//	long foreignObjectId = (item.ForeignObjectId < 0) ? newObjectIdsByTempClientObjectId[item.ForeignObjectId] : item.ForeignObjectId;
 
-					//if (oldKeyArgs != null)
-					//{
-					//	if (oldKeyArgs.SimpleObject != null)
-					//	{
-					//		foreignTableId = oldKeyArgs.TableId;
-					//		foreignObjectId = oldKeyArgs.SimpleObject.Id;
-					//	}
-					//}
-					//else
-					//{
-					//	foreignTableId = item.ForeignTableId;
-					//	foreignObjectId = item.ForeignObjectId;
-					//}
+				//	//foreignTableId = 0;
+				//	//long foreignObjectId = 0;
 
-					item.SimpleObject.SetRelationPrimaryObject(item.ForeignTableId, foreignObjectId, item.RelationModel, changeContainer, requester: this);
-				}
+				//	//// Try to find foreign object within old object keys (if was deleted and now is recreated with new Id)
+				//	//SimpleObjectKeyArgs oldKeyArgs = objectsWithTempClientKeys.FirstOrDefault(x => x.TableId == item.ForeignTableId && x.ObjectId == item.ForeignObjectId);
+
+				//	//if (oldKeyArgs != null)
+				//	//{
+				//	//	if (oldKeyArgs.SimpleObject != null)
+				//	//	{
+				//	//		foreignTableId = oldKeyArgs.TableId;
+				//	//		foreignObjectId = oldKeyArgs.SimpleObject.Id;
+				//	//	}
+				//	//}
+				//	//else
+				//	//{
+				//	//	foreignTableId = item.ForeignTableId;
+				//	//	foreignObjectId = item.ForeignObjectId;
+				//	//}
+
+				//	item.SimpleObject.SetRelationPrimaryObjectInternal(item.ForeignTableId, foreignObjectId, item.RelationModel, changeContainer, requester: this); //  changeContainer
+				//}
 			}
-			//}
 
-			foreach (SimpleObject simpleObject in simpleObjectList)
-				simpleObject.InternalState = SimpleObjectInternalState.Normal;
+			foreach (TransactionActionInfo item in transactionRequestWithDataInfo) 
+				if (item.SimpleObject != null)
+					item.SimpleObject.InternalState = SimpleObjectInternalState.Normal;
 
 			if (revokeTransaction)
 			{
-				var transactionRequests = changeContainer.TransactionRequests;
-
-				foreach (var item in transactionRequests)
+				foreach (var item in changeContainer.TransactionRequests)
 				{
 					TransactionRequestAction requestAction = item.Value;
 					SimpleObject simpleObject = item.Key;
@@ -5643,117 +5992,303 @@ namespace Simple.Objects
 					if (requestAction == TransactionRequestAction.Save)
 					{
 						if (simpleObject.IsNew)
-							simpleObject.RequestDelete(changeContainer, requester);
+							simpleObject.RequestDelete(changeContainer, context, requester);
 						else
-							simpleObject.RejectChanges(changeContainer, requester);
+							simpleObject.RejectChanges(changeContainer, context, requester);
 					}
 					else
 					{
-						simpleObject.CancelDeleteRequest(changeContainer, requester);
+						simpleObject.CancelDeleteRequest(changeContainer, context, requester);
+					}
+				}
+			}
+			else
+			{
+				foreach (var item in changeContainer.TransactionRequests)
+				{
+					SimpleObject simpleObject = item.Key;
+
+					if (simpleObject.IsNew)
+					{
+						if (simpleObject is GraphElement graphElement)
+						{
+							//graphElement.CanRaiseParentChangeEvent = true;
+							graphElement.CanRiseNewGraphElementCreatedEvent = true;
+							this.NewGraphElementIsCreated(graphElement, changeContainer, context, requester);
+						}
+
+						//simpleObject.SetIsNew(false);
 					}
 				}
 			}
 
-			TransactionResult transactionResult = this.CommitChanges(changeContainer, requester);
+			TransactionResult transactionResult = this.CommitChanges(changeContainer, context, requester);
 
 			revokeTransaction &= transactionResult.TransactionSucceeded;
-			
-			if (!transactionResult.InfoMessage.IsNullOrEmpty())
-				infoMessage.WriteLine(transactionResult.InfoMessage!); // If any
 
-			return new ProcessTransactionRequestResult(revokeTransaction, transactionResult, newObjectIdsByTempClientObjectId.Values, infoMessage);
+			if (!transactionResult.FullMessage.IsNullOrEmpty())
+				infoMessage.AppendLine(transactionResult.FullMessage!); // If any
+
+			return new ProcessTransactionRequestResult(revokeTransaction, transactionResult, newObjectIdsByTempClientObjectId.Values, infoMessage.ToString());
 		}
 
+		/// <summary>
+		/// OnForeignTransactionCompleted is invoked only by ClientObjectManager. 
+		/// This method create, update or remove objects acoording to foreign transaction without using local transaction.
+		/// </summary>
+		/// <param name="transactionActions"></param>
 		public void OnForeignTransactionCompleted(IEnumerable<TransactionActionInfo> transactionActions)
 		{
-			List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet = new List<SimpleObjectPropertyRelationArgs>();
+			//List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet = new List<SimpleObjectPropertyRelationArgs>();
 			List<SimpleObject> simpleObjectsAddedList = new List<SimpleObject>();
 			List<SimpleObject> simpleObjectsUpdatedList = new List<SimpleObject>();
-			List<SimpleObject> simpleObjectsUpdateWithoutAcceptingChangesList = new List<SimpleObject>();
-			List<SimpleObject> simpleObjectsForDeleteList = new List<SimpleObject>();
-			object requester = this.foreignClientRequester;
+			List<SimpleObject> simpleObjectsUpdatedWithoutAcceptingChangesList = new List<SimpleObject>();
+			List<SimpleObject> simpleObjectsDeletedList = new List<SimpleObject>();
+			ChangeContainer? changeContainer = null; // new ChangeContainer();
+			ObjectActionContext context = ObjectActionContext.RemoteClientTransaction;
+			object requester = ForeignClientRequester;
+			bool requireCommitOnDefaultChangeContainer = !this.DefaultChangeContainer.RequireCommit;
+			
+			//// Set InternalState for all object that exists in client object cache to = SimpleObjectInternalState.TransactionRequestProcessing
+			//foreach (var item in transactionActions)
+			//	if (item.ActionType != TransactionActionType.Insert && this.IsObjectInCache(item.TableId, item.ObjectId) && this.GetObject(item.TableId, item.ObjectId) is SimpleObject simpleObject)
+			//		simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
 
-			using (ChangeContainer changeContainer = new ChangeContainer())
+			// Propagate DeleteStarted for SimpleObjects exists in client cache that will be deleted
+			foreach (var item in transactionActions)
 			{
-				foreach (TransactionActionInfo transactionActionWithDataInfo in transactionActions) // First pass, Insert new objects and load with only non relation data
+				ISimpleObjectModel? objectModel = this.GetObjectModel(item.TableId);
+
+				if (objectModel == null)
 				{
-					if (this.GetObjectModel(transactionActionWithDataInfo.TableId) is ISimpleObjectModel objectModel)
+					Debug.WriteLine("OnForeignTransactionCompleted: Server has no object info of TableId: " + item.TableId);
+
+					continue;
+				}
+
+				if (item.ActionType == TransactionActionType.Insert) // && tableId != graphElementTableId) // Insert non GraphElement first
+				{
+					//ObjectCache? objectCache = this.GetObjectCache(item.TableId);
+					//SimpleObject? simpleObject = objectCache?.CreateAndLoadObjectInternal(item.ObjectId, (simpleObject) => simpleObject.LoadFromServer(item.PropertyIndexValues ?? new PropertyIndexValuePair[0]), changeContainer, context);
+					SimpleObject simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, objectId: item.ObjectId, changeContainer, context, requester); // changeContainer
+					
+					simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+					simpleObjectsAddedList.Add(simpleObject);
+					item.SimpleObject = simpleObject;
+				}
+				else if (this.IsObjectInCache(item.TableId, item.ObjectId, out SimpleObject? simpleObject))
+				{
+					simpleObject!.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+
+					if (item.ActionType == TransactionActionType.Delete)
 					{
-						if (transactionActionWithDataInfo.ActionType == TransactionActionType.Insert) // && tableId != graphElementTableId) // Insert non GraphElement first
+						this.OnBeforeDelete(simpleObject!, changeContainer, context, requester); // TODO: Check if this is needed
+						simpleObject!.BeforeDelete(changeContainer, context, requester); // TODO: Check if this is needed
+						simpleObject.DeleteStarted = true;
+
+						if (!(simpleObject is GraphElement))
+							simpleObject.Status = 0; // Force propagate Unknown status throughout GraphElement objects
+
+						this.RaiseBeforeDelete(simpleObject, changeContainer, context, requester);
+						simpleObjectsDeletedList.Add(simpleObject);
+					}
+
+					item.SimpleObject = simpleObject;
+				}
+				else if (item.TableId == GraphElementModel.TableId && item.PropertyIndexValues != null) // The object is not in a cache but is the GraphElement. Check if parent is in cache
+				{
+					if (item.ActionType == TransactionActionType.Update)
+					{
+						if ((item.PropertyIndexValues.TryGetPropertyValue(GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex, out object? previousParentId) && this.IsObjectInCache(item.TableId, (long)previousParentId!, out SimpleObject? previousParentGraphElementAsSimpleObject)))
 						{
-							SimpleObject simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, transactionActionWithDataInfo.ObjectId, changeContainer, requester);
+							GraphElement previousParentGraphElement = (previousParentGraphElementAsSimpleObject as GraphElement)!;
 
-							simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+							if (item.PropertyIndexValues.TryGetPropertyValue(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex, out object? doesPreviousParentHaveChildren))
+							{
+								bool oldHasChildren = previousParentGraphElement.HasChildren;
 
-							if (transactionActionWithDataInfo.PropertyIndexValues != null)
-								simpleObject.LoadFieldValuesWithoutRelations(transactionActionWithDataInfo.PropertyIndexValues, changeContainer, ref objectRelationPropertiesToSet, out string info, requester);
+								previousParentGraphElement.HasChildrenInClientModeWhenNotLoaded = (bool)doesPreviousParentHaveChildren!;
+								
+								if (previousParentGraphElement.HasChildren != oldHasChildren)
+									this.RaiseGraphElementHasChildrenUpdate(previousParentGraphElement);
+							}
+						}
+
+						if (item.PropertyIndexValues.TryGetPropertyValue(GraphElementModel.PropertyModel.ParentId.PropertyIndex, out object? parentId) && this.IsObjectInCache(item.TableId, (long)parentId!, out SimpleObject? parentGraphElementAsSimpleObject))
+						{
+							GraphElement parentGraphElement = (parentGraphElementAsSimpleObject as GraphElement)!;
+							bool oldHasChildren = parentGraphElement.HasChildren;
+
+							parentGraphElement.HasChildrenInClientModeWhenNotLoaded = this.DoesGraphElementHaveChildren(parentGraphElement);
 							
-							simpleObjectsAddedList.Add(simpleObject);
-
+							if (parentGraphElement.HasChildren != oldHasChildren)
+								this.RaiseGraphElementHasChildrenUpdate(parentGraphElement);
 						}
-						else if (transactionActionWithDataInfo.ActionType == TransactionActionType.Update && this.IsObjectInCache(transactionActionWithDataInfo.TableId, transactionActionWithDataInfo.ObjectId) && this.GetObject(transactionActionWithDataInfo.TableId, transactionActionWithDataInfo.ObjectId) is SimpleObject simpleObject)
+					}
+					else // if (item.ActionType == TransactionActionType.Delete)
+					{
+						if ((item.PropertyIndexValues.TryGetPropertyValue(GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex, out object? previousParentId) && this.IsObjectInCache(item.TableId, (long)previousParentId!, out SimpleObject? previousParentGraphElementAsSimpleObject)))
 						{
-							simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
+							GraphElement previousParentGraphElement = (previousParentGraphElementAsSimpleObject as GraphElement)!;
 
-							if (simpleObject.IsChanged)
-								simpleObjectsUpdateWithoutAcceptingChangesList.Add(simpleObject);
-							else
-								simpleObjectsUpdatedList.Add(simpleObject);
+							if (item.PropertyIndexValues.TryGetPropertyValue(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex, out object? doesPreviousParentHaveChildren))
+							{
+								bool oldHasChildren = previousParentGraphElement.HasChildren;
 
-							if (transactionActionWithDataInfo.PropertyIndexValues != null)
-								simpleObject.LoadPropertyValuesWithoutRelations(transactionActionWithDataInfo.PropertyIndexValues, changeContainer, ref objectRelationPropertiesToSet, out string info, requester);
+								previousParentGraphElement.HasChildrenInClientModeWhenNotLoaded = (bool)doesPreviousParentHaveChildren!;
+
+								if (previousParentGraphElement.HasChildren != oldHasChildren)
+									this.RaiseGraphElementHasChildrenUpdate(previousParentGraphElement);
+							}
 						}
-						else if (this.IsObjectInCache(transactionActionWithDataInfo.TableId, transactionActionWithDataInfo.ObjectId)) // transactionActionWithDataInfo.ActionType == TransactionActionType.Delete)
+					}
+				}
+			}
+
+			// Set all property values including without setting relations
+			foreach (var item in transactionActions) // First pass, just create new object without loadind data, but collecting new ObjectId's
+			{
+				if (item.SimpleObject != null && item.PropertyIndexValues != null) // && this.GetObject(item.TableId, item.ObjectId) is SimpleObject simpleObject)
+				{
+					if (item.ActionType == TransactionActionType.Update)
+					{
+						if (item.SimpleObject.IsChanged)
+							simpleObjectsUpdatedWithoutAcceptingChangesList.Add(item.SimpleObject);
+						else
+							simpleObjectsUpdatedList.Add(item.SimpleObject);
+					}
+
+					item.SimpleObject.SetNonRelationPropertyValuesAndCollectRelationsInternal(item.PropertyIndexValues, out RelationListInfo relationInfo, changeContainer, context, requester);
+					item.RelationInfo = relationInfo;
+				}
+			}
+
+			// Set realtion primary object from loaded propery values
+			foreach (var item in transactionActions) 
+			{
+				if (item.SimpleObject != null && item.RelationInfo != null)
+				{
+					if (item.ActionType == TransactionActionType.Insert) // if (item.SimpleObject.IsNew)
+						item.SimpleObject.SetAllRelationPrimaryObjectsInternal(item.RelationInfo, changeContainer, context, requester);
+					else
+						item.SimpleObject.SetRelationPrimaryObjectsInternal(item.RelationInfo, changeContainer, context, requester);
+				}
+			}
+
+			// Remove all related objects from all related object caches 
+			foreach (var item in transactionActions)
+			{
+				if (item.ActionType == TransactionActionType.Delete && item.SimpleObject != null)
+				{
+					item.SimpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCachesInternal(changeContainer!, context, requester); // Remove all relation values
+					this.RemoveObjectFromCache(item.SimpleObject.GetModel().TableInfo.TableId, item.SimpleObject.Id, changeContainer, requester);
+					item.SimpleObject.IsDeleted = true;
+				}
+			}
+
+			foreach (var item in transactionActions)
+				if (item.SimpleObject != null)
+					item.SimpleObject.InternalState = SimpleObjectInternalState.Normal;
+
+
+			//// Create new objects, set relation values,
+			//// We want to raise NewObjectCreated, NewGraphElementCreated event when new objects is creatred and ParentGraphElementChange event when parent is changed
+			//foreach (TransactionActionInfo transactionActionWithDataInfo in transactionActions) // First pass, Insert new objects and load with only non relation data
+			//{
+			//	if (this.GetObjectModel(transactionActionWithDataInfo.TableId) is ISimpleObjectModel objectModel)
+			//	{
+			//		if (transactionActionWithDataInfo.ActionType == TransactionActionType.Insert) // && tableId != graphElementTableId) // Insert non GraphElement first
+			//		{
+			//			ObjectCache? objectCache = this.GetObjectCache(transactionActionWithDataInfo.TableId);
+			//			SimpleObject? simpleObject = objectCache?.CreateAndLoadObjectInternal(transactionActionWithDataInfo.ObjectId, (simpleObject) => simpleObject.LoadFromServer(transactionActionWithDataInfo.PropertyIndexValues ?? new PropertyIndexValuePair[0]), changeContainer, context);
+
+			//			if (simpleObject != null)
+			//				simpleObjectsAddedList.Add(simpleObject);
+			//		}
+			//		else if (this.IsObjectInCache(transactionActionWithDataInfo.TableId, transactionActionWithDataInfo.ObjectId, out SimpleObject? simpleObject))
+			//		{
+			//			if (transactionActionWithDataInfo.ActionType == TransactionActionType.Update)
+			//			{
+			//				if (simpleObject!.IsChanged)
+			//					simpleObjectsUpdatedWithoutAcceptingChangesList.Add(simpleObject);
+			//				else
+			//					simpleObjectsUpdatedList.Add(simpleObject);
+
+			//				if (transactionActionWithDataInfo.PropertyIndexValues != null)
+			//					simpleObject.SetPropertyValuesWithoutRelationsInternal(transactionActionWithDataInfo.PropertyIndexValues, changeContainer, context, requester);
+			//			}
+			//			else // (transactionActionWithDataInfo.ActionType == TransactionActionType.Delete)
+			//			{
+			//				simpleObject!.RemoveAllRelatedObjectsFromAllRelatedObjectCachesInternal(changeContainer, context, requester); // Remove all relations values
+			//				this.RemoveObjectFromCache(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, changeContainer, requester);
+			//				simpleObject.IsDeleted = true;
+			//				simpleObjectsDeletedList.Add(simpleObject);
+			//			}
+			//		}
+			//	}
+			//}
+
+			foreach (SimpleObject simpleObject in simpleObjectsAddedList) 
+			{
+				simpleObject.AcceptChangesInternal(changeContainer, requester: this);
+				//simpleObject.SetIsNew(false);  changeContainer.AcceptChanges();
+
+				if (simpleObject is GraphElement graphElement)
+				{
+					if (this.IsObjectInCache(GraphElementModel.TableId, graphElement.ParentId, out SimpleObject ? parentGraphElementAsSimpleObject))
+					{
+						GraphElement parentGraphElement = (parentGraphElementAsSimpleObject as GraphElement)!;
+
+						if (!parentGraphElement.HasChildren) // If parent is in cache and has no children -> this is first child
 						{
-							simpleObject = this.GetObject(transactionActionWithDataInfo.TableId, transactionActionWithDataInfo.ObjectId)!;
+							var graphElements = new SimpleObjectCollection<GraphElement>(this, GraphElementModel.TableId, new List<long>() { graphElement.Id });
 
-							simpleObject.InternalState = SimpleObjectInternalState.TransactionRequestProcessing;
-							simpleObject.RequestDelete(changeContainer, findRelatedObjectsForDelete: false, requester: this);
-							simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches(changeContainer, requester);
-							this.RemoveObjectFromCache(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id);
+							parentGraphElement.SetClientGraphElementCollectionInternal(graphElements);
+							parentGraphElement.IsChildrenLoadedInClientMode = true;
+							//this.RaiseGraphElementHasChildrenUpdate(parentGraphElement);
+						}
+					}
 
-							simpleObject.IsDeleted = true;
-							simpleObjectsForDeleteList.Add(simpleObject);
+					graphElement.CanRiseNewGraphElementCreatedEvent = true; // <- is this nessesery? - Yes it is
+					//this.NewGraphElementIsCreated(graphElement, changeContainer, requester);
+				}
+				//else
+				//	this.NewClientObjectIsCreated(simpleObject, changeContainer, requester);
 
-							//this.OnAfterDelete(simpleObject, changeContainer, requester);
-							//this.RaiseAfterDelete(simpleObject, requester);
-							//simpleObject.Dispose();
+				this.NewObjectIsCreated(simpleObject, changeContainer, context, requester);
+				simpleObject.SetIsNew(false);
+			}
+
+			foreach (SimpleObject simpleObject in simpleObjectsUpdatedList) 
+				simpleObject.AcceptChangesInternal(changeContainer, requester);
+
+			foreach (SimpleObject simpleObject in simpleObjectsDeletedList)
+			{
+				if (simpleObject is GraphElement graphElement)
+				{
+					if (this.IsObjectInCache(GraphElementModel.TableId, graphElement.ParentId, out SimpleObject? parentGraphElementAsSimpleObject))
+					{
+						GraphElement parentGraphElement = (parentGraphElementAsSimpleObject as GraphElement)!;
+
+						if (!parentGraphElement.IsChildrenLoadedInClientMode && parentGraphElement.HasChildrenInClientModeWhenNotLoaded) // If parent is in cache and has children -> check is this last children that is about to be deleted?
+						{
+							parentGraphElement.HasChildrenInClientModeWhenNotLoaded = this.DoesGraphElementHaveChildren(parentGraphElement);
+							parentGraphElement.IsChildrenLoadedInClientMode = true;
+							//this.RaiseGraphElementHasChildrenUpdate(parentGraphElement);
 						}
 					}
 				}
 
-				foreach (var item in objectRelationPropertiesToSet) // Sets relation foreign objects
-					item.SimpleObject.SetRelationPrimaryObject(item.ForeignTableId, item.ForeignObjectId, item.RelationModel, changeContainer, requester);
-
-				foreach (SimpleObject simpleObject in simpleObjectsAddedList) 
-				{
-					simpleObject.AcceptChanges(changeContainer: null, requester: this);
-					simpleObject.SetIsNew(false);
-					simpleObject.InternalState = SimpleObjectInternalState.Normal;
-
-					if (simpleObject is GraphElement graphElement)
-						this.NewGraphElementIsCreated(graphElement, changeContainer, requester);
-					else
-						this.NewObjectIsCreated(simpleObject, requester);
-				}
-
-				foreach (SimpleObject simpleObject in simpleObjectsUpdatedList) 
-				{
-					simpleObject.AcceptChanges(changeContainer: null, requester: this);
-					simpleObject.InternalState = SimpleObjectInternalState.Normal;
-				}
-
-				foreach (SimpleObject simpleObject in simpleObjectsUpdateWithoutAcceptingChangesList)
-					simpleObject.InternalState = SimpleObjectInternalState.Normal;
-
-				foreach (SimpleObject simpleObject in simpleObjectsForDeleteList)
-				{
-					simpleObject.InternalState = SimpleObjectInternalState.Normal;
-					this.OnAfterDelete(simpleObject, changeContainer, requester);
-					this.RaiseAfterDelete(simpleObject, requester);
-					simpleObject.Dispose();
-				}
+				this.OnAfterDelete(simpleObject, changeContainer, context, requester);
+				this.RaiseAfterDelete(simpleObject, changeContainer, context, requester);
+				simpleObject.Dispose();
 			}
+
+			if (changeContainer != null && changeContainer.RequireCommit)
+				changeContainer.AcceptChanges();
+
+			if (requireCommitOnDefaultChangeContainer && this.DefaultChangeContainer.RequireCommit)
+				this.CommitChanges();
 		}
 
 		//public Transaction BeginTransaction_New(User user)
@@ -6205,19 +6740,19 @@ namespace Simple.Objects
 		//		//this.transactionsActionsBySimpleObject.Clear();
 		//	}
 		//}
-		public void RollbackTransaction(SystemTransaction transaction, object requester)
+		public void RollbackTransaction(SystemTransaction transaction, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
 			if (transaction.Status != TransactionStatus.Completed)
 			{
 				//if (this.WorkingMode != ObjectManagerWorkingMode.Client)
 				//	transaction.CreateTransactionActionLogsFromActionData(this.GetObjectModel, this.GetSystemPropertySequence);
 
-				this.RollbackTransactionInternal(transaction, requester);
-				transaction.Status = TransactionStatus.Rollbacked;
+				this.RollbackTransactionInternal(transaction, context, requester);
+				//transaction.Status = TransactionStatus.Rollbacked;
 			}
 		}
 
-		internal void RollbackTransactionInternal(SystemTransaction transaction, object requester)
+		internal void RollbackTransactionInternal(SystemTransaction transaction, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		{
 			lock (this.lockRollbackTransaction)
 			{
@@ -6247,21 +6782,25 @@ namespace Simple.Objects
 				List<SimpleObjectKeyArgs> objectsByOldTransactionKeys = new List<SimpleObjectKeyArgs>();
 				List<SimpleObject> saveRequests = new List<SimpleObject>();
 				List<SimpleObject> deleteRequests = new List<SimpleObject>();
-				ChangeContainer nullChangeContainer = new ChangeContainer();
+				ChangeContainer? changeContainer = null; // new ChangeContainer();
 				Dictionary<SimpleObject, ChangeContainer?> changeContainersBySimpleObjects = new Dictionary<SimpleObject, ChangeContainer?>();
+				Dictionary<SimpleObject, ObjectActionContext> contextsBySimpleObjects = new Dictionary<SimpleObject, ObjectActionContext>();
+				Dictionary<SimpleObject, object?> requestersBySimpleObjects = new Dictionary<SimpleObject, object?>();
+
+				if (context == ObjectActionContext.Unspecified)
+					context = (this.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
 
 				foreach (TransactionActionInfo transactionActionInfo in transaction.RollbackTransactionActions)
 				{
 					SimpleObject? simpleObject = null;
 
-					if (transactionActionInfo.ActionType == TransactionActionType.Insert)
+					if (transactionActionInfo.ActionType == TransactionActionType.Delete)
 					{
 						simpleObject = this.GetObject(transactionActionInfo.TableId, transactionActionInfo.ObjectId);
 
 						if (simpleObject == null)
 							continue;
 
-						simpleObject.ChangeContainer = nullChangeContainer;
 						deleteRequests.Add(simpleObject);
 					}
 					else
@@ -6277,15 +6816,22 @@ namespace Simple.Objects
 								continue;
 
 							changeContainersBySimpleObjects.Add(simpleObject, simpleObject.ChangeContainer);
-							simpleObject.ChangeContainer = nullChangeContainer;
 						}
-						else // if (transactionAction.ActionType == TransactionActionType.Delete)
+						else // if (transactionAction.ActionType == TransactionActionType.Insert)
 						{
-							simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, objectId: 0, nullChangeContainer, requester: this);
+							simpleObject = this.CreateNewEmptyObject(objectModel.ObjectType, isNew: true, objectId: 0, changeContainer, context, requester: this);
 							objectsByOldTransactionKeys.Add(new SimpleObjectKeyArgs(simpleObject, transactionActionInfo.TableId, transactionActionInfo.ObjectId));
-							changeContainersBySimpleObjects.Add(simpleObject, null);
-							simpleObject.ChangeContainer = nullChangeContainer;
+							
+							changeContainersBySimpleObjects.Add(simpleObject, simpleObject.ChangeContainer);
 						}
+
+						simpleObject.ChangeContainer = changeContainer;
+						
+						contextsBySimpleObjects.Add(simpleObject, simpleObject.Context);
+						simpleObject.Context = context;
+						
+						requestersBySimpleObjects.Add(simpleObject, simpleObject.Requester);
+						simpleObject.Requester = requester;
 
 						if (transactionActionInfo.PropertyIndexValues != null)
 						{
@@ -6294,7 +6840,7 @@ namespace Simple.Objects
 								var item = transactionActionInfo.PropertyIndexValues.ElementAt(i);
 								IPropertyModel propertyModel = objectModel.PropertyModels[item.PropertyIndex];
 
-								if (propertyModel.IsKey)
+								if (propertyModel.IsId)
 									continue;
 
 								object? propertyValue = item.PropertyValue;
@@ -6316,7 +6862,7 @@ namespace Simple.Objects
 								else
 								{
 									propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
-									simpleObject.SetPropertyValue(propertyModel, propertyValue, nullChangeContainer, requester: requester);
+									simpleObject.SetPropertyValue(propertyModel, propertyValue, changeContainer, context, requester);
 								}
 							}
 						}
@@ -6335,7 +6881,7 @@ namespace Simple.Objects
 					long foreignObjectId = 0;
 
 					// Try to find foreign object within old object keys (if was deleted and now is recreated with new Id)
-					SimpleObjectKeyArgs oldKeyArgs = objectsByOldTransactionKeys.FirstOrDefault(x => x.TableId == item.ForeignTableId && x.ObjectId == item.ForeignObjectId);
+					SimpleObjectKeyArgs? oldKeyArgs = objectsByOldTransactionKeys.FirstOrDefault(x => x.TableId == item.ForeignTableId && x.ObjectId == item.ForeignObjectId);
 
 					if (oldKeyArgs != null)
 					{
@@ -6353,7 +6899,27 @@ namespace Simple.Objects
 
 					SimpleObject? relatedSimpleObject = this.GetObject(foreignTableId, foreignObjectId);
 
-					item.SimpleObject.SetRelationPrimaryObject(relatedSimpleObject, item.RelationModel, nullChangeContainer, requester);
+					item.SimpleObject.SetRelationPrimaryObject(relatedSimpleObject, item.RelationModel, changeContainer, context, requester);
+				}
+
+				foreach (SimpleObject simpleObject in deleteRequests)
+				{
+					if (simpleObject is GraphElement graphElement)
+					{
+						GraphElement? parentGraphElement = graphElement.Parent;
+
+						if (parentGraphElement != null && !parentGraphElement.IsChildrenLoadedInClientMode && parentGraphElement.HasChildrenInClientModeWhenNotLoaded) // If parent is in cache and has children -> check is this last children that is about to be deleted?
+						{
+							parentGraphElement.HasChildrenInClientModeWhenNotLoaded = this.DoesGraphElementHaveChildren(parentGraphElement);
+							parentGraphElement.IsChildrenLoadedInClientMode = true;
+							//this.RaiseGraphElementHasChildrenUpdate(parentGraphElement);
+						}
+					}
+
+					simpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCachesInternal(changeContainer, context, requester);
+					//this.OnAfterDelete(simpleObject, changeContainer, context, requester);
+					//this.RaiseAfterDelete(simpleObject, changeContainer, context, requester);
+					simpleObject.Dispose();
 				}
 
 				//// Raise NewObjectCreated and GraphElementCreated events, if needed
@@ -6365,66 +6931,35 @@ namespace Simple.Objects
 				//		this.NewGraphElementIsCreated(item.SimpleObject as GraphElement, changeContainer, requester);
 				//}
 
-				saveRequests.Reverse();
-
-				foreach (SimpleObject simpleObject in saveRequests)
-				{
-					nullChangeContainer.Set(simpleObject, TransactionRequestAction.Save, requester);
-
-					//if (masterSimpleObject == null)
-					//{
-					//	masterSimpleObject = simpleObject;
-					//	masterRequestAction = TransactionRequestAction.Save;
-					//}
-					//else
-					//{
-					//	masterSimpleObject.SetRelatedTransactionRequest(simpleObject, TransactionRequestAction.Save);
-					//}
-				}
-
-				foreach (SimpleObject simpleObject in deleteRequests)
-				{
-					nullChangeContainer.Set(simpleObject, TransactionRequestAction.Delete, requester);
-
-					//if (masterSimpleObject == null)
-					//{
-					//	masterSimpleObject = simpleObject;
-					//	masterRequestAction = TransactionRequestAction.Delete;
-					//}
-					//else
-					//{
-					//	masterSimpleObject.SetRelatedTransactionRequest(simpleObject, TransactionRequestAction.Delete);
-					//}
-				}
 
 
+				//saveRequests.Reverse();
 
-				//if (masterSimpleObject != null)
-				//{
-				//	if (masterRequestAction == TransactionRequestAction.Save)
-				//	{
-				//		this.Save(masterSimpleObject, requester);
-				//	}
-				//	else //if (masterRequestAction == TransactionRequestAction.Delete)
-				//	{
-				//		this.Delete(masterSimpleObject, checkCanDelete: false, checkSimpleObjectGraphElements: true, requester: requester);
-				//	}
-				//}
+				//foreach (SimpleObject simpleObject in saveRequests)
+				//	changeContainer.Set(simpleObject, TransactionRequestAction.Save, requester);
+
+				//foreach (SimpleObject simpleObject in deleteRequests)
+				//	changeContainer.Set(simpleObject, TransactionRequestAction.Delete, requester);
+
+				//// TODO: commit changes without creating new transaction and saving it to the database
+				//// TODO: Validate SimpleObjects
+
+				//TransactionResult result = this.CommitChanges(saveTransaction: false, changeContainer, context, requester);
 
 
-				// TODO: commit changes without creating new transaction and saving it to the database
-				// TODO: Validate SimpleObjects
-
-				TransactionResult result = this.CommitChanges(nullChangeContainer, saveTransaction: false, requester);
 
 				// Lets set original object's ChangeContainers
+				//
+				// TODO: Restore ActionContext and Requester also
+				//
 				foreach (var item in changeContainersBySimpleObjects)
-				{
-					SimpleObject simpleObject = item.Key;
-					ChangeContainer? changeContainer = item.Value;
+					item.Key.ChangeContainer = item.Value;
 
-					simpleObject.ChangeContainer = changeContainer;
-				}
+				foreach (var item in contextsBySimpleObjects)
+					item.Key.Context = item.Value;
+
+				foreach (var item in requestersBySimpleObjects)
+					item.Key.Requester = item.Value;
 
 				////uncompressedActionData = SerializeTransactionActions(transactionActions);
 				////transaction.ActionData = uncompressedActionData; 
@@ -6788,23 +7323,25 @@ namespace Simple.Objects
 
 		public object? NormalizeWhenReadingByPropertyType(IServerPropertyInfo propertyModel, object? propertyValue)
 		{
-			return NormalizeWhenReading(propertyModel, propertyValue, propertyModel.PropertyTypeId);
+			return GetNormalizedValue(propertyModel, propertyValue, propertyModel.PropertyTypeId, (encryptedText) => PasswordSecurity.Decrypt(encryptedText, this.Decryptor)); //, this.CryptoBlockSize));
 		}
 
 		public object? NormalizeForWritingByPropertyType(IServerPropertyInfo propertyModel, object? propertyValue)
 		{
-			return NormalizeForWriting(propertyModel, propertyValue, propertyModel.PropertyTypeId);
+			return GetNormalizedValue(propertyModel, propertyValue, propertyModel.PropertyTypeId, (encryptedText) => PasswordSecurity.Decrypt(encryptedText, this.Decryptor)); //, this.CryptoBlockSize));
 		}
 
 		public object? NormalizeWhenReadingFromDatastore(IServerPropertyInfo propertyModel, object? propertyValue)
 		{
-			if (propertyModel.IsRelationTableId && (propertyValue == null || Convert.IsDBNull(propertyValue)))
-				return default(int);
+			//if (propertyModel.IsRelationTableId && (propertyValue == null || Convert.IsDBNull(propertyValue)))
+			//	return default(int);
 
-			if (propertyModel.IsRelationObjectId && (propertyValue == null || Convert.IsDBNull(propertyValue)))
-				return default(long);
+			//if (propertyModel.IsRelationObjectId && (propertyValue == null || Convert.IsDBNull(propertyValue)))
+			//	return default(long);
 
-			return NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+			//return NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+			//return NormalizeWhenReading(propertyModel, propertyValue, propertyModel.PropertyTypeId);
+			return GetNormalizedValueWhenReadingFromDatastore(propertyModel, propertyValue, propertyModel.PropertyTypeId, (encryptedText) => PasswordSecurity.Decrypt(encryptedText, this.Decryptor));
 		}
 
 		//protected internal object NormalizeWhenReadingByDatastoreType(IPropertyModel propertyModel, object datastoreFieldValue)
@@ -6815,32 +7352,52 @@ namespace Simple.Objects
 		protected internal object? NormalizeForWritingToDatastore(IServerPropertyInfo propertyModel, object? propertyValue)
 		{
 			//if ((propertyModel.IsRelationTableId) && (int)propertyValue == 0)
-			//	return null;                                  //< -This will be set at SqlProviderBase
+			//	return null;                                  //< -This will be set at SqlProviderBase.AddCommandParameter
 
 			//if (propertyModel.IsRelationObjectId && (long)propertyValue == 0)
-			//	return null;                                  //< -This will be set at SqlProviderBase
+			//	return null;                                  //< -This will be set at SqlProviderBase.AddCommandParameter
 
-			return NormalizeForWritingByDatastoreType(propertyModel, propertyValue);
+			//return NormalizeForWritingByDatastoreType(propertyModel, propertyValue);
+			return GetNormalizedValueWhenWritingToDatastore(propertyModel, propertyValue, propertyModel.DatastoreTypeId, (clearText) => PasswordSecurity.Encrypt(clearText, this.Encryptor)); //, this.CryptoBlockSize));
+
+
 		}
 
-		protected internal object? NormalizeForWritingByDatastoreType(IServerPropertyInfo propertyModel, object? propertyValue)
+		//private object? NormalizeForWriting(IServerPropertyInfo propertyModel, object? value, int expectedPropertyTypeId)
+		//{
+		//	return GetNormalizedValue(propertyModel, value, expectedPropertyTypeId, (clearText) => PasswordSecurity.Encrypt(clearText, this.Encryptor)); //, this.CryptoBlockSize));
+		//}
+
+		//protected internal object? NormalizeForWritingByDatastoreType(IServerPropertyInfo propertyModel, object? propertyValue)
+		//{
+		//	return NormalizeForWriting(propertyModel, propertyValue, propertyModel.DatastoreTypeId);
+		//}
+
+
+		//private object? NormalizeWhenReading(IServerPropertyInfo propertyModel, object? readerValue, int expectedPropertyTypeId)
+		//{
+		//	return GetNormalizedValue(propertyModel, readerValue, expectedPropertyTypeId, (encryptedText) => PasswordSecurity.Decrypt(encryptedText, this.Decryptor)); //, this.CryptoBlockSize));
+		//}
+
+		//public static object? NormalizeWhenReadingByPropertyTypeWithoutDecryption(IServerPropertyInfo propertyModel, object? readerValue)
+		//{
+		//	return GetNormalizedValueWhenReadingFromDatastore(propertyModel, readerValue, propertyModel.PropertyTypeId, (encryptedText) => encryptedText);
+		//}
+
+		private static object? GetNormalizedValueWhenReadingFromDatastore(IServerPropertyInfo propertyModel, object? value, int expectedPropertyTypeId, Func<string, string> encryptMethod)
 		{
-			return NormalizeForWriting(propertyModel, propertyValue, propertyModel.DatastoreTypeId);
+			if (value == DBNull.Value || value == null)
+				return PropertyTypes.GetPropertyType(expectedPropertyTypeId).GetDefaultValue();
+			else
+				return GetNormalizedValue(propertyModel, value, expectedPropertyTypeId, encryptMethod);
 		}
 
-		private object? NormalizeWhenReading(IServerPropertyInfo propertyModel, object? readerValue, int expectedPropertyTypeId)
+		private static object? GetNormalizedValueWhenWritingToDatastore(IServerPropertyInfo propertyModel, object? value, int expectedPropertyTypeId, Func<string, string> encryptMethod)
 		{
-			return GetNormalizedValue(propertyModel, readerValue, expectedPropertyTypeId, (encryptedText) => PasswordSecurity.Decrypt(encryptedText, this.Decryptor)); //, this.CryptoBlockSize));
-		}
-
-		public static object? NormalizeWhenReadingByPropertyTypeWithoutDecryption(IServerPropertyInfo propertyModel, object? readerValue)
-		{
-			return GetNormalizedValue(propertyModel, readerValue, propertyModel.PropertyTypeId, (encryptedText) => encryptedText);
-		}
-
-		private object? NormalizeForWriting(IServerPropertyInfo propertyModel, object? value, int expectedPropertyTypeId)
-		{
-			return GetNormalizedValue(propertyModel, value, expectedPropertyTypeId, (clearText) => PasswordSecurity.Encrypt(clearText, this.Encryptor)); //, this.CryptoBlockSize));
+			if (value == null)
+				return DBNull.Value;
+			else
+				return GetNormalizedValue(propertyModel, value, expectedPropertyTypeId, encryptMethod);
 		}
 
 		private static object? GetNormalizedValue(IServerPropertyInfo propertyModel, object? value, int expectedPropertyTypeId, Func<string, string> encryptMethod)
@@ -6848,38 +7405,38 @@ namespace Simple.Objects
 			object? result = value;
 			Type expectedType = PropertyTypes.GetPropertyType(expectedPropertyTypeId);
 
-			if (value == DBNull.Value || value == null)
+			//Type valueType = value.GetType();
+			if (propertyModel.IsEncrypted)
 			{
-				result = expectedType.GetDefaultValue();
+				result = encryptMethod(value.ToString());
+
+				//if (result == null)
+				//	return expectedType.GetDefaultValue();
 			}
-			else
+
+			//if (expectedType == typeof(Guid?))
+			//{
+			//	result = (Guid?)value;
+			//}
+			//else
+			//
+
+			if (value is null)
 			{
-				//Type valueType = value.GetType();
-				if (propertyModel.IsEncrypted)
-				{
-					result = encryptMethod(value.ToString());
-
-					//if (result == null)
-					//	return expectedType.GetDefaultValue();
-				}
-
-				//if (expectedType == typeof(Guid?))
+				return expectedType.GetDefaultValue();
+			}
+			else if (value.GetType() != expectedType)
+			{
+				////Type nullableType = Nullable.GetUnderlyingType(result.GetType());
+				//if (expectedType.IsGenericType && expectedType.GetGenericTypeDefinition() == typeof(Nullable<>)) // IsNullable
 				//{
-				//	result = (Guid?)value;
+				//	var result2 = Activator.CreateInstance(expectedType, result);
 				//}
-				//else 
-				if (value.GetType() != expectedType)
-				{
-					////Type nullableType = Nullable.GetUnderlyingType(result.GetType());
-					//if (expectedType.IsGenericType && expectedType.GetGenericTypeDefinition() == typeof(Nullable<>)) // IsNullable
-					//{
-					//	var result2 = Activator.CreateInstance(expectedType, result);
-					//}
-					//else
-					//{
-					result = Conversion.TryChangeType(value, expectedType);
-					//}
-				}
+				//else
+				//{
+				result = Conversion.TryChangeType(value, expectedType);
+
+				//}
 			}
 
 			return result;
@@ -6894,68 +7451,19 @@ namespace Simple.Objects
 		//	return this.relationPolicyModel;
 		//}
 
-		protected internal virtual void GroupMembershipIsJoined(GroupMembership groupMembership, ChangeContainer changeContainer, object? requester) 
+		protected internal virtual void GroupMembershipIsJoined(GroupMembership groupMembership, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) 
 		{
-			this.RaiseGroupMembershipJoined(groupMembership, requester);
+			this.RaiseGroupMembershipJoined(groupMembership, changeContainer, context, requester);
 			this.OnGroupMembershipJoin(groupMembership, changeContainer, requester);
 		}
 
-		protected internal virtual void GroupMembershipIsDisjoined(GroupMembership groupMembership, ChangeContainer changeContainer, object? requester)
+		protected internal virtual void GroupMembershipIsDisjoined(GroupMembership groupMembership, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.RaiseGroupMembershipDisjoined(groupMembership, requester);
+			this.RaiseGroupMembershipDisjoined(groupMembership, changeContainer, context, requester);
 			this.OnGroupMembershipDisjoin(groupMembership, changeContainer, requester);
 		}
 
-		protected internal virtual void NewGraphElementIsCreated(GraphElement graphElement, ChangeContainer changeContainer, object? requester)
-		{
-			GraphElement parent = graphElement.Parent;
-
-			// Check if needed to add in null collection only for manualy creating GraphElement, not using GraphElement constructor that take parent value and not setting Parent property manualy
-			// (e.g. var ge = new GraphElement(objectManager)
-			//       ge.GraphKey = 5
-			//       ge.SimpleObject = simpleObject
-			//       //ge.Parent = null; <- if you not set this, the GraphElement wouldn't be added to the Graph.RootGraphElements null collection!!! So This code correct such a cases.
-			//       ...
-			if (parent == null)
-			{
-				SimpleObjectCollection nullCollection = graphElement.GetOneToManyForeignNullCollectionInternal(RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey);
-
-				if (nullCollection != null && !nullCollection.Contains(graphElement)) // If collection initializes, its already contains this
-					nullCollection.Add(graphElement);
-			}
-
-			//if (changeContainer != null)
-			//	changeContainer.Set(graphElement,TransactionRequestAction.Save, requester);
-
-			//if (this.WorkingMode != ObjectManagerWorkingMode.Server)
-			//{
-			graphElement.SimpleObject.NewGraphElementIsCreated(graphElement, changeContainer, requester);
-			
-			this.RaiseNewGraphElementCreated(graphElement, requester);
-			this.OnNewGraphElementCreated(graphElement, changeContainer, requester);
-
-			graphElement.NewGraphElementCreatedEventRised = true;
-
-
-			if (this.WorkingMode != ObjectManagerWorkingMode.Server)
-				this.MoveGraphElementOnGraphElementCreationIfRequired(graphElement);
-
-			if (graphElement.Parent != null)
-				this.GraphElementParentIsChanged(graphElement, oldParent: null, changeContainer, requester);
-			
-			// TODO: Check this, why is this require????
-			//if (parent == graphElement.Parent && parent != null) // If parent is not changed by this.MoveGraphElementOnGraphElementCreationIfRequired raise event GraphElementParentChange
-			//	this.GraphElementParentIsChanged(graphElement, graphElement.Parent, parent, changeContainer, requester);
-
-			//this.ActivateGraphObjectActions(graphElement);
-
-			//}
-
-			//if (graphElement.ParentId == 0)
-			//	graphElement.Graph.RootGraphElementIsCreated(graphElement);
-		}
-
-		protected virtual void MoveGraphElementOnGraphElementCreationIfRequired(GraphElement graphElement)
+		protected virtual void MoveNeighborGraphElementsOnGraphElementCreationOrParentChangeIfRequired(GraphElement graphElement)
 		{
 			//if (this.ValidateGraphPolicy(graphElement).Passed)
 			//	return;
@@ -6995,7 +7503,9 @@ namespace Simple.Objects
 				//	}
 				//}
 
-				foreach (GraphElement neighbourGraphElement in graphElement.GetNeighbours().ToArray())
+				var neighbours = graphElement.GetNeighbours().ToArray();
+
+				foreach (GraphElement neighbourGraphElement in neighbours)
 				{
 					if (neighbourGraphElement == graphElement)
 						continue;
@@ -7029,35 +7539,48 @@ namespace Simple.Objects
 			}
 		}
 
-		protected internal virtual void BeforeGraphElementParentIsChanged(GraphElement graphElement, GraphElement newParent, ref bool cancel, object requester)
+		protected internal virtual void BeforeGraphElementParentIsChanged(GraphElement graphElement, GraphElement? newParent, ref bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (graphElement.internalState != SimpleObjectInternalState.Normal)
 			//	return;
 
-			this.OnBeforeGraphElementParentChange(graphElement, newParent, ref cancel, requester);
+			this.OnBeforeGraphElementParentChange(graphElement, newParent, ref cancel, changeContainer, context, requester);
 
 			if (cancel)
 				return;
 
+			if (this.WorkingMode == ObjectManagerWorkingMode.Server)
+			{
+				graphElement.PreviousParentId = graphElement.ParentId;
+				graphElement.DoesPreviousParentHaveChildren = graphElement.Parent?.GraphElements.Count > 1;
+			}
+
 			// TODO: Send parent chnge notification for Graph check if new orl old parent is null to maintain Graph.GraphElements collection
 
-			this.RaiseBeforeGraphElementParentChange(graphElement, newParent, ref cancel, requester);
+			this.RaiseBeforeGraphElementParentChange(graphElement, newParent, ref cancel, changeContainer, context, requester);
 		}
 
-		protected internal virtual void GraphElementParentIsChanged(GraphElement graphElement, GraphElement? oldParent, ChangeContainer changeContainer, object? requester)
+		protected internal virtual void GraphElementParentIsChanged(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (graphElement.internalState != SimpleObjectInternalState.Normal)
 			//	return;
 
-			this.OnGraphElementParentChange(graphElement, oldParent, requester);
-			//graphElement.Graph.GraphElementParentIsChanged(graphElement, oldParent, newParent, requester);
+			if (graphElement.CanRaiseParentChangeEvent)
+			{
+				this.OnGraphElementParentChange(graphElement, oldParent, changeContainer, context, requester);
+				//graphElement.Graph.GraphElementParentIsChanged(graphElement, oldParent, newParent, requester);
 
-			if (graphElement.SimpleObject != null)
-				graphElement.SimpleObject.GraphElementParentIsChanged(graphElement, oldParent, changeContainer, requester);
-			//this.ActivateGraphObjectActions(graphElement);
+				graphElement.SimpleObject?.GraphElementParentIsChanged(graphElement, oldParent, changeContainer, context, requester);
+				//this.ActivateGraphObjectActions(graphElement);
 
-			this.RaiseGraphElementParentChange(graphElement, oldParent, requester);
+				this.RaiseGraphElementParentChange(graphElement, oldParent, changeContainer, context, requester);
+			}
 		}
+
+		//protected internal virtual void GraphElementHasChildrenIsChanged(GraphElement graphElement)
+		//{
+		//	this.RaiseGraphElementHasChildrenUpdate(graphElement);
+		//}
 
 		protected internal virtual void StatusIsChanged(SimpleObject simpleObject, int status, int oldStatus)
 		{
@@ -7071,7 +7594,7 @@ namespace Simple.Objects
 			this.RaiseOrderIndexChange(sortableSimpleObject, orderIndex, oldOrderIndex, requester);
 		}
 
-		protected internal virtual void RelationForeignObjectIsSet(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationModel, ChangeContainer? changeContainer, object requester)
+		protected internal virtual void RelationForeignObjectIsSet(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (simpleObject is GraphElement || foreignSimpleObject is GraphElement)
 			//	return;
@@ -7079,7 +7602,7 @@ namespace Simple.Objects
 			if (changeContainer != null)
 				changeContainer.RelationForeignObjectIsSet(simpleObject, foreignSimpleObject, objectRelationModel);
 
-			this.RaiseRelationForeignObjectSet(simpleObject, foreignSimpleObject, oldForeignSimpleObject, objectRelationModel, requester);
+			this.RaiseRelationForeignObjectSet(simpleObject, foreignSimpleObject, oldForeignSimpleObject, objectRelationModel, changeContainer, context, requester);
 
 			//simpleObject.RelationForeignObjectIsSet(foreignSimpleObject, oldForeignSimpleObject, objectRelationModel, objectRelationType, requester);
 
@@ -7107,15 +7630,14 @@ namespace Simple.Objects
 
 		#region |   Protected Methods   |
 
-		protected virtual void OnPropertyValueChange(SimpleObject simpleObject, IPropertyModel propertyModel, object value, object oldValue, bool isChanged, bool isSaveable, ChangeContainer? changeContainer, object? requester)
+		protected virtual void OnPropertyValueChange(SimpleObject simpleObject, IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//foreach (SimpleObjectDependencyAction objectDependencyAction in this.ModelDiscovery.ObjectDependencyActions)
 			//    if (objectDependencyAction.Match(simpleObject))
 			//        objectDependencyAction.OnPropertyValueChange(simpleObject, propertyIndex, value, oldValue);
 		}
 
-		protected virtual void OnSaveablePropertyValueChange(SimpleObject simpleObject, IPropertyModel propertyModel, object value, object oldValue, bool isChanged, ChangeContainer? changeContainer, object? requester) { }
-
+		//protected virtual void OnSaveablePropertyValueChange(SimpleObject simpleObject, IPropertyModel propertyModel, object value, object oldValue, bool isChanged, ChangeContainer? changeContainer, object? requester) { }
 
 		protected virtual string? GetImageName(SimpleObject simpleObject)
 		{
@@ -7135,7 +7657,7 @@ namespace Simple.Objects
 				if (objectModel.ObjectSubTypePropertyModel != null) // ObjectSubTypes.Count > 0)
 				{
 					int objectSubType = simpleObject.GetPropertyValue<int>(objectModel.ObjectSubTypePropertyModel);
-					IModelElement subTypeModel;
+					IModelElement? subTypeModel;
 
 					if (objectModel.ObjectSubTypes.TryGetValue(objectSubType, out subTypeModel))
 						imageName = subTypeModel.ImageName;
@@ -7270,10 +7792,10 @@ namespace Simple.Objects
 		//    base.OnLoad(requester, simpleObject);
 		//}
 
-		protected virtual void OnGroupMembershipJoin(GroupMembership groupMembership, ChangeContainer changeContainer, object? requester) { }
-		protected virtual void OnGroupMembershipDisjoin(GroupMembership groupMembership, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnGroupMembershipJoin(GroupMembership groupMembership, ChangeContainer? changeContainer, object? requester) { }
+		protected virtual void OnGroupMembershipDisjoin(GroupMembership groupMembership, ChangeContainer? changeContainer, object? requester) { }
 
-		protected virtual void OnNewGraphElementCreated(GraphElement graphElement, ChangeContainer changeContainer, object? requester) 
+		protected virtual void OnNewGraphElementCreated(GraphElement graphElement, ChangeContainer? changeContainer, object? requester) 
 		{
 			if (graphElement.SimpleObject != null)
 				graphElement.Status = graphElement.SimpleObject.Status;
@@ -7284,14 +7806,14 @@ namespace Simple.Objects
 		//    //        objectDependencyAction.OnGraphElementCreated(graphElement);
 		//}
 
-		protected virtual void OnBeforeGraphElementParentChange(GraphElement graphElement, GraphElement? newParent, ref bool cancel, object? requester)
+		protected virtual void OnBeforeGraphElementParentChange(GraphElement graphElement, GraphElement? newParent, ref bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
             //foreach (SimpleObjectDependencyAction objectDependencyAction in this.ModelDiscovery.ObjectDependencyActions)
             //    if (objectDependencyAction.Match(graphElement.SimpleObject))
             //        objectDependencyAction.OnBeforeGraphElementParentChange(graphElement, oldParent, newParent, ref cancel);
         }
 
-        protected virtual void OnGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, object? requester)
+        protected virtual void OnGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
             // Recheck Status value for old and new parents;
             if (oldParent != null && oldParent.SimpleObject != null)
@@ -7357,7 +7879,7 @@ namespace Simple.Objects
 			return maxChildStatus;
 		}
 
-		protected virtual void OnObjectIdChange(SimpleObject simpleObject, long oldTempId, long newId) { }
+		protected virtual void OnObjectIdChange(SimpleObject simpleObject, long oldTempId, long newId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 		//protected override void OnPropertyValueChange(object requester, SimpleObject simpleObject, string propertyName, object value, object oldValue)
 		//{
@@ -7409,33 +7931,45 @@ namespace Simple.Objects
 
 		#region |   Protected Raise Event Methods   |
 
-		protected virtual void RaiseGroupMembershipJoined(GroupMembership groupMembership, object? requester) => this.GroupMembershipJoined?.Invoke(this, new GroupMembershipRequesterEventArgs(groupMembership, requester));
-		protected virtual void RaiseGroupMembershipDisjoined(GroupMembership groupMembership, object? requester) => this.GroupMembershipDisjoined?.Invoke(this, new GroupMembershipRequesterEventArgs(groupMembership, requester));
+		protected virtual void RaiseGroupMembershipJoined(GroupMembership groupMembership, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.GroupMembershipJoined?.Invoke(this, new GroupMembershiphangeContainerContextRequesterEventArgs(groupMembership, changeContainer, context, requester));
+		}
 
-		protected virtual void RaiseNewGraphElementCreated(GraphElement graphElement, object? requester)
+		protected virtual void RaiseGroupMembershipDisjoined(GroupMembership groupMembership, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.GroupMembershipDisjoined?.Invoke(this, new GroupMembershiphangeContainerContextRequesterEventArgs(groupMembership, changeContainer, context, requester));
+		}
+
+		protected virtual void RaiseNewGraphElementCreated(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
-            this.NewGraphElementCreated?.Invoke(this, new GraphElementRequesterEventArgs(graphElement, requester));
+            this.NewGraphElementCreated?.Invoke(this, new GraphElementChangeContainerContextRequesterEventArgs(graphElement, changeContainer, context, requester));
         }
 
-        protected virtual void RaiseBeforeGraphElementParentChange(GraphElement graphElement, GraphElement newParent, ref bool cancel, object? requester)
+        protected virtual void RaiseBeforeGraphElementParentChange(GraphElement graphElement, GraphElement? newParent, ref bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
 			if (this.BeforeGraphElementParentChange != null)
 			{
-				BeforeChangeParentGraphElementRequesterEventArgs args = new BeforeChangeParentGraphElementRequesterEventArgs(graphElement, newParent, cancel, requester);
+				BeforeChangeParentGraphElementChangeContainerContextRequesterEventArgs args = new BeforeChangeParentGraphElementChangeContainerContextRequesterEventArgs(graphElement, newParent, cancel, changeContainer, context, requester);
 				this.BeforeGraphElementParentChange(this, args);
 
 				cancel = args.Cancel;
 			}
         }
 
-        protected virtual void RaiseGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, object? requester)
+        protected virtual void RaiseGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
-            this.GraphElementParentChange?.Invoke(this, new OldParentGraphElementRequesterEventArgs(graphElement, oldParent, requester));
+            this.GraphElementParentChange?.Invoke(this, new OldParentGraphElemenChangeContainertContextRequesterEventArgs(graphElement, oldParent, changeContainer, context, requester));
         }
 
-		protected virtual void RaiseRelationForeignObjectSet(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, object? requester)
+		protected virtual void RaiseGraphElementHasChildrenUpdate(GraphElement graphElement)
+		{
+			this.GraphElementHasChildrenUpdate?.Invoke(this, new GraphElementEventArgs(graphElement));
+		}
+
+		protected virtual void RaiseRelationForeignObjectSet(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
-            this.RelationForeignObjectSet?.Invoke(this, new RelationForeignObjectSetRequesterEventArgs(simpleObject, foreignSimpleObject, oldForeignSimpleObject, objectRelationPolicyModel, requester));
+            this.RelationForeignObjectSet?.Invoke(this, new RelationForeignObjectSetChangeContainerContextRequesterEventArgs(simpleObject, foreignSimpleObject, oldForeignSimpleObject, objectRelationPolicyModel, changeContainer, context, requester));
         }
 
 		protected virtual void RaiseOrderIndexChange(SortableSimpleObject sortedSimpleObject, int orderIndex, int oldOrderIndex, object? requester) 
@@ -7443,14 +7977,14 @@ namespace Simple.Objects
 			this.OrderIndexChange?.Invoke(this, new ChangeSortedSimpleObjectRequesterEventArgs(sortedSimpleObject, orderIndex, oldOrderIndex, requester));
 		}
 
-		protected virtual void RaiseTransactionStarted(SystemTransaction transaction, IEnumerable<DatastoreActionInfo>? datastoreActions, object? requester)
+		protected virtual void RaiseTransactionStarted(IEnumerable<TransactionActionInfo> transactionRequestActions, SystemTransaction transaction, IEnumerable<DatastoreActionInfo>? datastoreActions, object? requester)
         {
-			this.TransactionStarted?.Invoke(this, new TransactionDatastoreActionRequesterEventArgs(transaction, datastoreActions, requester));
+			this.TransactionStarted?.Invoke(this, new TransactionDatastoreActionRequesterEventArgs(transactionRequestActions, transaction, datastoreActions, requester));
         }
 
-		protected virtual void RaiseTransactionFinished(SystemTransaction transaction, IEnumerable<DatastoreActionInfo> datastoreActions, object? requester) //, IEnumerable<TransactionAction> transactionActions)
+		protected virtual void RaiseTransactionFinished(IEnumerable<TransactionActionInfo> transactionRequestActions, SystemTransaction transaction, IEnumerable<DatastoreActionInfo>? datastoreActions, object? requester) //, IEnumerable<TransactionAction> transactionActions)
         {
-			this.TransactionFinished?.Invoke(this, new TransactionDatastoreActionRequesterEventArgs(transaction, datastoreActions, requester)); //, transactionActions));
+			this.TransactionFinished?.Invoke(this, new TransactionDatastoreActionRequesterEventArgs(transactionRequestActions, transaction, datastoreActions, requester)); //, transactionActions));
         }
 
 		//protected virtual void RaiseTransactionSucceeded(IEnumerable<TransactionActionInfo> transactionActions)
@@ -7589,8 +8123,12 @@ namespace Simple.Objects
 
 		internal void CacheGraphElementsWithObjectsFromServer(int graphKey, long parentGraphElementId, out List<long> graphElementIds) //, out bool[] hasChildrenInfo)
 		{
+			if (parentGraphElementId < 0)
+				throw new ArgumentException("CacheGraphElementsWithObjectsFromServer: parentGraphElementId cannot be less than zero");
+			
 			var graphElementsWithObjects = this.RemoteDatastore!.GetGraphElementsWithObjects(graphKey, parentGraphElementId).GetAwaiter().GetResult();
 			long previousId = 0;
+			GraphElement? previousGraphElement = null;
 			//int orderIndex = 0;
 			graphElementIds = new List<long>(graphElementsWithObjects.Length);
 			//hasChildrenInfo = new bool[graphElementsWithObjects.Length];
@@ -7599,24 +8137,41 @@ namespace Simple.Objects
 			{
 				GraphElementObjectPair item = graphElementsWithObjects[i];
 				ObjectCache? simpleObjectCache = this.GetObjectCache(item.SimpleObjectTableId);
+				GraphElement graphElement;
 				//long graphElementId = ((long)item.GraphElementPropertyIndexValues.ElementAt(0).PropertyValue!)!;
 				//long simpleObjectId = (item.SimpleObjectPropertyIndexValues.Count() > 0) ? ((long)item.SimpleObjectPropertyIndexValues.ElementAt(0).PropertyValue!)! : 0;
-				GraphElement graphElement;
 
 				if (!simpleObjectCache!.IsInCache(item.SimpleObjectId))
-					_ = simpleObjectCache!.CreateAndLoadObject(item.SimpleObjectId, item.SimpleObjectPropertyIndexValues);
+					_ = simpleObjectCache!.CreateAndLoadObjectInternal(item.SimpleObjectId, (simpleObject) => simpleObject
+										  .LoadFromServer(item.SimpleObjectPropertyIndexValues), this.DefaultChangeContainer, ObjectActionContext.Client);
 
-				if (!this.GraphElementObjectCache.IsInCache(item.GraphElementId))
+				if (this.GraphElementObjectCache.IsInCache(item.GraphElementId, out SimpleObject? simpleObject))
 				{
-					graphElement = (this.GraphElementObjectCache.CreateAndLoadObject(item.GraphElementId, loadAction: ge =>	(ge as GraphElement)!.Load(previousId, parentGraphElementId, graphKey, item.SimpleObjectTableId, item.SimpleObjectId, orderIndex: i)) as GraphElement)!; // orderIndex++);
-
-
-					//graphElement = (this.GraphElementObjectCache.CreateAndLoadObject(item.GraphElementPropertyIndexValues) as GraphElement)!; // real objectId will be loaded
-					graphElement.HasChildrenInClientModeWhenNotLoaded = item.HasChildren;
+					graphElement = (simpleObject as GraphElement)!;
 				}
+				else
+				{
+					graphElement = (this.GraphElementObjectCache.CreateAndLoadObjectInternal(item.GraphElementId, loadAction: ge => (ge as GraphElement)!
+																.Load(previousId, parentGraphElementId, graphKey, item.SimpleObjectTableId, item.SimpleObjectId, orderIndex: i), this.DefaultChangeContainer, ObjectActionContext.Client) as GraphElement)!; // orderIndex++);
+
+					//graphElement.HasChildrenInClientModeWhenNotLoaded = item.HasChildren;
+					//graphElement = (this.GraphElementObjectCache.CreateAndLoadObject(item.GraphElementPropertyIndexValues) as GraphElement)!; // real objectId will be loaded
+
+					if (previousGraphElement != null)
+						previousGraphElement.NextId = graphElement.Id;
+
+					previousGraphElement = graphElement;
+					//graphElement.SetPropertyValueInternal(graphElement.GetModel().PreviousIdPropertyModel, (previousGraphElement != null) ? previousGraphElement.Id : 0, changeContainer: null); // No tracing, just store value
+				}
+
+				//if (graphElement.HasChildrenInClientModeWhenNotLoaded != item.HasChildren)
+				//graphElement.HasChildrenInClientModeWhenNotLoaded = item.HasChildren;
+
+				graphElement.HasChildrenInClientModeWhenNotLoaded = item.HasChildren;
 
 				previousId = item.GraphElementId;
 				graphElementIds.Add(item.GraphElementId);
+				
 				//hasChildrenInfo[i] = item.HasChildren;
 			}
 		}
@@ -7634,7 +8189,7 @@ namespace Simple.Objects
 		{
 			if (this.WorkingMode == ObjectManagerWorkingMode.Client)
 			{
-				long graphElementId = this.RemoteDatastore.GetSimpleObjectGraphElementIdByGraphKey(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, graphKey).GetAwaiter().GetResult();
+				long graphElementId = this.RemoteDatastore!.GetSimpleObjectGraphElementIdByGraphKey(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, graphKey).GetAwaiter().GetResult();
 				GraphElement? graphElement = this.GetObject(GraphElementModel.TableId, graphElementId) as GraphElement;
 
 				return graphElement;
@@ -7645,11 +8200,11 @@ namespace Simple.Objects
 			}
 		}
 
-		internal string GetImageNameInternal(SimpleObject simpleObject) => this.GetImageName(simpleObject);
+		internal string? GetImageNameInternal(SimpleObject simpleObject) => this.GetImageName(simpleObject);
 
 		internal IEnumerable<SystemTransaction> GetSystemTransactionsByUser(long userId)
 		{
-			return from SystemTransaction systemTransaction in this.systemTransactions
+			return from SystemTransaction systemTransaction in this.systemTransactions.Values
 				   where systemTransaction.UserId == userId
 				   select systemTransaction;
 		}
@@ -7665,7 +8220,6 @@ namespace Simple.Objects
 
 		private void SetServerBasedWorkingMode(LocalDatastore localDatastore)
 		{
-
 			this.localDatastore = localDatastore;
 			this.datastore = this.localDatastore;
 			this.remoteDatastore = null;
@@ -7676,10 +8230,10 @@ namespace Simple.Objects
 			//this.InitializeObjectCache(this.ModelDiscovery);
 		}
 
-		private void ObjectIdIsChanged(SimpleObject simpleObject, long oldTempId, long newId) 
+		private void ObjectIdIsChanged(SimpleObject simpleObject, long oldTempId, long newId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) 
 		{
-			this.OnObjectIdChange(simpleObject, oldTempId, newId);
-			simpleObject.ObjectIdIsChanged(oldTempId, newId);
+			this.OnObjectIdChange(simpleObject, oldTempId, newId, changeContainer, context, requester);
+			simpleObject.ObjectIdIsChanged(oldTempId, newId, changeContainer, context, requester);
 			this.RaiseObjectIdChange(simpleObject, oldTempId, newId);
 		}
 
@@ -7767,20 +8321,21 @@ namespace Simple.Objects
 
 	#region |   Delegates   |
 
-	public delegate void GroupMembershipRequesterEventHandler(object sender, GroupMembershipRequesterEventArgs e);
+	public delegate void GroupMembershiphangeContainerContextRequesterEventHandler(object sender, GroupMembershiphangeContainerContextRequesterEventArgs e);
 	public delegate void GraphElementEventHandler(object sender, GraphElementEventArgs e);
-	public delegate void GraphElementRequesterEventHandler(object sender, GraphElementRequesterEventArgs e);
-	public delegate void GraphElementChangePropertyValueSimpleObjectRequesterEventHandler(object sender, GraphElementChangePropertyValueSimpleObjectRequesterEventArgs e);
-	public delegate void BeforeChangeParentGraphElementRequesterEventHandler(object sender, BeforeChangeParentGraphElementRequesterEventArgs e);
-	public delegate void ChangeParentGraphElementRequesterEventHandler(object sender, OldParentGraphElementRequesterEventArgs e);
+	public delegate void GraphElementChangeContainerContextRequesterEventHandler(object sender, GraphElementChangeContainerContextRequesterEventArgs e);
+	public delegate void SimpleObjectGraphElementContainerContextRequesterEventHandler(object sender, SimpleObjectGraphElementContainerContextRequesterEventArgs e);
+	public delegate void GraphElementChangePropertyValueSimpleObjectChangeContainerContextRequesterEventHandler(object sender, GraphElementChangePropertyValueSimpleObjectChangeContainerContextRequesterEventArgs e);
+	public delegate void BeforeChangeParentGraphElementChangeContainerContextRequesterEventHandler(object sender, BeforeChangeParentGraphElementChangeContainerContextRequesterEventArgs e);
+	public delegate void OldParentGraphElemenChangeContainertContextRequesterEventHandler(object sender, OldParentGraphElemenChangeContainertContextRequesterEventArgs e);
 
     //public delegate void SimpleObjectEventHandler(object sender, SimpleObjectEventArgs e);
 	//public delegate void RequesterBindingObjectEventHandler(object sender, BindingObjectRequesterEventArgs e);
     public delegate void GraphValidationResultEventHandler(object sender, GraphValidationResultEventArgs e);
-    public delegate void ChangePropertyValueRequesterBindingObjectEventHandler(object sender, ChangePropertyValueBindingObjectRequesterEventArgs e);
+    public delegate void ChangePropertyValueBindingObjectRequesterEventHandler(object sender, ChangePropertyValueBindingObjectEventArgs e);
     public delegate void ImageNameChangeBindingObjectEventHandler(object sender, ImageNameChangeBindingObjectEventArgs e);
-    public delegate void RelationForeignObjectSetEventHandler(object sender, RelationForeignObjectSetRequesterEventArgs e);
-    public delegate void BindingObjectRelationForeignObjectSetEventHandler(object sender, BindingObjectRelationForeignObjectSetRequesterEventArgs e);
+    public delegate void RelationForeignObjectSetEventHandler(object sender, RelationForeignObjectSetChangeContainerContextRequesterEventArgs e);
+    public delegate void BindingObjectRelationForeignObjectSetEventHandler(object sender, BindingObjectRelationForeignObjectSetEventArgs e);
 	public delegate void ChangeOrderIndexSimpleObjectRequesterEventHandler(object sender, ChangeSortedSimpleObjectRequesterEventArgs e);
 
     public delegate void TransactionRequesterEventHandler(object sender, TransactionRequesterEventArgs e);
@@ -7794,10 +8349,10 @@ namespace Simple.Objects
 
 	#region |   EventArgs Classes   |
 
-	public class GroupMembershipRequesterEventArgs : RequesterEventArgs
+	public class GroupMembershiphangeContainerContextRequesterEventArgs : ChangeContainerContextRequesterEventArgs
 	{
-		public GroupMembershipRequesterEventArgs(GroupMembership groupMembership, object? requester)
-			: base(requester)
+		public GroupMembershiphangeContainerContextRequesterEventArgs(GroupMembership groupMembership, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(changeContainer, context, requester)
 		{
 			this.GroupMembership = groupMembership;
 		}
@@ -7807,12 +8362,12 @@ namespace Simple.Objects
 
 	public class GraphElementEventArgs : EventArgs
 	{
-		public GraphElementEventArgs(GraphElement? graphElement)
+		public GraphElementEventArgs(GraphElement graphElement)
 		{
 			this.GraphElement = graphElement;
 		}
 
-		public GraphElement? GraphElement { get; private set; }
+		public GraphElement GraphElement { get; private set; }
 	}
 
 	public class NodeEventArgs : EventArgs
@@ -7836,11 +8391,10 @@ namespace Simple.Objects
 		public GraphElement GraphElement { get; private set; }
 	}
 
-
-	public class GraphElementRequesterEventArgs : RequesterEventArgs
+	public class GraphElementChangeContainerContextRequesterEventArgs : ChangeContainerContextRequesterEventArgs
     {
-        public GraphElementRequesterEventArgs(GraphElement graphElement, object? requester)
-            : base(requester)
+        public GraphElementChangeContainerContextRequesterEventArgs(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+            : base(changeContainer, context, requester)
         {
             this.GraphElement = graphElement;
         }
@@ -7848,10 +8402,21 @@ namespace Simple.Objects
         public GraphElement GraphElement { get; private set; }
     }
 
-	public class GraphElementChangePropertyValueSimpleObjectRequesterEventArgs : ChangePropertyValueSimpleObjectRequesterEventArgs
+	public class SimpleObjectGraphElementContainerContextRequesterEventArgs : GraphElementChangeContainerContextRequesterEventArgs
 	{
-		public GraphElementChangePropertyValueSimpleObjectRequesterEventArgs(GraphElement graphElement, object node, SimpleObject simpleObject, IPropertyModel? propertyModel, object? value, object? oldValue, bool isChanged, bool isSaveable, object? requester)
-			: base(simpleObject, propertyModel, value, oldValue, isChanged, isSaveable, requester)
+        public SimpleObjectGraphElementContainerContextRequesterEventArgs(SimpleObject? simpleObject, GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(graphElement, changeContainer, context, requester)
+        {
+			this.SimpleObject = simpleObject;
+        }
+
+		public SimpleObject? SimpleObject { get; private set; }
+	}
+
+	public class GraphElementChangePropertyValueSimpleObjectChangeContainerContextRequesterEventArgs : ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs
+	{
+		public GraphElementChangePropertyValueSimpleObjectChangeContainerContextRequesterEventArgs(GraphElement graphElement, object node, SimpleObject simpleObject, IPropertyModel? propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(simpleObject, propertyModel, value, oldValue, isChanged, changeContainer, context, requester)
 		{
 			this.GraphElement = graphElement;
 			this.Node = node;
@@ -7861,10 +8426,10 @@ namespace Simple.Objects
 		public object Node { get; private set; }
     }
 
-	public class BeforeChangeParentGraphElementRequesterEventArgs : NewParentGraphElementRequesterEventArgs
+	public class BeforeChangeParentGraphElementChangeContainerContextRequesterEventArgs : NewParentGraphElementChangeContainerContextRequesterEventArgs
 	{
-		public BeforeChangeParentGraphElementRequesterEventArgs(GraphElement graphElement, GraphElement? newParent, bool cancel, object? requester)
-			: base(graphElement, newParent, requester)
+		public BeforeChangeParentGraphElementChangeContainerContextRequesterEventArgs(GraphElement graphElement, GraphElement? newParent, bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(graphElement, newParent, changeContainer, context, requester)
 		{
 			this.Cancel = cancel;
 		}
@@ -7872,10 +8437,10 @@ namespace Simple.Objects
 		public bool Cancel { get; private set; }
 	}
 
-	public class NewParentGraphElementRequesterEventArgs : GraphElementRequesterEventArgs
+	public class NewParentGraphElementChangeContainerContextRequesterEventArgs : GraphElementChangeContainerContextRequesterEventArgs
 	{
-		public NewParentGraphElementRequesterEventArgs(GraphElement graphElement, GraphElement? newParent, object? requester)
-			: base(graphElement, requester)
+		public NewParentGraphElementChangeContainerContextRequesterEventArgs(GraphElement graphElement, GraphElement? newParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(graphElement, changeContainer, context, requester)
 		{
 			this.NewParent = newParent;
 		}
@@ -7883,10 +8448,10 @@ namespace Simple.Objects
 		public GraphElement? NewParent { get; private set; }
 	}
 
-	public class OldParentGraphElementRequesterEventArgs : GraphElementRequesterEventArgs
+	public class OldParentGraphElemenChangeContainertContextRequesterEventArgs : GraphElementChangeContainerContextRequesterEventArgs
     {
-        public OldParentGraphElementRequesterEventArgs(GraphElement graphElement, GraphElement? oldParent, object? requester)
-            : base(graphElement, requester)
+        public OldParentGraphElemenChangeContainertContextRequesterEventArgs(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+            : base(graphElement, changeContainer, context, requester)
         {
             this.OldParent = oldParent;
         }
@@ -7926,55 +8491,36 @@ namespace Simple.Objects
 	//	public IBindingObject BindingObject { get; private set; }
 	//}
 
-	public class ChangePropertyValueBindingObjectRequesterEventArgs : EventArgs
+	public class ChangePropertyValueBindingObjectEventArgs : EventArgs
     {
-        private ChangePropertyValueSimpleObjectRequesterEventArgs changedPropertyValueRequesterSimpleObjectEventArgs;
+        private ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs;
 
-        public ChangePropertyValueBindingObjectRequesterEventArgs(ChangePropertyValueSimpleObjectRequesterEventArgs changedPropertyValueRequesterSimpleObjectEventArgs)
+        public ChangePropertyValueBindingObjectEventArgs(ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs)
             //: base(requester, changedPropertyValueRequesterSimpleObjectEventArgs.SimpleObject) 
         {
-            this.changedPropertyValueRequesterSimpleObjectEventArgs = changedPropertyValueRequesterSimpleObjectEventArgs;
+            this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs = changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs;
         }
 
-		public ChangePropertyValueBindingObjectRequesterEventArgs(SimpleObject bindingObject, IPropertyModel? propertyModel, object? value, object? oldValue, bool isChanged, bool isSeaveable, object? requester)
+		public ChangePropertyValueBindingObjectEventArgs(SimpleObject? bindingObject, IPropertyModel? propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.changedPropertyValueRequesterSimpleObjectEventArgs = new ChangePropertyValueSimpleObjectRequesterEventArgs(bindingObject, propertyModel, value, oldValue, isChanged, isSeaveable, requester);
+			this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs = new ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs(bindingObject!, propertyModel!, value, oldValue, isChanged, changeContainer, context, requester);
 		}
 
-        public SimpleObject BindingObject
-        {
-            get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.SimpleObject as SimpleObject; }
-        }
+        public SimpleObject? BindingObject => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.SimpleObject;
 
-        public IPropertyModel? PropertyModel
-        {
-            get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.PropertyModel; }
-        }
+        public IPropertyModel? PropertyModel => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.PropertyModel;
 
-        public object? Value 
-        {
-            get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.Value; }
-        }
+        public object? Value => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.PropertyValue;
         
-        public object? OldValue 
-        {
-            get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.OldValue; }
-        }
+        public object? OldValue => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.OldPropertyValue;
 
-		public bool IsChanged
-		{
-			get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.IsChanged; }
-		}
+		public bool IsChanged => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.IsChanged;
 
-		public bool IsSeavable
-		{
-			get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.IsSaveable; }
-		}
+		public ChangeContainer? ChangeContainer => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.ChangeContainer;
 
-		public object? Requester
-		{
-			get { return this.changedPropertyValueRequesterSimpleObjectEventArgs.Requester; }
-		}
+		public ObjectActionContext Context => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.Context;
+
+		public object? Requester => this.changePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs.Requester;
 	}
 
 	public class ChangeSortedSimpleObjectRequesterEventArgs : SortableSimpleObjectRequesterEventArgs
@@ -7999,15 +8545,9 @@ namespace Simple.Objects
             this.iconNameChangeSimpleObjectEventArgs = iconNameChangeSimpleObjectEventArgs;
         }
 
-        public IBindingSimpleObject BindingObject
-        {
-            get { return this.iconNameChangeSimpleObjectEventArgs.SimpleObject!; }
-        }
+        public IBindingSimpleObject BindingObject => this.iconNameChangeSimpleObjectEventArgs.SimpleObject!;
 
-        public string? ImageName
-        {
-            get { return this.iconNameChangeSimpleObjectEventArgs.ImageName; }
-        }
+        public string? ImageName => this.iconNameChangeSimpleObjectEventArgs.ImageName;
     }
 
     public class GraphValidationResultEventArgs : EventArgs
@@ -8020,10 +8560,10 @@ namespace Simple.Objects
         public GraphValidationResult GraphValidationResult { get; private set; }
     }
 
-    public class RelationForeignObjectSetRequesterEventArgs : RequesterEventArgs
+    public class RelationForeignObjectSetChangeContainerContextRequesterEventArgs : ChangeContainerContextRequesterEventArgs
     {
-        public RelationForeignObjectSetRequesterEventArgs(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel relationModel, object? requester)
-			: base(requester)
+        public RelationForeignObjectSetChangeContainerContextRequesterEventArgs(SimpleObject simpleObject, SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+			: base(changeContainer, context, requester)
 		{
             this.SimpleObject = simpleObject;
             this.ForeignSimpleObject = foreignSimpleObject;
@@ -8037,20 +8577,20 @@ namespace Simple.Objects
         public IOneToOneOrManyRelationModel RelationModel { get; private set; }
     }
 
-    public class BindingObjectRelationForeignObjectSetRequesterEventArgs : RequesterEventArgs
+    public class BindingObjectRelationForeignObjectSetEventArgs : ChangeContainerContextRequesterEventArgs
     {
-        RelationForeignObjectSetRequesterEventArgs relationForeignObjectSetEventArgs = null;
+		RelationForeignObjectSetChangeContainerContextRequesterEventArgs relationForeignObjectSetEventArgs;
 
-        public BindingObjectRelationForeignObjectSetRequesterEventArgs(RelationForeignObjectSetRequesterEventArgs relationForeignObjectSetEventArgs)
-			: base(relationForeignObjectSetEventArgs.Requester)
+        public BindingObjectRelationForeignObjectSetEventArgs(RelationForeignObjectSetChangeContainerContextRequesterEventArgs relationForeignObjectSetEventArgs)
+			: base(relationForeignObjectSetEventArgs.ChangeContainer, relationForeignObjectSetEventArgs.Context, relationForeignObjectSetEventArgs.Requester)
         {
             this.relationForeignObjectSetEventArgs = relationForeignObjectSetEventArgs;
         }
 
-        public IBindingSimpleObject BindingObject { get { return this.relationForeignObjectSetEventArgs.SimpleObject; } }
-        public IBindingSimpleObject ForeignBindingObject { get { return this.relationForeignObjectSetEventArgs.ForeignSimpleObject; } }
-        public IBindingSimpleObject OldForeignBindingObject { get { return this.OldForeignBindingObject; } }
-        public IOneToOneOrManyRelationModel RelationModel { get { return this.relationForeignObjectSetEventArgs.RelationModel; } }
+        public IBindingSimpleObject BindingObject => this.relationForeignObjectSetEventArgs.SimpleObject;
+        public IBindingSimpleObject? ForeignBindingObject => this.relationForeignObjectSetEventArgs.ForeignSimpleObject;
+        public IBindingSimpleObject? OldForeignBindingObject => this.OldForeignBindingObject;
+        public IOneToOneOrManyRelationModel RelationModel => this.relationForeignObjectSetEventArgs.RelationModel;
     }
 
 	//public class TransactionActionsEventArgs : TransactionEventArgs
@@ -8076,12 +8616,14 @@ namespace Simple.Objects
 
 	public class TransactionDatastoreActionRequesterEventArgs : TransactionRequesterEventArgs
 	{
-		public TransactionDatastoreActionRequesterEventArgs(SystemTransaction transaction, IEnumerable<DatastoreActionInfo>? datastoreActions, object? requester)
+		public TransactionDatastoreActionRequesterEventArgs(IEnumerable<TransactionActionInfo> transactionRequests, SystemTransaction transaction, IEnumerable<DatastoreActionInfo>? datastoreActions, object? requester)
 			: base(transaction, requester)
 		{
+			this.TransactionRequests = transactionRequests;
 			this.DatastoreActions = datastoreActions;
 		}
 
+		public IEnumerable<TransactionActionInfo> TransactionRequests { get; private set; }
 		public IEnumerable<DatastoreActionInfo>? DatastoreActions { get; private set; }
 	}
 

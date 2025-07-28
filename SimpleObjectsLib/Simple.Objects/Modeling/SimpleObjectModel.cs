@@ -128,8 +128,8 @@ namespace Simple.Objects
 
 				if (propertyModel.IsIndexed)
 					indexedPropertyIndexes.Add(propertyModel.PropertyIndex);
-				
-				if (propertyModel.IsClientSeriazable)
+
+				if (propertyModel.IsClientToServerSeriazable)
 					serializablePropertyIndexes.Add(propertyModel.PropertyIndex);
 
 				if (propertyModel.IsStorable) // Storable models must be a serializable also to be in a serialized storable sequence in transaction action data
@@ -141,32 +141,21 @@ namespace Simple.Objects
 				if (propertyModel.IncludeInTransactionActionLog) // Storable models must be a serializable also to be in a serialized storable sequence in transaction action data
 					transactionActionLogPropertyIndexes.Add(propertyModel.PropertyIndex);
 
-				if (propertyModel.IsKey)
+				if (propertyModel.IsId)
 					this.IdPropertyModel = propertyModel;
 
 				if (propertyModel.PropertyName == SimpleObject.StringPropertyName)
-				{
 					this.NamePropertyModel = propertyModel;
-				}
 				else if (propertyModel.PropertyName == SimpleObject.StringPropertyDescription)
-				{
 					this.DescriptionPropertyModel = propertyModel;
-				}
 				else if (propertyModel.PropertyName == SimpleObject.StringPropertyObjectSubType)
-				{
 					this.ObjectSubTypePropertyModel = propertyModel;
-				}
 
 				if (propertyModel.IsPreviousId)
 					this.PreviousIdPropertyModel = propertyModel;
 
 				if (propertyModel.IsOrderIndex)
 					this.OrderIndexPropertyModel = propertyModel;
-
-				//if (propertyModel.IsActionSetOrderIndex)
-				//	this.ActionSetOrderIndexPropertyModel = propertyModel;
-
-				propertyModel.Owner = this;
 			}
 
 			//foreach (var propertyModel in this.PropertyModels)
@@ -209,7 +198,7 @@ namespace Simple.Objects
 			this.Name = this.GetType().Name; // objectType.Name;
 			this.Caption = this.Name.InsertSpaceOnUpperChange();
 			this.ObjectType = objectType;
-			this.ObjectTypeCaption = this.ObjectType.Name.InsertSpaceOnUpperChange();
+			this.ObjectCaption = this.ObjectType.Name.InsertSpaceOnUpperChange();
 			//this.IsSortable = objectType.IsSubclassOf(typeof(SortableSimpleObject));
 			this.IsStorable = true;
 			this.FetchAllRecords = false;
@@ -244,7 +233,7 @@ namespace Simple.Objects
 		}
 
 		public Type ObjectType { get; set; }
-		public string ObjectTypeCaption { get; set; }
+		public string ObjectCaption { get; set; }
 		public SerializationModel SerializationModel { get; set; }
 		public bool IsStorable { get; set; }
 		//public bool IsSortable { get; set; }
@@ -505,61 +494,4 @@ namespace Simple.Objects
 		//	get { return this.GraphElementCreatedActions; }
 		//}
 	}
-
-
-	public interface ISimpleObjectModel : IModelElement
-    {
-        //int TableId { get; }
-
-        Type ObjectType { get; }
-		PropertyModelCollection<IPropertyModel> PropertyModels { get; }
-		IPropertyModel GetPropertyModel(int propertyIndex);
-
-		IPropertyModel IdPropertyModel { get; }
-		IPropertyModel NamePropertyModel { get; }
-		IPropertyModel DescriptionPropertyModel { get; }
-		IPropertyModel ObjectSubTypePropertyModel { get; }
-		IPropertyModel PreviousIdPropertyModel { get; }
-		IPropertyModel OrderIndexPropertyModel { get; }
-		//IPropertyModel ActionSetOrderIndexPropertyModel { get; }
-
-		int[] PropertyIndexes { get; }
-		int[] IndexedPropertyIndexes { get; }
-		int[] SerializablePropertyIndexes { get; }
-		int[] StorablePropertyIndexes { get; }
-		int[] TransactionActionPropertyIndexes { get; }
-		int TransactionActionLogPropertySequenceId { get; }
-		string[] StorableFieldNameIndexes { get; }
-
-		SerializationModel SerializationModel { get; }
-		//IPropertyModel[] StorablePropertyModelSequence { get; }
-		//int[] StorablePropertyIndexSequence { get; }
-		//int StorablePropertySequenceId { get; }
-		//int[] PublicPropertyIndexSequence { get; }
-
-		//int[] StorablePropertyIndexes { get; }
-		//int StorablePropertyIndexSequenceId { get; }
-		//IPropertyModel[] StorablePropertyModels { get; }
-
-		//int TableId { get; }
-		//string TableName { get; }
-		TableInfo TableInfo { get; }
-		string ObjectTypeCaption { get; }
-        bool IsStorable { get; }
-		//bool IsSortable { get; }
-		SortingModel SortingModel { get; }
-		bool FetchAllRecords { get; }
-        IList<IValidationRule> UpdateValidationRules { get; }
-		IList<IValidationRule> DeleteValidationRules { get; }
-		bool DeleteSimpleObjectOnLastGraphElementDelete { get; }
-        bool DeleteAllSimpleObjectGraphElementsOnOneGraphElementDelete { get; }
-		bool MustHaveAtLeastOneGraphElement { get; }
-		int MustHaveGraphElementGraphKey { get; }
-		
-		// Consider remove this
-		int SortableOneToManyRelationKey { get; }
-		IDictionary<int, IModelElement> ObjectSubTypes { get; }
-		IObjectRelationModel RelationModel { get; }
-		//IList<GraphElementCreatedAction> GraphElementCreatedActions { get; }
-    }
 }

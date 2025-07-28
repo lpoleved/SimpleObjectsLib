@@ -17,20 +17,24 @@ namespace Simple.Objects
 		//private HashArray<OneToOneOrManyRelationModel> foregnRelationModelsByPropertyIndex = new HashArray<OneToOneOrManyRelationModel>();
 		//private HashArray<OneToOneOrManyRelationModel> foregnRelationModelsByTableId = new HashArray<OneToOneOrManyRelationModel>();
 
+		private ModelDictionary<int, OneToOneRelationModel> asObjectInOneToOneRelations = new ModelDictionary<int, OneToOneRelationModel>();
 		private ModelDictionary<int, OneToOneRelationModel> asPrimaryObjectInOneToOneRelations = new ModelDictionary<int, OneToOneRelationModel>();
 		private ModelDictionary<int, OneToOneRelationModel> asForeignObjectInOneToOneRelations = new ModelDictionary<int, OneToOneRelationModel>();
 
+		private ModelDictionary<int, OneToManyRelationModel> asObjectInOneToManyRelations = new ModelDictionary<int, OneToManyRelationModel>();
 		private ModelDictionary<int, OneToManyRelationModel> asPrimaryObjectInOneToManyRelations = new ModelDictionary<int, OneToManyRelationModel>();
 		private ModelDictionary<int, OneToManyRelationModel> asForeignObjectInOneToManyRelations = new ModelDictionary<int, OneToManyRelationModel>();
 		
 		private ModelDictionary<int, OneToOneOrManyRelationModel> asPrimaryObjectInRelations = new ModelDictionary<int, OneToOneOrManyRelationModel>();
 		private ModelDictionary<int, OneToOneOrManyRelationModel> asForeignObjectInRelations = new ModelDictionary<int, OneToOneOrManyRelationModel>();
 
+		private ModelDictionary<int, ManyToManyRelationModel> asObjectInGroupMembership = new ModelDictionary<int, ManyToManyRelationModel>();
 		private ModelDictionary<int, ManyToManyRelationModel> asFirstObjectInManyToManyRelations = new ModelDictionary<int, ManyToManyRelationModel>();
 		private ModelDictionary<int, ManyToManyRelationModel> asSecondObjectInManyToManyRelations = new ModelDictionary<int, ManyToManyRelationModel>();
-		private ModelDictionary<int, ManyToManyRelationModel> asObjectInGroupMembership = new ModelDictionary<int, ManyToManyRelationModel>();
 
+		private IObjectRelationModelCollection<IOneToOneRelationModel> iasObjectInOneToOneRelations = null;
 		private IObjectRelationModelCollection<IOneToOneRelationModel> iasPrimaryObjectInOneToOneRelations, iasForeignObjectInOneToOneRelations = null;
+		private IObjectRelationModelCollection<IOneToManyRelationModel> iasObjectInOneToManyRelations;
 		private IObjectRelationModelCollection<IOneToManyRelationModel> iasPrimaryObjectInOneToManyRelations, iasForeignObjectInOneToManyRelations = null;
 		private IObjectRelationModelCollection<IOneToOneOrManyRelationModel> iasPrimaryObjectInRelarions, iasForeignObjectInRelarions = null;
 		private IObjectRelationModelCollection<IManyToManyRelationModel> iasFirstObjectInManyToManyRelations, iasSecondObjectInManyToManyRelations = null;
@@ -79,6 +83,7 @@ namespace Simple.Objects
 
 				{
 					this.asPrimaryObjectInOneToOneRelations.Add(relationModel.RelationKey, relationModel);
+					this.asObjectInOneToOneRelations.Add(relationModel.RelationKey, relationModel);
 					this.asPrimaryObjectInRelations.Add(relationModel.RelationKey, relationModel);
 				}
 
@@ -88,9 +93,16 @@ namespace Simple.Objects
 					this.asForeignObjectInOneToOneRelations.Add(relationModel.RelationKey, relationModel);
 					this.asForeignObjectInRelations.Add(relationModel.RelationKey, relationModel);
 					this.foreingRelationKeys.Add(relationModel.RelationKey);
+
+					if (!this.asObjectInOneToOneRelations.ContainsKey(relationModel.RelationKey))
+						this.asObjectInOneToOneRelations.Add(relationModel.RelationKey, relationModel);
+
 				}
 			}
 
+			this.AsObjectInOneToOneRelations = new ObjectRelationModelCollection<OneToOneRelationModel>(this.asObjectInOneToOneRelations);
+			this.iasObjectInOneToOneRelations = new ObjectRelationModelCollection<IOneToOneRelationModel>(this.asObjectInOneToOneRelations.AsCustom<IOneToOneRelationModel>());
+			
 			this.AsPrimaryObjectInOneToOneRelations = new ObjectRelationModelCollection<OneToOneRelationModel>(this.asPrimaryObjectInOneToOneRelations);
 			this.iasPrimaryObjectInOneToOneRelations = new ObjectRelationModelCollection<IOneToOneRelationModel>(this.asPrimaryObjectInOneToOneRelations.AsCustom<IOneToOneRelationModel>());
 			this.AsForeignObjectInOneToOneRelations = new ObjectRelationModelCollection<OneToOneRelationModel>(this.asForeignObjectInOneToOneRelations);
@@ -114,6 +126,7 @@ namespace Simple.Objects
 					)
 				{
 					this.asPrimaryObjectInOneToManyRelations.Add(relationModel.RelationKey, relationModel);
+					this.asObjectInOneToManyRelations.Add(relationModel.RelationKey, relationModel);
 					this.asPrimaryObjectInRelations.Add(relationModel.RelationKey, relationModel);
 				}
 
@@ -122,8 +135,14 @@ namespace Simple.Objects
 					this.asForeignObjectInOneToManyRelations.Add(relationModel.RelationKey, relationModel);
 					this.asForeignObjectInRelations.Add(relationModel.RelationKey, relationModel);
 					this.foreingRelationKeys.Add(relationModel.RelationKey);
+
+					if (!this.asObjectInOneToManyRelations.ContainsKey(relationModel.RelationKey))
+						this.asObjectInOneToManyRelations.Add(relationModel.RelationKey, relationModel);
 				}
 			}
+
+			this.AsObjectInOneToManyRelations = new ObjectRelationModelCollection<OneToManyRelationModel>(this.asObjectInOneToManyRelations);
+			this.iasObjectInOneToManyRelations = new ObjectRelationModelCollection<IOneToManyRelationModel>(this.asObjectInOneToManyRelations.AsCustom<IOneToManyRelationModel>());
 
 			this.AsPrimaryObjectInOneToManyRelations = new ObjectRelationModelCollection<OneToManyRelationModel>(this.asPrimaryObjectInOneToManyRelations);
 			this.iasPrimaryObjectInOneToManyRelations = new ObjectRelationModelCollection<IOneToManyRelationModel>(this.asPrimaryObjectInOneToManyRelations.AsCustom<IOneToManyRelationModel>());
@@ -166,24 +185,31 @@ namespace Simple.Objects
 		//public Type ObjectType { get; private set; }
 		public SimpleObjectModel ObjectModel { get; private set; }
 		public Type ObjectType { get; private set; }
+		public ObjectRelationModelCollection<OneToOneRelationModel> AsObjectInOneToOneRelations { get; private set; }
 		public ObjectRelationModelCollection<OneToOneRelationModel> AsPrimaryObjectInOneToOneRelations { get; private set; }
 		public ObjectRelationModelCollection<OneToOneRelationModel> AsForeignObjectInOneToOneRelations { get; private set; }
+
+		public ObjectRelationModelCollection<OneToManyRelationModel> AsObjectInOneToManyRelations { get; private set; }
 		public ObjectRelationModelCollection<OneToManyRelationModel> AsPrimaryObjectInOneToManyRelations { get; private set; }
 		public ObjectRelationModelCollection<OneToManyRelationModel> AsForeignObjectInOneToManyRelations { get; private set; }
+		
 		public ObjectRelationModelCollection<OneToOneOrManyRelationModel> AsPrimaryObjectInRelations { get; private set; }
 		public ObjectRelationModelCollection<OneToOneOrManyRelationModel> AsForeignObjectInRelations { get; private set; }
+
+		public ObjectRelationModelCollection<ManyToManyRelationModel> AsObjectInGroupMembership { get; private set; }
 		public ObjectRelationModelCollection<ManyToManyRelationModel> AsFirstObjectInManyToManyRelations { get; private set; }
 		public ObjectRelationModelCollection<ManyToManyRelationModel> AsSecondObjectInManyToManyRelations { get; private set; }
-		public ObjectRelationModelCollection<ManyToManyRelationModel> AsObjectInGroupMembership { get; private set; }
 
 		internal bool IsObjectTypeSameOrSubclassOf(Type objectType, Type relationModelType)
 		{
 			return objectType == relationModelType || (this.includeSubclasses && objectType.IsSubclassOf(relationModelType));
 		}
 
-		public IOneToOneOrManyRelationModel GetForeignRelationModel(int propertyIndex, int foreignObjectTableId = 0)
+		// TODO: Check for what purpose is this needed !!!
+
+		public IOneToOneOrManyRelationModel? GetForeignRelationModel(int propertyIndex, int foreignObjectTableId = 0)
 		{
-			List<IOneToOneOrManyRelationModel> itemList;
+			List<IOneToOneOrManyRelationModel>? itemList;
 
 			if (this.foreignRelationsByPropertyIndex.TryGetValue(propertyIndex, out itemList))
 			{
@@ -209,82 +235,54 @@ namespace Simple.Objects
 			itemList.Add(relationModel);
 		}
 
-		ISimpleObjectModel IObjectRelationModel.ObjectModel
-		{
-			get { return this.ObjectModel; }
-		}
+		ISimpleObjectModel IObjectRelationModel.ObjectModel => this.ObjectModel;
 
-		IObjectRelationModelCollection<IOneToOneRelationModel> IObjectRelationModel.AsPrimaryObjectInOneToOneRelations
-		{
-			get { return this.iasPrimaryObjectInOneToOneRelations; }
-		}
+		IEnumerable<int> IObjectRelationModel.ForeignObjectKeys => this.foreingRelationKeys;
 
-		IObjectRelationModelCollection<IOneToOneRelationModel> IObjectRelationModel.AsForeignObjectInOneToOneRelations
-		{
-			get { return this.iasForeignObjectInOneToOneRelations; }
-		}
+		IObjectRelationModelCollection<IOneToOneRelationModel> IObjectRelationModel.AsObjectInOneToOneRelations => this.iasObjectInOneToOneRelations;
 
-		IObjectRelationModelCollection<IOneToManyRelationModel> IObjectRelationModel.AsPrimaryObjectInOneToManyRelations
-		{
-			get { return this.iasPrimaryObjectInOneToManyRelations; }
-		}
+		IObjectRelationModelCollection<IOneToOneRelationModel> IObjectRelationModel.AsPrimaryObjectInOneToOneRelations => this.iasPrimaryObjectInOneToOneRelations;
 
-		IObjectRelationModelCollection<IOneToManyRelationModel> IObjectRelationModel.AsForeignObjectInOneToManyRelations
-		{
-			get { return this.iasForeignObjectInOneToManyRelations; }
-		}
+		IObjectRelationModelCollection<IOneToOneRelationModel> IObjectRelationModel.AsForeignObjectInOneToOneRelations => this.iasForeignObjectInOneToOneRelations;
 
-		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> IObjectRelationModel.AsPrimaryObjectInRelarions
-		{
-			get { return this.iasPrimaryObjectInRelarions; }
-		}
+		IObjectRelationModelCollection<IOneToManyRelationModel> IObjectRelationModel.AsObjectInOneToManyRelations => this.iasObjectInOneToManyRelations;
+		IObjectRelationModelCollection<IOneToManyRelationModel> IObjectRelationModel.AsPrimaryObjectInOneToManyRelations => this.iasPrimaryObjectInOneToManyRelations;
 
-		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> IObjectRelationModel.AsForeignObjectInRelarions
-		{
-			get { return this.iasForeignObjectInRelarions; }
-		}
+		IObjectRelationModelCollection<IOneToManyRelationModel> IObjectRelationModel.AsForeignObjectInOneToManyRelations => this.iasForeignObjectInOneToManyRelations;
 
-		IEnumerable<int> IObjectRelationModel.ForeignObjectKeys
-		{
-			get { return this.foreingRelationKeys; }
-		}
+		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> IObjectRelationModel.AsPrimaryObjectInRelarions => this.iasPrimaryObjectInRelarions;
 
-		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsFirstObjectInManyToManyRelations
-		{
-			get { return this.iasFirstObjectInManyToManyRelations; }
-		}
+		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> IObjectRelationModel.AsForeignObjectInRelarions => this.iasForeignObjectInRelarions;
 
-		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsSecondObjectInManyToManyRelations
-		{
-			get { return this.iasSecondObjectInManyToManyRelations; }
-		}
+		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsFirstObjectInManyToManyRelations => this.iasFirstObjectInManyToManyRelations;
 
-		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsObjectInGroupMembership
-		{
-			get { return this.iasObjectInGroupMembership; }
-		}
+		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsSecondObjectInManyToManyRelations => this.iasSecondObjectInManyToManyRelations;
 
-		IOneToOneOrManyRelationModel IObjectRelationModel.GetForeignRelationModel(int propertyIndex, int foreignTableId)
-		{
-			return this.GetForeignRelationModel(propertyIndex, foreignTableId);
-		}
+		IObjectRelationModelCollection<IManyToManyRelationModel> IObjectRelationModel.AsObjectInGroupMembership => this.iasObjectInGroupMembership;
+
+		IOneToOneOrManyRelationModel? IObjectRelationModel.GetForeignRelationModel(int propertyIndex, int foreignTableId) => this.GetForeignRelationModel(propertyIndex, foreignTableId);
 	}
 
 	public interface IObjectRelationModel : IModelElement
     {
         ISimpleObjectModel ObjectModel { get; }
+		IEnumerable<int> ForeignObjectKeys { get; }
+
+		IObjectRelationModelCollection<IOneToOneRelationModel> AsObjectInOneToOneRelations { get; }
 		IObjectRelationModelCollection<IOneToOneRelationModel> AsPrimaryObjectInOneToOneRelations { get; }
 		IObjectRelationModelCollection<IOneToOneRelationModel> AsForeignObjectInOneToOneRelations { get; }
+
+		IObjectRelationModelCollection<IOneToManyRelationModel> AsObjectInOneToManyRelations { get; }
 		IObjectRelationModelCollection<IOneToManyRelationModel> AsPrimaryObjectInOneToManyRelations { get; }
 		IObjectRelationModelCollection<IOneToManyRelationModel> AsForeignObjectInOneToManyRelations { get; }
+		
 		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> AsPrimaryObjectInRelarions { get; }
 		IObjectRelationModelCollection<IOneToOneOrManyRelationModel> AsForeignObjectInRelarions { get; }
-		IEnumerable<int> ForeignObjectKeys { get; }
+		IObjectRelationModelCollection<IManyToManyRelationModel> AsObjectInGroupMembership { get; }
 		IObjectRelationModelCollection<IManyToManyRelationModel> AsFirstObjectInManyToManyRelations { get; }
 		IObjectRelationModelCollection<IManyToManyRelationModel> AsSecondObjectInManyToManyRelations { get; }
-		IObjectRelationModelCollection<IManyToManyRelationModel> AsObjectInGroupMembership { get; }
 
 		// TODO: Remove this
-		IOneToOneOrManyRelationModel GetForeignRelationModel(int propertyIndex, int foreignTableId);
+		IOneToOneOrManyRelationModel? GetForeignRelationModel(int propertyIndex, int foreignTableId);
 	}
 }

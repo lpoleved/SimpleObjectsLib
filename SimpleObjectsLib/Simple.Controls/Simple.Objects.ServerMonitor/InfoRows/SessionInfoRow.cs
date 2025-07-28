@@ -11,8 +11,8 @@ namespace Simple.Objects.ServerMonitor
 {
 	public class SessionInfoRow : ISimpleObjectSession
 	{
-		private Encoding characterEncoding;
-		private object context;
+		private Encoding? characterEncoding;
+		private IMonitorSessionContext? context;
 
 		private const string strConnected = "Connected";
 		private const string strDisconnected = "Disconnected";
@@ -21,7 +21,7 @@ namespace Simple.Objects.ServerMonitor
 		private bool connected = false;
 		private bool authorized = false;
 
-		public SessionInfoRow(int rowIndex, long sessionKey, string serverAddress, int serverPort, string clientAddress, int clientPort, string username, bool connected, Encoding characterEncoding, object context)
+		public SessionInfoRow(int rowIndex, long sessionKey, string serverAddress, int serverPort, string clientAddress, int clientPort, long userId, string username, bool connected, Encoding? characterEncoding, IMonitorSessionContext? context)
 		{
 			this.characterEncoding = characterEncoding;
 			this.context = context;
@@ -30,7 +30,8 @@ namespace Simple.Objects.ServerMonitor
 			this.SessionKey = sessionKey;
 			this.ServerAddress = serverAddress + ":" + serverPort;
 			this.ClientAddress = clientAddress + ":" + clientPort;
-			this.CharacterEncoding = characterEncoding.ToString() ?? UTF8Encoding.Default.ToString() ?? "Unknown";
+			this.CharacterEncoding = characterEncoding?.ToString() ?? UTF8Encoding.Default.ToString() ?? "Unknown";
+			this.UserId = userId;
 			this.Username = username;
 			this.Connected = connected;
 			this.Status = String.Empty;
@@ -77,17 +78,11 @@ namespace Simple.Objects.ServerMonitor
 										   : strDisconnected;
 		}
 
-		ServerObjectModelInfo? ISimpleObjectSession.GetServerObjectModel(int tableId)
-		{
-			if (this.context is FormMain formMain)
-				return formMain.GetServerObjectModel(tableId);
-
-			return null;
-		}
+		ServerObjectModelInfo? ISimpleObjectSession.GetServerObjectModel(int tableId) => this.context?.GetServerObjectModel(tableId);
 
 		void ISimpleObjectSession.SetServerObjectModel(int tableId, ServerObjectModelInfo? serverObjectModelInfo) { } // Do nothing 
 
-		Encoding ISimpleSession.CharacterEncoding => this.characterEncoding;
+		Encoding ISimpleSession.CharacterEncoding => this.characterEncoding ?? Encoding.Default;
 		bool ISimpleSession.IsConnected => this.connected;
 		bool ISimpleSession.IsAuthenticated => this.Authenticated;
 		ValueTask ISimpleSession.SendAsync(ReadOnlyMemory<byte> data) => throw new NotImplementedException("SendAsync is not supported in this context");

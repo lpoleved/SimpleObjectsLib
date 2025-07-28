@@ -18,7 +18,7 @@ namespace Simple.Datastore
 		{
 			//this.BaseTableInfo = default(TableInfo);
 			this.TableId = tableId;
-			this.TableName = null;
+			this.TableName = String.Empty;
 			this.IsSystemTable = isSystemTable;
 
 			if (tableId <= 0 && !isSystemTable)

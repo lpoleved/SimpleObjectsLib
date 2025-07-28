@@ -19,7 +19,9 @@ namespace Simple.Objects
 		ValueTask<IList<long>> GetGroupMembershipCollection(SimpleObject simpleObject, int relationKey);
 		ValueTask<long> GetSimpleObjectGraphElementIdByGraphKey(int tableId, long objectId, int graphKey);
 		ValueTask<ClientTransactionResult> ProcessTransactionRequest(IEnumerable<TransactionActionInfo> transactionActionInfoList, 
-																	 Func<int, ISimpleObjectModel> getClientObjectModelByTableId, 
-																	 Func<int, ServerObjectModelInfo> getServerObjectModelInfoByTableId);
+																	 Func<int, ISimpleObjectModel?> getClientObjectModelByTableId, 
+																	 Func<int, ServerObjectModelInfo?> getServerObjectModelInfoByTableId);
+
+		ValueTask<bool> DoesGraphElementHaveChildren(long graphElementId);
 	}
 }

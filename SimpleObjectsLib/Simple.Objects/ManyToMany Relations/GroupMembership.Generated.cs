@@ -74,7 +74,7 @@ namespace Simple.Objects
         #region |   Properties by Object Property Model   |
 
         /// <summary>
-        ///  Gets or sets RelationKey property value.
+        /// Gets or sets RelationKey
         /// </summary>
         public int RelationKey
         {
@@ -83,7 +83,7 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        ///  Gets or sets Object1TableId property value.
+        /// Gets or sets Object1TableId
         /// </summary>
         internal int Object1TableId
         {
@@ -92,7 +92,7 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        ///  Gets or sets Object1Id property value.
+        /// Gets or sets Object1Id
         /// </summary>
         internal long Object1Id
         {
@@ -101,7 +101,7 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        ///  Gets or sets Object2TableId property value.
+        /// Gets or sets Object2TableId
         /// </summary>
         internal int Object2TableId
         {
@@ -110,7 +110,7 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        ///  Gets or sets Object2Id property value.
+        /// Gets or sets Object2Id
         /// </summary>
         internal long Object2Id
         {

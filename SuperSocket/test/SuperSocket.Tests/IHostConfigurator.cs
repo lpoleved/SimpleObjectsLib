@@ -5,7 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Abstractions.Connections;
 using SuperSocket.Client;
 using SuperSocket.ProtoBase;
 
@@ -19,6 +23,8 @@ namespace SuperSocket.Tests
 
         Socket CreateClient();
 
+        ValueTask<Socket> CreateConnectedClientAsync();
+
         ValueTask<Stream> GetClientStream(Socket socket);
 
         TextReader GetStreamReader(Stream stream, Encoding encoding);
@@ -29,7 +35,7 @@ namespace SuperSocket.Tests
 
         ListenOptions Listener { get; }
 
-        IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options)
+        IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
             where TPackageInfo : class;
     }
 }

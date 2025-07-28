@@ -35,7 +35,7 @@ namespace Simple.Objects
 
 		public override int Count => this.objectIds.Count;
 
-		public override int IndexOf(int tableId, long objectId) => (tableId != this.tableId) ? -1 : this.objectIds.IndexOf(objectId);
+		public override int IndexOf(int tableId, long objectId) => (tableId == this.tableId) ? this.objectIds.IndexOf(objectId) : -1;
 
 		//public override SimpleObjectCollection<T> AsCustom<T>() => new SimpleObjectCollection<T>(this.tableId, this);
 		public override SimpleObjectCollectionContaier CreateCopy() => new SimpleSingleTypeObjectCollectionContainer(this.ObjectManager, this.tableId, this.objectIds.ToArray());

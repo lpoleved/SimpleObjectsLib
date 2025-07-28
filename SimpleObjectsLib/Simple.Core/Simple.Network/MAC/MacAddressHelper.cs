@@ -77,7 +77,7 @@ namespace Simple.Network
 
 		public static string CreateMacAddressText(long? macAddress, string octetSplitter = "-")
 		{
-			string result = null;
+			string result = String.Empty;
 
 			if (macAddress == null)
 				return result;

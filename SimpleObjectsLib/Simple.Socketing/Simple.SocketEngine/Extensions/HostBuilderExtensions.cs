@@ -9,7 +9,9 @@ using Microsoft.Extensions.Hosting;
 using SuperSocket;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server;
-using SuperSocket.Channel;
+using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Connection;
 
 namespace Simple.SocketEngine
 {

@@ -45,7 +45,7 @@ namespace Simple.Datastore.Console
 					}
 				}
 				// restore sql-database SqlServerInstanceName DatabaseName BackupFilePath [DataFilePath]
-				// example: restore sql-database .\NETMANAGER NetManagerDatastore c:\Temp\NetManagerDatastore.bak [c:\Program Files\NET.Manager Studio\Datastore]
+				// example: restore sql-database .\SQLEXPRESS NetManagerDatastore c:\Temp\NetManagerDatastore.bak [c:\Program Files\NET.Manager Studio\Datastore]
 				else if (args[0] == "restore")
 				{
 					if ((args.Length == 5 || args.Length == 6) && args[1] == "sql-database")

@@ -261,6 +261,8 @@ namespace Simple.Network
 					}
 					else
 					{
+						this.icmpType = icmpTypeAndCode.IcmpType;
+						this.icmpTypeCode = icmpTypeAndCode.IcmpCode;
 						next = GetNext(lineArray, ref index);
 					}
 				}
@@ -280,7 +282,7 @@ namespace Simple.Network
 			this.useSimbolsForPortAndCodes = false;
 		}
 
-		public AclInfo(ref SequenceReader reader)
+		public AclInfo(ref SequenceReader reader) //=> this.ReadFrom(ref reader);
 		{
 			this.protocol = reader.ReadByte();
 			this.sourceIpAddress = new IpAddress(ref reader);
@@ -499,6 +501,51 @@ namespace Simple.Network
 			IpAnyAnyLog = new AclInfo("ip any any log");
 		}
 
+		public void WriteTo(ref SequenceWriter writer)
+		{
+			writer.WriteByte(this.protocol);
+			this.sourceIpAddress.WriteTo(ref writer);
+			writer.WriteInt32Optimized(this.sourceSubnetMaskPrefix);
+			this.destinationIpAddress.WriteTo(ref writer);
+			writer.WriteInt32Optimized(this.destinationSubnetMaskPrefix);
+
+			if (this.protocol == 6 || this.protocol == 17) // TCP or UDP
+			{
+				writer.WriteByte((byte)this.sourcePortOperator);
+
+				if (this.sourcePortOperator != AclPortOperator.Any)
+				{
+					writer.WriteUInt16(this.sourcePort!);
+
+					if (this.sourcePortOperator == AclPortOperator.Range)
+						writer.WriteUInt16(this.sourcePort2);
+				}
+
+				writer.WriteByte((byte)this.destinationPortOperator);
+
+				if (this.destinationPortOperator != AclPortOperator.Any)
+				{
+					writer.WriteUInt16(this.destinationPort);
+
+					if (this.destinationPortOperator == AclPortOperator.Range)
+						writer.WriteUInt16(this.destinationPort2);
+				}
+
+				if (this.protocol == 6) // TCP
+					writer.WriteBoolean(this.established);
+			}
+			else if (this.protocol == 1) // ICMP
+			{
+				writer.WriteNullableByte(this.icmpType);
+
+				if (this.icmpType != null)
+					writer.WriteNullableByte(this.icmpTypeCode);
+			}
+
+			writer.WriteNullableByte(this.dscp);
+			writer.WriteBoolean(this.logging);
+		}
+
 
 		// *** TEST ***
 
@@ -550,6 +597,13 @@ namespace Simple.Network
 
 		public static bool operator ==(AclInfo? a, AclInfo? b)
 		{
+			int i = 0;
+
+			if (a.ToString().Trim() == "tcp 192.168.0.0 0.0.0.255 host 192.168.1.2" && b.ToString().Trim() == "tcp 192.168.0.0 0.0.0.255 host 192.168.1.2")
+				i = 1;
+			
+
+		
 			// If both are null, or both are same instance, return true.
 			if (System.Object.ReferenceEquals(a, b))
 				return true;
@@ -565,27 +619,58 @@ namespace Simple.Network
 
 			if (a.Protocol == 6 || a.Protocol == 17) // TCP or UDP
 			{
-				if (!a.SourceIpAddress.Equals(b.SourceIpAddress) || a.SourceSubnetMaskPrefix != b.SourceSubnetMaskPrefix ||
-					a.SourcePortOperator != b.SourcePortOperator || a.SourcePort != b.SourcePort ||
-					!a.DestinationIpAddress.Equals(b.DestinationIpAddress) || a.DestinationSubnetMaskPrefix != b.DestinationSubnetMaskPrefix ||
-					a.DestinationPortOperator != b.DestinationPortOperator || a.DestinationPort != b.DestinationPort)
+				if (!a.SourceIpAddress.Equals(b.SourceIpAddress) || a.SourceSubnetMaskPrefix != b.SourceSubnetMaskPrefix || !a.DestinationIpAddress.Equals(b.DestinationIpAddress) || a.DestinationSubnetMaskPrefix != b.DestinationSubnetMaskPrefix)
+					return false;
+
+				if (a.SourcePortOperator == AclPortOperator.Any)
+				{
+					if (a.SourcePortOperator != AclPortOperator.Any)
+						return false;
+				}
+				else if (a.SourcePortOperator != b.SourcePortOperator)
+				{
+					return false;
+				}
+				else if (a.SourcePort != b.SourcePort)
+				{
+					return false;
+				}
+				else if (a.SourcePortOperator == AclPortOperator.Range && a.SourcePort2 != b.SourcePort2)
 				{
 					return false;
 				}
 
-				if (a.SourcePortOperator == AclPortOperator.Range && a.SourcePort2 != b.SourcePort2)
+				if (a.DestinationPortOperator == AclPortOperator.Any)
+				{
+					if (b.DestinationPortOperator != AclPortOperator.Any)
+						return false;
+				}
+				else if (a.DestinationPortOperator != b.DestinationPortOperator)
+				{
 					return false;
+				}
+				else if (a.DestinationPort != b.DestinationPort)
+				{
+					return false;
+				}
+				else if (a.DestinationPortOperator == AclPortOperator.Range && a.DestinationPort2 != b.DestinationPort2)
+				{
+					return false;
+				}
 
-				if (a.DestinationPortOperator == AclPortOperator.Range && a.DestinationPort2 != b.DestinationPort2)
+				if (a.Protocol == 6 && a.Established != b.Established) // TCP
 					return false;
 			}
 			else if (a.Protocol == 1) // ICMP
 			{
-				if (a.IcmpType != b.IcmpType || a.IcmpTypeCode != b.IcmpTypeCode)
+				if (a.IcmpType != b.IcmpType)
+					return false;
+
+				if (a.IcmpType != null && a.IcmpTypeCode != b.IcmpTypeCode)
 					return false;
 			}
 
-			if (a.Dscp != b.Dscp || a.Established != b.Established || a.Logging != b.Logging)
+			if (a.Dscp != b.Dscp || a.Logging != b.Logging)
 				return false;
 
 			return true;
@@ -612,51 +697,6 @@ namespace Simple.Network
 
 
 
-		public void WriteTo(ref SequenceWriter writer)
-		{
-			writer.WriteByte(this.protocol);
-			this.sourceIpAddress.WriteTo(ref writer);
-			writer.WriteInt32Optimized(this.sourceSubnetMaskPrefix);
-			this.destinationIpAddress.WriteTo(ref writer);
-			writer.WriteInt32Optimized(this.destinationSubnetMaskPrefix);
-
-			if (this.protocol == 6 || this.protocol == 17) // TCP or UDP
-			{
-				writer.WriteByte((byte)this.sourcePortOperator);
-				
-				if (this.sourcePortOperator != AclPortOperator.Any)
-				{
-					writer.WriteUInt16(this.sourcePort!);
-
-					if (this.sourcePortOperator == AclPortOperator.Range)
-						writer.WriteUInt16(this.sourcePort2);
-				}
-				
-				writer.WriteByte((byte)this.destinationPortOperator);
-				
-				if (this.destinationPortOperator != AclPortOperator.Any)
-				{
-					writer.WriteUInt16(this.destinationPort);
-				
-					if (this.destinationPortOperator == AclPortOperator.Range)
-						writer.WriteUInt16(this.destinationPort2);
-				}
-
-				if (this.protocol == 6) // TCP
-					writer.WriteBoolean(this.established);
-			}
-			else if (this.protocol == 1) // ICMP
-			{
-				writer.WriteNullableByte(this.icmpType);
-
-				if (this.icmpType != null)
-					writer.WriteNullableByte(this.icmpTypeCode);
-			}
-
-			writer.WriteNullableByte(this.dscp);
-			writer.WriteBoolean(this.logging);
-		}
-
 		public override string ToString() => this.ToCiscoAcl();
 
 		public string ToString(bool useSimbolsForPortAndCodes = true) => this.ToCiscoAcl(useSimbolsForPortAndCodes);
@@ -679,70 +719,69 @@ namespace Simple.Network
 			//else
 			//	result += this.protocol.ToString();
 
-			stringBuilder.Append(GetProtocolKeyword(this.protocol));
-			stringBuilder.Append(" " + GetIpAddressWildCardKeywords(this.sourceIpAddress.ToString(), this.sourceSubnetMaskPrefix));
+			stringBuilder.Append(GetProtocolKeyword(this.Protocol));
+			stringBuilder.Append(" " + GetIpAddressWildCardKeywords(this.SourceIpAddress.ToString(), this.SourceSubnetMaskPrefix));
 
-			if (this.protocol == 6 || this.protocol == 17) // TCP or UDP
+			if (this.Protocol == 6 || this.Protocol == 17) // TCP or UDP
 			{
-				if (this.sourcePortOperator != AclPortOperator.Any)
+				if (this.SourcePortOperator != AclPortOperator.Any)
 				{
-					stringBuilder.Append(" " + GetPortOperatorKeyword((byte)this.sourcePortOperator) + " ");
+					stringBuilder.Append(" " + GetPortOperatorKeyword((byte)this.SourcePortOperator) + " ");
 
 					if (useSimbolsForPortAndCodes)
-						stringBuilder.Append((this.protocol == 6) ? GetTcpPortKeyword(this.sourcePort) : GetUdpPortKeyword(this.sourcePort));
+						stringBuilder.Append((this.Protocol == 6) ? GetTcpPortKeyword(this.SourcePort) : GetUdpPortKeyword(this.SourcePort));
 					else
-						stringBuilder.Append(this.sourcePort.ToString());
+						stringBuilder.Append(this.SourcePort.ToString());
 
-					if (this.sourcePortOperator == AclPortOperator.Range)
+					if (this.SourcePortOperator == AclPortOperator.Range)
 						if (useSimbolsForPortAndCodes)
-							stringBuilder.Append(" " + ((this.protocol == 6) ? GetTcpPortKeyword(this.sourcePort2) : GetUdpPortKeyword(this.sourcePort2)));
+							stringBuilder.Append(" " + ((this.Protocol == 6) ? GetTcpPortKeyword(this.SourcePort2) : GetUdpPortKeyword(this.SourcePort2)));
 						else
-							stringBuilder.Append(" " + this.sourcePort2.ToString());
+							stringBuilder.Append(" " + this.SourcePort2.ToString());
 				}
 			}
 
-			stringBuilder.Append(" " + GetIpAddressWildCardKeywords(this.destinationIpAddress.ToString(), this.destinationSubnetMaskPrefix));
+			stringBuilder.Append(" " + GetIpAddressWildCardKeywords(this.DestinationIpAddress.ToString(), this.DestinationSubnetMaskPrefix));
 
-			if (this.protocol == 6 || this.protocol == 17) // TCP or UDP
+			if (this.Protocol == 6 || this.Protocol == 17) // TCP or UDP
 			{
-				if (this.destinationPortOperator != AclPortOperator.Any)
+				if (this.DestinationPortOperator != AclPortOperator.Any)
 				{
-					stringBuilder.Append(" " + GetPortOperatorKeyword((byte)this.destinationPortOperator) + " ");
+					stringBuilder.Append(" " + GetPortOperatorKeyword((byte)this.DestinationPortOperator) + " ");
 
 					if (useSimbolsForPortAndCodes)
-						stringBuilder.Append((this.Protocol == 6) ? GetTcpPortKeyword(this.destinationPort) : GetUdpPortKeyword(this.destinationPort));
+						stringBuilder.Append((this.Protocol == 6) ? GetTcpPortKeyword(this.DestinationPort) : GetUdpPortKeyword(this.DestinationPort));
 					else
-						stringBuilder.Append(this.destinationPort.ToString());
+						stringBuilder.Append(this.DestinationPort.ToString());
 
-					if (this.destinationPortOperator == AclPortOperator.Range)
+					if (this.DestinationPortOperator == AclPortOperator.Range)
 						if (useSimbolsForPortAndCodes)
-							stringBuilder.Append(" " + ((this.protocol == 6) ? GetTcpPortKeyword(this.destinationPort2) : GetUdpPortKeyword(this.destinationPort2)));
+							stringBuilder.Append(" " + ((this.Protocol == 6) ? GetTcpPortKeyword(this.DestinationPort2) : GetUdpPortKeyword(this.DestinationPort2)));
 						else
-							stringBuilder.Append(" " + this.destinationPort2.ToString());
+							stringBuilder.Append(" " + this.DestinationPort2.ToString());
 				}
 
-				if (this.established)
+				if (this.Protocol == 6 && this.Established)
 					stringBuilder.Append(" established");
 			}
-			else if (this.protocol == 1) // ICMP
+			else if (this.Protocol == 1) // ICMP
 			{
-				string icmpMessage = GetIcmpMessage(this.icmpType, this.icmpTypeCode);
+				string icmpMessage = GetIcmpMessage(this.IcmpType, this.IcmpTypeCode);
 
 				if (icmpMessage.Length > 0)
 					stringBuilder.Append(" " + icmpMessage);
 			}
 
-			if (this.dscp != null)
+			if (this.Dscp != null)
 				stringBuilder.Append(" dsxp " + this.Dscp.ToString()); // " precedance"
 
-			if (this.logging)
+			if (this.Logging)
 				stringBuilder.Append(" log");
 
 			this.aclText = stringBuilder.ToString();
 
 			return this.aclText;
 		}
-
 
 		private static string? GetNext(string[] lineArray, ref int index)
 		{

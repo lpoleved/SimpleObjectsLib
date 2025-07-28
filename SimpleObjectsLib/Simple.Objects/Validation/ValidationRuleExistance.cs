@@ -67,10 +67,10 @@ namespace Simple.Objects
             bool passed = false;
 			PropertyValidationResult validationResult = PropertyValidationResult.GetDefaultSuccessResult(this.PropertyModel);
 
-			if (simpleObject.IsValidationTest && this.SkipIfTest)
-				return validationResult;
+			//if (simpleObject.IsValidationTest && this.SkipIfTest)
+			//	return validationResult;
 
-			object propertyValue = simpleObject[this.PropertyModel.PropertyName];
+			object? propertyValue = simpleObject[this.PropertyModel.PropertyName];
             passed = !Comparison.IsEmpty(propertyValue);
 
             if (!passed)
@@ -103,13 +103,9 @@ namespace Simple.Objects
         public override ValidationResult Validate(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
         {
             if (this.validateByPropertyModel)
-            {
                 return this.ValidatePropertyExistenceByPropertyModel(simpleObject, transactionRequests);
-            }
             else
-            {
                 return this.ValidatePropertyExistenceByValidationExistenceDelegate(simpleObject, transactionRequests);
-            }
         }
     }
 }

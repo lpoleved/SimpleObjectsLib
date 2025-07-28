@@ -56,9 +56,9 @@ namespace Simple.Objects.ServerMonitor
 
 			if (this.PackageInfoRow?.RequestOrMessagePackageInfo.PackageArgs is ObjectIdTableIdRequestArgs requestArgs) // && this.PackageInfoRow.ResponseArgs is PropertyIndexValuePairsResponseArgs responseArgs)
 			{
-				string objectName = this.GetObjectName(requestArgs.TableId, requestArgs.ObjectId);
+				string objectName = this.Context?.GetObjectName(requestArgs.TableId, requestArgs.ObjectId) ?? "Unknown";
 
-				objectModel = this.GetServerObjectModel(requestArgs.TableId);
+				objectModel = this.Context?.GetServerObjectModel(requestArgs.TableId);
 				this.tableId = requestArgs.TableId;
 				this.editorObjectKey.Text = $"{requestArgs.TableId}.{requestArgs.ObjectId} ({objectModel?.ObjectName}.{objectName})";
 

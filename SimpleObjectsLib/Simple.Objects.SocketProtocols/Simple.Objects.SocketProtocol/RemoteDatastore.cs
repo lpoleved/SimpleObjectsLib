@@ -70,7 +70,7 @@ namespace Simple.Objects.SocketProtocol
 
 		public async ValueTask<SimpleObject?> GetOneToOneForeignObject(SimpleObject simpleObject, int relationKey)
 		{
-			var response = await this.AppClient.GetOneToForeignObject(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, relationKey);
+			var response = await this.AppClient.GetOneToOneForeignObject(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id, relationKey);
 			var result = simpleObject.Manager.GetObject(response.TableId, response.ObjectId);
 
 			return result;
@@ -93,6 +93,13 @@ namespace Simple.Objects.SocketProtocol
 		public async ValueTask<ClientTransactionResult> ProcessTransactionRequest(IEnumerable<TransactionActionInfo> transactionActionInfoList, Func<int, ISimpleObjectModel> getClientObjectModelByTableId, Func<int, ServerObjectModelInfo> getServerObjectPropertyInfoByTableId)
 		{
 			return await this.AppClient.SendTransactionRequest(transactionActionInfoList, getClientObjectModelByTableId, getServerObjectPropertyInfoByTableId);
+		}
+
+		public async ValueTask<bool> DoesGraphElementHaveChildren(long graphElementId)
+		{
+			var result = await this.AppClient.DoesGraphElementHaveChildren(graphElementId);
+
+			return result.IsTrue;
 		}
 	}
 }

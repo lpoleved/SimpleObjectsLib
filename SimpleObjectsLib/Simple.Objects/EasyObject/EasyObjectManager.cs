@@ -9,6 +9,7 @@ using Simple;
 using Simple.Collections;
 using Simple.Modeling;
 using Simple.Security;
+using System.Runtime.CompilerServices;
 
 namespace Simple.Objects
 {
@@ -869,15 +870,15 @@ namespace Simple.Objects
 
     #region |   EventArgs Classes   |
 
-    public class RequesterEventArgs : EventArgs
-    {
-        public RequesterEventArgs(object? requester)
-        {
-            this.Requester = requester;
-        }
+	//public class RequesterEventArgs : EventArgs
+ //   {
+ //       public RequesterEventArgs(object? requester)
+ //       {
+ //           this.Requester = requester;
+ //       }
 
-        public object? Requester { get; private set; }
-    }
+ //       public object? Requester { get; private set; }
+ //   }
 
     public class EasyObjectEventArgs : EventArgs
     {

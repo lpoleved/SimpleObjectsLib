@@ -34,7 +34,7 @@ namespace Simple.Objects.ServerMonitor
 			tabControlMessage = new DevExpress.XtraTab.XtraTabControl();
 			tabPageMessage = new DevExpress.XtraTab.XtraTabPage();
 			packageHeaderControlMessage = new PackageHeaderInfoControl();
-			editorPackageFlagsValue = new DevExpress.XtraEditors.TextEdit();
+			editorMessagePackageHeaderValue = new DevExpress.XtraEditors.TextEdit();
 			labelControlHeaderInfoValue = new DevExpress.XtraEditors.LabelControl();
 			tabControlMessageDetails = new DevExpress.XtraTab.XtraTabControl();
 			tabPageBodyDetails = new DevExpress.XtraTab.XtraTabPage();
@@ -53,7 +53,7 @@ namespace Simple.Objects.ServerMonitor
 			((System.ComponentModel.ISupportInitialize)tabControlMessage).BeginInit();
 			tabControlMessage.SuspendLayout();
 			tabPageMessage.SuspendLayout();
-			((System.ComponentModel.ISupportInitialize)editorPackageFlagsValue.Properties).BeginInit();
+			((System.ComponentModel.ISupportInitialize)editorMessagePackageHeaderValue.Properties).BeginInit();
 			((System.ComponentModel.ISupportInitialize)tabControlMessageDetails).BeginInit();
 			tabControlMessageDetails.SuspendLayout();
 			tabPageMessageBinary.SuspendLayout();
@@ -63,7 +63,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// editorUser
 			// 
-			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorUser.Properties.Appearance.Options.UseFont = true;
 			editorUser.Size = new Size(305, 20);
 			// 
@@ -73,14 +73,14 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// editorMessageCodeOrRequestId
 			// 
-			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorMessageCodeOrRequestId.Properties.Appearance.Options.UseFont = true;
 			editorMessageCodeOrRequestId.Size = new Size(305, 20);
 			// 
 			// editorActionType
 			// 
 			editorActionType.Location = new Point(76, 34);
-			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorActionType.Properties.Appearance.Options.UseFont = true;
 			// 
 			// labelControlPackageJobActionType
@@ -90,7 +90,7 @@ namespace Simple.Objects.ServerMonitor
 			// editorSessionKey
 			// 
 			editorSessionKey.Location = new Point(76, 12);
-			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorSessionKey.Properties.Appearance.Options.UseFont = true;
 			// 
 			// labelControlMessageCodeOrRequestId
@@ -125,7 +125,7 @@ namespace Simple.Objects.ServerMonitor
 			// tabPageMessage
 			// 
 			tabPageMessage.Controls.Add(packageHeaderControlMessage);
-			tabPageMessage.Controls.Add(editorPackageFlagsValue);
+			tabPageMessage.Controls.Add(editorMessagePackageHeaderValue);
 			tabPageMessage.Controls.Add(labelControlHeaderInfoValue);
 			tabPageMessage.Controls.Add(tabControlMessageDetails);
 			tabPageMessage.Controls.Add(editorMessagePackageLength);
@@ -136,21 +136,21 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// packageHeaderControlMessage
 			// 
-			packageHeaderControlMessage.Location = new Point(201, 4);
+			packageHeaderControlMessage.Location = new Point(212, 4);
 			packageHeaderControlMessage.Name = "packageHeaderControlMessage";
-			packageHeaderControlMessage.Size = new Size(363, 80);
+			packageHeaderControlMessage.Size = new Size(352, 80);
 			packageHeaderControlMessage.TabIndex = 29;
 			// 
-			// editorPackageFlagsValue
+			// editorMessagePackageHeaderValue
 			// 
-			editorPackageFlagsValue.ImeMode = ImeMode.KatakanaHalf;
-			editorPackageFlagsValue.Location = new Point(103, 39);
-			editorPackageFlagsValue.Name = "editorPackageFlagsValue";
-			editorPackageFlagsValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
-			editorPackageFlagsValue.Properties.Appearance.Options.UseFont = true;
-			editorPackageFlagsValue.Properties.ReadOnly = true;
-			editorPackageFlagsValue.Size = new Size(92, 20);
-			editorPackageFlagsValue.TabIndex = 42;
+			editorMessagePackageHeaderValue.ImeMode = ImeMode.KatakanaHalf;
+			editorMessagePackageHeaderValue.Location = new Point(103, 39);
+			editorMessagePackageHeaderValue.Name = "editorMessagePackageHeaderValue";
+			editorMessagePackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
+			editorMessagePackageHeaderValue.Properties.Appearance.Options.UseFont = true;
+			editorMessagePackageHeaderValue.Properties.ReadOnly = true;
+			editorMessagePackageHeaderValue.Size = new Size(92, 20);
+			editorMessagePackageHeaderValue.TabIndex = 42;
 			// 
 			// labelControlHeaderInfoValue
 			// 
@@ -199,7 +199,7 @@ namespace Simple.Objects.ServerMonitor
 			editorMessagePackageLength.ImeMode = ImeMode.KatakanaHalf;
 			editorMessagePackageLength.Location = new Point(92, 13);
 			editorMessagePackageLength.Name = "editorMessagePackageLength";
-			editorMessagePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorMessagePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorMessagePackageLength.Properties.Appearance.Options.UseFont = true;
 			editorMessagePackageLength.Properties.ReadOnly = true;
 			editorMessagePackageLength.Size = new Size(103, 20);
@@ -230,7 +230,7 @@ namespace Simple.Objects.ServerMonitor
 			tabControlMessage.ResumeLayout(false);
 			tabPageMessage.ResumeLayout(false);
 			tabPageMessage.PerformLayout();
-			((System.ComponentModel.ISupportInitialize)editorPackageFlagsValue.Properties).EndInit();
+			((System.ComponentModel.ISupportInitialize)editorMessagePackageHeaderValue.Properties).EndInit();
 			((System.ComponentModel.ISupportInitialize)tabControlMessageDetails).EndInit();
 			tabControlMessageDetails.ResumeLayout(false);
 			tabPageMessageBinary.ResumeLayout(false);
@@ -250,7 +250,7 @@ namespace Simple.Objects.ServerMonitor
 		protected DevExpress.XtraTab.XtraTabControl tabControlMessageDetails;
 		protected DevExpress.XtraTab.XtraTabPage tabPageBodyDetails;
 		protected DevExpress.XtraTab.XtraTabPage tabPageMessageBinary;
-		protected DevExpress.XtraEditors.TextEdit editorPackageFlagsValue;
+		protected DevExpress.XtraEditors.TextEdit editorMessagePackageHeaderValue;
 		protected DevExpress.XtraEditors.LabelControl labelControlHeaderInfoValue;
 	}
 }

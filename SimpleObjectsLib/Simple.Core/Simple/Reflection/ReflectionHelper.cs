@@ -565,7 +565,13 @@ namespace Simple
             return assemblyFullNameList[0];
         }
 
-        public static object? GetDefaultValue(Type declaredType)
+		public static Assembly? GetAssemblyByName(string name)
+		{
+			return AppDomain.CurrentDomain.GetAssemblies().
+				   SingleOrDefault(assembly => assembly.GetName().Name == name);
+		}
+
+		public static object? GetDefaultValue(Type declaredType)
         {
             object? result;
 
@@ -827,45 +833,6 @@ namespace Simple
 		{
 			return from type in GetInheritedClasses(myType)
 				   select type.Assembly;
-		}
-	}
-
-	public class SimpleTypeInfo
-	{
-		public SimpleTypeInfo(Type type)
-		{
-			this.Type = type;
-		}
-
-		public Type Type { get; private set; }
-
-		public string Name
-		{
-			get { return ReflectionHelper.GetTypeName(this.Type); }
-		}
-
-		public bool IsGeneric
-		{
-			get { return this.Type.IsGenericType; }
-		}
-
-		public bool IsNullable
-		{
-			get
-			{
-				bool result = true;
-				GenericParameterAttributes sConstraints = this.Type.GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
-
-				if (GenericParameterAttributes.None != (sConstraints & GenericParameterAttributes.NotNullableValueTypeConstraint))
-					result = false;
-
-				return result;
-			}
-		}
-
-		public bool IsVoid
-		{
-			get { return false; }
 		}
 	}
 }

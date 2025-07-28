@@ -44,12 +44,14 @@ namespace Simple.Objects.ServerMonitor
 			labelControlTransactionRequestCount = new DevExpress.XtraEditors.LabelControl();
 			gridControlRollbackActions = new DevExpress.XtraGrid.GridControl();
 			gridViewRollbackActions = new DevExpress.XtraGrid.Views.Grid.GridView();
-			tabControlTransactionRequest = new DevExpress.XtraTab.XtraTabControl();
+			tabControlTransactionDetails = new DevExpress.XtraTab.XtraTabControl();
 			tabPageRollbackActionBinaries = new DevExpress.XtraTab.XtraTabPage();
 			labelControlRollbackActionDataNoOfBytes = new DevExpress.XtraEditors.LabelControl();
 			labelControlRollbackActionDataLength = new DevExpress.XtraEditors.LabelControl();
-			editorTransactionActionData = new DevExpress.XtraEditors.MemoEdit();
+			editorRollbackActionData = new DevExpress.XtraEditors.MemoEdit();
 			tabPageTransactionRequests = new DevExpress.XtraTab.XtraTabPage();
+			gridControlTransactionRequests = new DevExpress.XtraGrid.GridControl();
+			gridViewTransactionRequests = new DevExpress.XtraGrid.Views.Grid.GridView();
 			labelControlNoOfTransactionActions = new DevExpress.XtraEditors.LabelControl();
 			tabPageDatastoreActions = new DevExpress.XtraTab.XtraTabPage();
 			gridControlDatastoreActions = new DevExpress.XtraGrid.GridControl();
@@ -70,11 +72,13 @@ namespace Simple.Objects.ServerMonitor
 			((System.ComponentModel.ISupportInitialize)editorCreationTime.Properties).BeginInit();
 			((System.ComponentModel.ISupportInitialize)gridControlRollbackActions).BeginInit();
 			((System.ComponentModel.ISupportInitialize)gridViewRollbackActions).BeginInit();
-			((System.ComponentModel.ISupportInitialize)tabControlTransactionRequest).BeginInit();
-			tabControlTransactionRequest.SuspendLayout();
+			((System.ComponentModel.ISupportInitialize)tabControlTransactionDetails).BeginInit();
+			tabControlTransactionDetails.SuspendLayout();
 			tabPageRollbackActionBinaries.SuspendLayout();
-			((System.ComponentModel.ISupportInitialize)editorTransactionActionData.Properties).BeginInit();
+			((System.ComponentModel.ISupportInitialize)editorRollbackActionData.Properties).BeginInit();
 			tabPageTransactionRequests.SuspendLayout();
+			((System.ComponentModel.ISupportInitialize)gridControlTransactionRequests).BeginInit();
+			((System.ComponentModel.ISupportInitialize)gridViewTransactionRequests).BeginInit();
 			tabPageDatastoreActions.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)gridControlDatastoreActions).BeginInit();
 			((System.ComponentModel.ISupportInitialize)gridViewDatastoreActions).BeginInit();
@@ -83,7 +87,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// tabPageObjectName
 			// 
-			tabPageObjectName.Controls.Add(tabControlTransactionRequest);
+			tabPageObjectName.Controls.Add(tabControlTransactionDetails);
 			tabPageObjectName.Controls.Add(editorCreationTime);
 			tabPageObjectName.Controls.Add(labelControlCreationTime);
 			tabPageObjectName.Controls.Add(editorStatus);
@@ -101,7 +105,7 @@ namespace Simple.Objects.ServerMonitor
 			editorTransactionId.ImeMode = ImeMode.KatakanaHalf;
 			editorTransactionId.Location = new Point(95, 25);
 			editorTransactionId.Name = "editorTransactionId";
-			editorTransactionId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorTransactionId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorTransactionId.Properties.Appearance.Options.UseFont = true;
 			editorTransactionId.Properties.ReadOnly = true;
 			editorTransactionId.Size = new Size(121, 20);
@@ -121,7 +125,7 @@ namespace Simple.Objects.ServerMonitor
 			editorUser.ImeMode = ImeMode.KatakanaHalf;
 			editorUser.Location = new Point(95, 77);
 			editorUser.Name = "editorUser";
-			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorUser.Properties.Appearance.Options.UseFont = true;
 			editorUser.Properties.ReadOnly = true;
 			editorUser.Size = new Size(461, 20);
@@ -141,7 +145,7 @@ namespace Simple.Objects.ServerMonitor
 			editorClientId.ImeMode = ImeMode.KatakanaHalf;
 			editorClientId.Location = new Point(305, 25);
 			editorClientId.Name = "editorClientId";
-			editorClientId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorClientId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorClientId.Properties.Appearance.Options.UseFont = true;
 			editorClientId.Properties.ReadOnly = true;
 			editorClientId.Size = new Size(251, 20);
@@ -160,7 +164,7 @@ namespace Simple.Objects.ServerMonitor
 			editorStatus.ImeMode = ImeMode.KatakanaHalf;
 			editorStatus.Location = new Point(95, 51);
 			editorStatus.Name = "editorStatus";
-			editorStatus.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorStatus.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorStatus.Properties.Appearance.Options.UseFont = true;
 			editorStatus.Properties.ReadOnly = true;
 			editorStatus.Size = new Size(121, 20);
@@ -180,7 +184,7 @@ namespace Simple.Objects.ServerMonitor
 			editorCreationTime.ImeMode = ImeMode.KatakanaHalf;
 			editorCreationTime.Location = new Point(305, 51);
 			editorCreationTime.Name = "editorCreationTime";
-			editorCreationTime.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorCreationTime.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorCreationTime.Properties.Appearance.Options.UseFont = true;
 			editorCreationTime.Properties.ReadOnly = true;
 			editorCreationTime.Size = new Size(251, 20);
@@ -219,28 +223,28 @@ namespace Simple.Objects.ServerMonitor
 			gridViewRollbackActions.GridControl = gridControlRollbackActions;
 			gridViewRollbackActions.Name = "gridViewRollbackActions";
 			// 
-			// tabControlTransactionRequest
+			// tabControlTransactionDetails
 			// 
-			tabControlTransactionRequest.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-			tabControlTransactionRequest.Location = new Point(3, 118);
-			tabControlTransactionRequest.Name = "tabControlTransactionRequest";
-			tabControlTransactionRequest.SelectedTabPage = tabPageRollbackActionBinaries;
-			tabControlTransactionRequest.Size = new Size(570, 481);
-			tabControlTransactionRequest.TabIndex = 43;
-			tabControlTransactionRequest.TabPages.AddRange(new DevExpress.XtraTab.XtraTabPage[] { tabPageTransactionRequests, tabPageDatastoreActions, tabPageRollbackActions, tabPageRollbackActionBinaries });
+			tabControlTransactionDetails.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+			tabControlTransactionDetails.Location = new Point(3, 118);
+			tabControlTransactionDetails.Name = "tabControlTransactionDetails";
+			tabControlTransactionDetails.SelectedTabPage = tabPageTransactionRequests;
+			tabControlTransactionDetails.Size = new Size(570, 481);
+			tabControlTransactionDetails.TabIndex = 43;
+			tabControlTransactionDetails.TabPages.AddRange(new DevExpress.XtraTab.XtraTabPage[] { tabPageTransactionRequests, tabPageDatastoreActions, tabPageRollbackActions, tabPageRollbackActionBinaries });
 			// 
 			// tabPageRollbackActionBinaries
 			// 
 			tabPageRollbackActionBinaries.Controls.Add(labelControlRollbackActionDataNoOfBytes);
 			tabPageRollbackActionBinaries.Controls.Add(labelControlRollbackActionDataLength);
-			tabPageRollbackActionBinaries.Controls.Add(editorTransactionActionData);
+			tabPageRollbackActionBinaries.Controls.Add(editorRollbackActionData);
 			tabPageRollbackActionBinaries.Name = "tabPageRollbackActionBinaries";
 			tabPageRollbackActionBinaries.Size = new Size(568, 456);
 			tabPageRollbackActionBinaries.Text = "Rollback Action Binaries";
 			// 
 			// labelControlRollbackActionDataNoOfBytes
 			// 
-			labelControlRollbackActionDataNoOfBytes.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			labelControlRollbackActionDataNoOfBytes.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			labelControlRollbackActionDataNoOfBytes.Appearance.Options.UseFont = true;
 			labelControlRollbackActionDataNoOfBytes.Appearance.Options.UseTextOptions = true;
 			labelControlRollbackActionDataNoOfBytes.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
@@ -262,26 +266,42 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// editorTransactionActionData
 			// 
-			editorTransactionActionData.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-			errorProvider.SetIconAlignment(editorTransactionActionData, ErrorIconAlignment.MiddleRight);
-			editorTransactionActionData.Location = new Point(3, 34);
-			editorTransactionActionData.Name = "editorTransactionActionData";
-			editorTransactionActionData.Properties.MaxLength = 2000;
-			editorTransactionActionData.Properties.ReadOnly = true;
-			editorTransactionActionData.Size = new Size(562, 419);
-			editorTransactionActionData.TabIndex = 31;
+			editorRollbackActionData.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+			errorProvider.SetIconAlignment(editorRollbackActionData, ErrorIconAlignment.MiddleRight);
+			editorRollbackActionData.Location = new Point(3, 34);
+			editorRollbackActionData.Name = "editorTransactionActionData";
+			editorRollbackActionData.Properties.MaxLength = 2000;
+			editorRollbackActionData.Properties.ReadOnly = true;
+			editorRollbackActionData.Size = new Size(562, 419);
+			editorRollbackActionData.TabIndex = 31;
 			// 
 			// tabPageTransactionRequests
 			// 
+			tabPageTransactionRequests.Controls.Add(gridControlTransactionRequests);
 			tabPageTransactionRequests.Controls.Add(labelControlNoOfTransactionActions);
 			tabPageTransactionRequests.Controls.Add(labelControlTransactionRequestCount);
 			tabPageTransactionRequests.Name = "tabPageTransactionRequests";
 			tabPageTransactionRequests.Size = new Size(568, 456);
 			tabPageTransactionRequests.Text = "Transaction Requests";
 			// 
+			// gridControlTransactionRequests
+			// 
+			gridControlTransactionRequests.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+			gridControlTransactionRequests.Location = new Point(3, 34);
+			gridControlTransactionRequests.MainView = gridViewTransactionRequests;
+			gridControlTransactionRequests.Name = "gridControlTransactionRequests";
+			gridControlTransactionRequests.Size = new Size(562, 419);
+			gridControlTransactionRequests.TabIndex = 47;
+			gridControlTransactionRequests.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] { gridViewTransactionRequests });
+			// 
+			// gridViewTransactionRequests
+			// 
+			gridViewTransactionRequests.GridControl = gridControlTransactionRequests;
+			gridViewTransactionRequests.Name = "gridViewTransactionRequests";
+			// 
 			// labelControlNoOfTransactionActions
 			// 
-			labelControlNoOfTransactionActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			labelControlNoOfTransactionActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			labelControlNoOfTransactionActions.Appearance.Options.UseFont = true;
 			labelControlNoOfTransactionActions.Appearance.Options.UseTextOptions = true;
 			labelControlNoOfTransactionActions.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
@@ -317,7 +337,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// labelControlNoOfDatastoreActions
 			// 
-			labelControlNoOfDatastoreActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			labelControlNoOfDatastoreActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			labelControlNoOfDatastoreActions.Appearance.Options.UseFont = true;
 			labelControlNoOfDatastoreActions.Appearance.Options.UseTextOptions = true;
 			labelControlNoOfDatastoreActions.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
@@ -349,7 +369,7 @@ namespace Simple.Objects.ServerMonitor
 			// 
 			// labelControlNoOfRollbackActions
 			// 
-			labelControlNoOfRollbackActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			labelControlNoOfRollbackActions.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			labelControlNoOfRollbackActions.Appearance.Options.UseFont = true;
 			labelControlNoOfRollbackActions.Appearance.Options.UseTextOptions = true;
 			labelControlNoOfRollbackActions.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
@@ -386,13 +406,15 @@ namespace Simple.Objects.ServerMonitor
 			((System.ComponentModel.ISupportInitialize)editorCreationTime.Properties).EndInit();
 			((System.ComponentModel.ISupportInitialize)gridControlRollbackActions).EndInit();
 			((System.ComponentModel.ISupportInitialize)gridViewRollbackActions).EndInit();
-			((System.ComponentModel.ISupportInitialize)tabControlTransactionRequest).EndInit();
-			tabControlTransactionRequest.ResumeLayout(false);
+			((System.ComponentModel.ISupportInitialize)tabControlTransactionDetails).EndInit();
+			tabControlTransactionDetails.ResumeLayout(false);
 			tabPageRollbackActionBinaries.ResumeLayout(false);
 			tabPageRollbackActionBinaries.PerformLayout();
-			((System.ComponentModel.ISupportInitialize)editorTransactionActionData.Properties).EndInit();
+			((System.ComponentModel.ISupportInitialize)editorRollbackActionData.Properties).EndInit();
 			tabPageTransactionRequests.ResumeLayout(false);
 			tabPageTransactionRequests.PerformLayout();
+			((System.ComponentModel.ISupportInitialize)gridControlTransactionRequests).EndInit();
+			((System.ComponentModel.ISupportInitialize)gridViewTransactionRequests).EndInit();
 			tabPageDatastoreActions.ResumeLayout(false);
 			tabPageDatastoreActions.PerformLayout();
 			((System.ComponentModel.ISupportInitialize)gridControlDatastoreActions).EndInit();
@@ -417,12 +439,12 @@ namespace Simple.Objects.ServerMonitor
 		protected DevExpress.XtraEditors.LabelControl labelControlTransactionRequestCount;
 		protected DevExpress.XtraGrid.GridControl gridControlRollbackActions;
 		protected DevExpress.XtraGrid.Views.Grid.GridView gridViewRollbackActions;
-		protected DevExpress.XtraTab.XtraTabControl tabControlTransactionRequest;
+		protected DevExpress.XtraTab.XtraTabControl tabControlTransactionDetails;
 		protected DevExpress.XtraTab.XtraTabPage tabPageTransactionRequests;
 		protected DevExpress.XtraTab.XtraTabPage tabPageRollbackActionBinaries;
 		protected DevExpress.XtraEditors.LabelControl labelControlNoOfRollbackActions;
 		protected DevExpress.XtraEditors.LabelControl labelControlRollbackActions;
-		protected DevExpress.XtraEditors.MemoEdit editorTransactionActionData;
+		protected DevExpress.XtraEditors.MemoEdit editorRollbackActionData;
 		protected DevExpress.XtraEditors.LabelControl labelControlRollbackActionDataLength;
 		protected DevExpress.XtraEditors.LabelControl labelControlRollbackActionDataNoOfBytes;
 		protected DevExpress.XtraEditors.LabelControl labelControlNoOfTransactionActions;
@@ -434,5 +456,7 @@ namespace Simple.Objects.ServerMonitor
 		protected DevExpress.XtraTab.XtraTabPage tabPageTransactionActions;
 		protected DevExpress.XtraTab.XtraTabPage tabPageRollbackActions;
 		protected DevExpress.XtraTab.XtraTabPage tabtabPageRollbackActionBinaries;
+		protected DevExpress.XtraGrid.GridControl gridControlTransactionRequests;
+		protected DevExpress.XtraGrid.Views.Grid.GridView gridViewTransactionRequests;
 	}
 }

@@ -23,53 +23,65 @@ namespace Simple.Objects.ServerMonitor
 {
 	public partial class EditPanelTransactionLog : EditPanelServerMonitorBase
 	{
-		private GridColumn columnTransactionAction, columnTransactionTableId, columnTransactionObjectId, columnTransactionPropertyValues;
+		private GridColumn columnTransactionRequestAction, columnTransactionRequestTableId, columnTransactionRequestObjectId, columnTransactionRequestPropertyValues;
 		private GridColumn columnDatastoreAction, columnDatastoreTableName, columnDatastoreObjectId, columnDatastorePropertyValues;
-		private BindingList<TransactionActionLogRow> dataSourceRollbackActions = new BindingList<TransactionActionLogRow>();
+		private GridColumn columnRollbackAction, columnRollbackTableId, columnRollbackObjectId, columnRollbackPropertyValues;
+		private BindingList<TransactionActionRow> dataSourceTransactionRequests = new BindingList<TransactionActionRow>();
 		private BindingList<DatastoreActionRow> dataSourceDatastoreActions = new BindingList<DatastoreActionRow>();
-		private RepositoryItemMemoEdit repositoryItemRollbackActionPropertyValues = new RepositoryItemMemoEdit();
+		private BindingList<TransactionActionRow> dataSourceRollbackActions = new BindingList<TransactionActionRow>();
+		private RepositoryItemMemoEdit repositoryItemTransactionRequestPropertyValues = new RepositoryItemMemoEdit();
 		private RepositoryItemMemoEdit repositoryItemDatastoreActionPropertyValues = new RepositoryItemMemoEdit();
+		private RepositoryItemMemoEdit repositoryItemRollbackActionPropertyValues = new RepositoryItemMemoEdit();
 		//private bool isFirst = true;
 
 		public EditPanelTransactionLog()
 		{
 			InitializeComponent();
 
-			this.columnTransactionAction = new GridColumn();
-			this.columnTransactionAction.Name = this.columnTransactionAction.FieldName = this.columnTransactionAction.Caption = "Action";
-			this.columnTransactionAction.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
-			this.columnTransactionAction.Visible = true;
-			this.gridViewRollbackActions.Columns.Add(this.columnTransactionAction);
+			//
+			// Transaction Requests
+			//
+			this.columnTransactionRequestAction = new GridColumn();
+			this.columnTransactionRequestAction.Name = this.columnTransactionRequestAction.FieldName = this.columnTransactionRequestAction.Caption = "Action";
+			this.columnTransactionRequestAction.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnTransactionRequestAction.Visible = true;
+			this.gridViewTransactionRequests.Columns.Add(this.columnTransactionRequestAction);
 
-			this.columnTransactionTableId = new GridColumn();
-			this.columnTransactionTableId.Name = this.columnTransactionTableId.FieldName = this.columnTransactionTableId.Caption = "TableId";
-			this.columnTransactionTableId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
-			this.columnTransactionTableId.Visible = true;
-			this.gridViewRollbackActions.Columns.Add(this.columnTransactionTableId);
+			this.columnTransactionRequestTableId = new GridColumn();
+			this.columnTransactionRequestTableId.Name = this.columnTransactionRequestTableId.FieldName = "TableId";
+			this.columnTransactionRequestTableId.Caption = "TableId (Object Name)";
+			this.columnTransactionRequestTableId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnTransactionRequestTableId.Visible = true;
+			this.gridViewTransactionRequests.Columns.Add(this.columnTransactionRequestTableId);
 
-			this.columnTransactionObjectId = new GridColumn();
-			this.columnTransactionObjectId.Name = this.columnTransactionObjectId.FieldName = "Id";
-			this.columnTransactionObjectId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
-			this.columnTransactionObjectId.Visible = true;
-			this.gridViewRollbackActions.Columns.Add(this.columnTransactionObjectId);
+			this.columnTransactionRequestObjectId = new GridColumn();
+			this.columnTransactionRequestObjectId.Name = this.columnTransactionRequestObjectId.FieldName = "Id";
+			this.columnTransactionRequestObjectId.Caption = "ObjectId";
+			this.columnTransactionRequestObjectId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnTransactionRequestObjectId.Visible = true;
+			this.gridViewTransactionRequests.Columns.Add(this.columnTransactionRequestObjectId);
 
-			this.columnTransactionPropertyValues = new GridColumn();
-			this.columnTransactionPropertyValues.Name = this.columnTransactionPropertyValues.FieldName = "PropertyValues";
-			this.columnTransactionPropertyValues.Caption = "Property Values: Index Name=Value";
-			this.columnTransactionPropertyValues.ColumnEdit = this.repositoryItemRollbackActionPropertyValues;
-			this.columnTransactionPropertyValues.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
-			this.columnTransactionPropertyValues.Visible = true;
-			this.gridViewRollbackActions.Columns.Add(this.columnTransactionPropertyValues);
-			this.gridControlRollbackActions.RepositoryItems.Add(this.repositoryItemRollbackActionPropertyValues);
+			this.columnTransactionRequestPropertyValues = new GridColumn();
+			this.columnTransactionRequestPropertyValues.Name = this.columnTransactionRequestPropertyValues.FieldName = "PropertyValues";
+			this.columnTransactionRequestPropertyValues.Caption = "Property Values: Index Name=Value";
+			this.columnTransactionRequestPropertyValues.ColumnEdit = this.repositoryItemTransactionRequestPropertyValues;
+			this.columnTransactionRequestPropertyValues.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnTransactionRequestPropertyValues.Visible = true;
+			this.gridViewTransactionRequests.Columns.Add(this.columnTransactionRequestPropertyValues);
+			this.gridControlTransactionRequests.RepositoryItems.Add(this.repositoryItemTransactionRequestPropertyValues);
 
-			this.gridViewRollbackActions.OptionsBehavior.AutoPopulateColumns = false;
-			this.gridViewRollbackActions.OptionsView.ShowGroupPanel = false;
-			this.gridViewRollbackActions.OptionsView.ColumnAutoWidth = true;
-			this.gridViewRollbackActions.OptionsView.RowAutoHeight = true;
-			GridHelper.SetViewOnlyMode(this.gridViewRollbackActions);
+			this.gridViewTransactionRequests.OptionsBehavior.AutoPopulateColumns = false;
+			this.gridViewTransactionRequests.OptionsView.ShowGroupPanel = false;
+			this.gridViewTransactionRequests.OptionsView.ColumnAutoWidth = true;
+			this.gridViewTransactionRequests.OptionsView.RowAutoHeight = true;
+			GridHelper.SetViewOnlyMode(this.gridViewTransactionRequests);
 
-			this.gridControlRollbackActions.DataSource = this.dataSourceRollbackActions;
+			this.gridControlTransactionRequests.DataSource = this.dataSourceTransactionRequests;
 
+
+			//
+			// Datastore Actions
+			//
 			this.columnDatastoreAction = new GridColumn();
 			this.columnDatastoreAction.Name = this.columnDatastoreAction.FieldName = this.columnDatastoreAction.Caption = "Action";
 			this.columnDatastoreAction.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
@@ -104,14 +116,54 @@ namespace Simple.Objects.ServerMonitor
 			GridHelper.SetViewOnlyMode(this.gridViewDatastoreActions);
 
 			this.gridControlDatastoreActions.DataSource = this.dataSourceDatastoreActions;
+
+
+			//
+			// Rollback
+			//
+			this.columnRollbackAction = new GridColumn();
+			this.columnRollbackAction.Name = this.columnRollbackAction.FieldName = this.columnRollbackAction.Caption = "Action";
+			this.columnRollbackAction.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnRollbackAction.Visible = true;
+			this.gridViewRollbackActions.Columns.Add(this.columnRollbackAction);
+
+			this.columnRollbackTableId = new GridColumn();
+			this.columnRollbackTableId.Name = this.columnRollbackTableId.FieldName = this.columnRollbackTableId.Caption = "TableId";
+			this.columnRollbackTableId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnRollbackTableId.Visible = true;
+			this.gridViewRollbackActions.Columns.Add(this.columnRollbackTableId);
+
+			this.columnRollbackObjectId = new GridColumn();
+			this.columnRollbackObjectId.Name = this.columnRollbackObjectId.FieldName = "Id";
+			this.columnRollbackObjectId.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnRollbackObjectId.Visible = true;
+			this.gridViewRollbackActions.Columns.Add(this.columnRollbackObjectId);
+
+			this.columnRollbackPropertyValues = new GridColumn();
+			this.columnRollbackPropertyValues.Name = this.columnRollbackPropertyValues.FieldName = "PropertyValues";
+			this.columnRollbackPropertyValues.Caption = "Property Values: Index Name=Value";
+			this.columnRollbackPropertyValues.ColumnEdit = this.repositoryItemRollbackActionPropertyValues;
+			this.columnRollbackPropertyValues.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+			this.columnRollbackPropertyValues.Visible = true;
+			this.gridViewRollbackActions.Columns.Add(this.columnRollbackPropertyValues);
+			this.gridControlRollbackActions.RepositoryItems.Add(this.repositoryItemRollbackActionPropertyValues);
+
+			this.gridViewRollbackActions.OptionsBehavior.AutoPopulateColumns = false;
+			this.gridViewRollbackActions.OptionsView.ShowGroupPanel = false;
+			this.gridViewRollbackActions.OptionsView.ColumnAutoWidth = true;
+			this.gridViewRollbackActions.OptionsView.RowAutoHeight = true;
+			GridHelper.SetViewOnlyMode(this.gridViewRollbackActions);
+
+			this.gridControlRollbackActions.DataSource = this.dataSourceRollbackActions;
 		}
+
 		//protected override void OnBindingObjectChange(object oldBindingObject, object bindingObject)
 		//{
 		//	base.OnBindingObjectChange(oldBindingObject, bindingObject);
 		//	this.OnRefreshBindingObject();
 		//}
 
-		protected new FormMain? Context => base.Context as FormMain;
+		//protected new FormMain? Context => base.Context as FormMain;
 		bool isFirstTime = true;
 
 		protected override void OnRefreshBindingObject()
@@ -154,7 +206,7 @@ namespace Simple.Objects.ServerMonitor
 			//while (this.isFirstTime)
 			//	Thread.Sleep(500);
 
-			TransactionInfoRow transactionInfoRow = this.BindingObject as TransactionInfoRow;
+			TransactionInfoRow transactionInfoRow = (this.BindingObject as TransactionInfoRow)!;
 
 			//var objectModel = this.Context?.GetServerObjectModel(41).GetAwaiter().GetResult();
 			//var objectModel2 = Program.MonitorClient.GetServerObjectModel(41).GetAwaiter().GetResult();
@@ -166,32 +218,31 @@ namespace Simple.Objects.ServerMonitor
 
 			//this.editorNumberOfActions.Text = transactionInfoRow.TransactionActions.Length.ToString();
 
-			transactionInfoRow.RollbackActions ??= this.ReadRollbackActions();
+			transactionInfoRow.TransactionRequests ??= this.ReadTransactionRequests();
 			transactionInfoRow.DatastoreActions ??= this.ReadDatastoreActions();
+			transactionInfoRow.RollbackTransactionActions ??= SystemTransaction.GetRollbackTransactionActions(transactionInfoRow.RollbackActionData, transactionInfoRow.CodePage, transactionInfoRow.IsRollbackActionDataCompressed, transactionInfoRow.CompressionAlgorithm, this.Context!.GetServerObjectModel);
 
+			//
+			// Transaction Requests
+			//
+			this.labelControlNoOfTransactionActions.Text = String.Format("({0} Action{1}):", transactionInfoRow.TransactionRequests.Count(), transactionInfoRow.TransactionRequests.Count() > 1 ? "s" : "");
 
-			this.labelControlNoOfDatastoreActions.Text = String.Format("({0} Action{1}):", transactionInfoRow.DatastoreActions.Count(), transactionInfoRow.DatastoreActions.Count() > 1 ? "s" : "");
+			this.gridViewTransactionRequests.BeginUpdate();
+			this.dataSourceTransactionRequests.Clear();
 
+			for (int i = 0; i < transactionInfoRow.TransactionRequests.Count(); i++)
+				this.AppendTransactionRequestRow(i + 1, transactionInfoRow.TransactionRequests.ElementAt(i));
 
+			this.columnTransactionRequestAction.BestFit();
+			this.columnTransactionRequestTableId.BestFit();
+			this.columnTransactionRequestObjectId.BestFit();
+			this.gridViewTransactionRequests.EndUpdate();
 
-
-			//this.labelControlNoOfTransactionActions.Text = String.Format("({0} Action{1}):", transactionInfoRow.TransactionRequests.Count(), transactionInfoRow.TransactionRequests.Count() > 1 ? "s" : "");
-			this.labelControlRollbackActionDataNoOfBytes.Text = String.Format("{0} Byte{1}", transactionInfoRow.RollbackActionData?.Length ?? 0, transactionInfoRow.RollbackActionData?.Length > 1 ? "s" : "");
-			this.editorTransactionActionData.Text = BitConverter.ToString(transactionInfoRow.RollbackActionData ?? new byte[0]);
-
-			// Rollback Actions
-			this.gridViewRollbackActions.BeginUpdate();
-			this.dataSourceRollbackActions.Clear();
-
-			for (int i = 0; i < transactionInfoRow.RollbackActions.Count(); i++)
-				this.AppendTransactionActionRow(i + 1, transactionInfoRow.RollbackActions.ElementAt(i));
-
-			this.columnTransactionAction.BestFit();
-			this.columnTransactionTableId.BestFit();
-			this.columnTransactionObjectId.BestFit();
-			this.gridViewRollbackActions.EndUpdate();
-
+			//
 			// Datastore Actions
+			//
+			this.labelControlNoOfDatastoreActions.Text = String.Format("({0} Action{1}):", transactionInfoRow.DatastoreActions.Count(), transactionInfoRow.DatastoreActions.Count() > 1 ? "s" : "");
+		
 			this.gridViewDatastoreActions.BeginUpdate();
 			this.dataSourceDatastoreActions.Clear();
 
@@ -202,24 +253,43 @@ namespace Simple.Objects.ServerMonitor
 			this.columnDatastoreTableName.BestFit();
 			this.columnDatastoreObjectId.BestFit();
 			this.gridViewDatastoreActions.EndUpdate();
+
+			//
+			// Rollback Actions
+			//
+			this.labelControlNoOfRollbackActions.Text = String.Format("({0} Action{1}):", transactionInfoRow.RollbackTransactionActions.Count(), transactionInfoRow.RollbackTransactionActions.Count() > 1 ? "s" : "");
+			this.labelControlRollbackActionDataNoOfBytes.Text = String.Format("{0} Byte{1}", transactionInfoRow.RollbackActionData?.Length ?? 0, transactionInfoRow.RollbackActionData?.Length > 1 ? "s" : "");
+			this.editorRollbackActionData.Text = BitConverter.ToString(transactionInfoRow.RollbackActionData ?? new byte[0]);
+			//this.editorRollbackTransactionActionData.Text = BitConverter.ToString(transactionInfoRow.TransactionRequestData ?? new byte[0]);
+
+			this.gridViewRollbackActions.BeginUpdate();
+			this.dataSourceRollbackActions.Clear();
+
+			for (int i = 0; i < transactionInfoRow.RollbackTransactionActions.Count(); i++)
+				this.AppendRollbackActionRow(i + 1, transactionInfoRow.RollbackTransactionActions.ElementAt(i));
+
+			this.columnRollbackAction.BestFit();
+			this.columnRollbackTableId.BestFit();
+			this.columnRollbackObjectId.BestFit();
+			this.gridViewRollbackActions.EndUpdate();
+
 			//this.labelControlNumberOfActions.Text = String.Format("Transaction Action Details ({0} Action{1}):", transactionInfoRow.TransactionActions.Length,
 			//																										transactionInfoRow.TransactionActions.Length > 1 ? "s" : "");
 		}
 
-		private void AppendTransactionActionRow(int actionNumber, TransactionActionInfo transactionActionLog)
+		private void AppendTransactionRequestRow(int actionNumber, TransactionActionInfo transactionAction)
 		{
 			//ServerObjectModelInfo objectModel = Program.MonitorClient.GetServerObjectModelInfo(transactionActionLog.TableId).GetAwaiter().GetResult();
-			ServerObjectModelInfo? serverObjectModel = this.GetServerObjectModel(transactionActionLog.TableId);
+			ServerObjectModelInfo? serverObjectModel = this.Context?.GetServerObjectModel(transactionAction.TableId);
 
-			string action = transactionActionLog.ActionType.ToString(); //String.Format("{0} ({1})", (int)transactionAction.ActionType, transactionAction.ActionType.ToString());
-																		//string objectKey = String.Format("{0} ({1})", transactionActionLog.ObjectKey.ToObjectKeyString(), transactionActionLog.GetObjectModel().ObjectType.Name);
-			string tableIdText = String.Format("{0} ({1})", transactionActionLog.TableId, serverObjectModel.ObjectName);
-			string transactionActionInfo = this.CreateTransactionRequestsInfoText(transactionActionLog, serverObjectModel);
+			string action = transactionAction.ActionType.ToString(); //String.Format("{0} ({1})", (int)transactionAction.ActionType, transactionAction.ActionType.ToString());
+																  //string objectKey = String.Format("{0} ({1})", transactionActionLog.ObjectKey.ToObjectKeyString(), transactionActionLog.GetObjectModel().ObjectType.Name);
+			string tableIdText = String.Format("{0} ({1})", transactionAction.TableId, serverObjectModel?.ObjectName);
+			string propertyInfo = this.CreatePropertyIndexValuesString(serverObjectModel, transactionAction.PropertyIndexValues); 
+			TransactionActionRow row = new TransactionActionRow(action, tableIdText, transactionAction.ObjectId, propertyInfo);
+			int rowIndex = this.dataSourceTransactionRequests.Count;
 
-			TransactionActionLogRow row = new TransactionActionLogRow(action, tableIdText, transactionActionLog.ObjectId, transactionActionInfo);
-			int rowIndex = this.dataSourceRollbackActions.Count;
-
-			this.dataSourceRollbackActions.Add(row);
+			this.dataSourceTransactionRequests.Add(row);
 			//this.dataSourceDatastoreTransactionActionDetails.RefreshRow(rowIndex);
 		}
 
@@ -228,108 +298,122 @@ namespace Simple.Objects.ServerMonitor
 			string action = datastoreAction.ActionType.ToString(); //String.Format("{0} ({1})", (int)transactionAction.ActionType, transactionAction.ActionType.ToString());
 																   //string objectKey = String.Format("{0} ({1})", datastoreAction.ObjectKey.ToObjectKeyString(), datastoreAction.GetObjectModel().ObjectType.Name);
 																   //ServerObjectModelInfo objectModel = Program.MonitorClient.GetServerObjectModelInfo(datastoreAction.TableId).GetAwaiter().GetResult();
-			ServerObjectModelInfo? serverObjectModel = this.GetServerObjectModel(datastoreAction.TableId);
-
-			string actionInfo = this.CreateDatastoreActionInfoText(datastoreAction, serverObjectModel);
-
-			DatastoreActionRow row = new DatastoreActionRow(action, serverObjectModel.TableName, datastoreAction.ObjectId, actionInfo);
+			ServerObjectModelInfo? serverObjectModel = this.Context?.GetServerObjectModel(datastoreAction.TableId);
+			string propertyInfo = this.CreatePropertyIndexValuesString(serverObjectModel, datastoreAction.PropertyIndexValues, startIndex: (datastoreAction.ActionType == TransactionActionType.Insert) ? 1 : 0);
+			DatastoreActionRow row = new DatastoreActionRow(action, serverObjectModel?.TableName ?? "unknown object name/table", datastoreAction.ObjectId, propertyInfo);
 			int rowIndex = this.dataSourceDatastoreActions.Count;
 
 			this.dataSourceDatastoreActions.Add(row);
 			//this.dataSourceDatastoreTransactionActionDetails.RefreshRow(rowIndex);
 		}
 
-		private string CreateTransactionRequestsInfoText(TransactionActionInfo transactionAction, ServerObjectModelInfo objectModel)
+		private void AppendRollbackActionRow(int actionNumber, TransactionActionInfo rollbackAction)
 		{
-			string result = String.Empty;
-			//string splitter = String.Empty;
+			//ServerObjectModelInfo objectModel = Program.MonitorClient.GetServerObjectModelInfo(transactionActionLog.TableId).GetAwaiter().GetResult();
+			ServerObjectModelInfo? serverObjectModel = this.Context?.GetServerObjectModel(rollbackAction.TableId);
 
-			if (transactionAction.ActionType != TransactionActionType.Insert)
-			{
-				if (transactionAction.ActionType == TransactionActionType.Update)
-					result += "Old Values: ";
+			string action = rollbackAction.ActionType.ToString(); //String.Format("{0} ({1})", (int)transactionAction.ActionType, transactionAction.ActionType.ToString());
+																		//string objectKey = String.Format("{0} ({1})", transactionActionLog.ObjectKey.ToObjectKeyString(), transactionActionLog.GetObjectModel().ObjectType.Name);
+			string tableIdText = String.Format("{0} ({1})", rollbackAction.TableId, serverObjectModel?.ObjectName);
+			string propertyInfo = (rollbackAction.ActionType == TransactionActionType.Update) ? "Old Values: " : String.Empty;
 
-				if (objectModel != null && transactionAction.PropertyIndexValues != null)
-				{
-					result = this.CreatePropertyIndexValuesString(objectModel, transactionAction.PropertyIndexValues);
+			propertyInfo += this.CreatePropertyIndexValuesString(serverObjectModel, rollbackAction.PropertyIndexValues);
 
-					//for (int i = 0; i < transactionAction.PropertyIndexValues.Count(); i++)
-					//{
-					//	var item = transactionAction.PropertyIndexValues.ElementAt(i);
+			TransactionActionRow row = new TransactionActionRow(action, tableIdText, rollbackAction.ObjectId, propertyInfo);
+			int rowIndex = this.dataSourceRollbackActions.Count;
 
-					//	//if (propertyIndex == SimpleObject.IndexPropertyId)
-					//	//	continue;
-
-					//	//IPropertyModel propertyModel = objectModel.PropertyModels.GetPropertyModel(propertyIndex);
-					//	ServerPropertyInfo propertyInfo = objectModel.GetPropertyInfo(item.PropertyIndex);
-					//	object propertyValue = transactionAction.PropertyIndexValues.ElementAt(i);
-					//	int propertyTypeId = propertyInfo.PropertyTypeId;
-					//	string propertyValueString = this.GePropertyValueString(propertyInfo, propertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
-
-					//	result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyInfo.PropertyName, propertyValueString); //, propertyTypeId);
-					//	splitter = ", ";
-					//}
-				}
-			}
-
-			return result;
-		}
-
-		private string CreateDatastoreActionInfoText(DatastoreActionInfo datastoreAction, ServerObjectModelInfo objectModel)
-		{
-			string result = String.Empty;
-			//string splitter = String.Empty;
-
-			if (datastoreAction.PropertyIndexValues != null)
-			{
-				//ServerObjectModelInfo serverObjectModelInfo = Program.AppClient.GetServerObjectModelInfoFromCache(datastoreAction.TableId);
-				int startIndex = (datastoreAction.ActionType == TransactionActionType.Insert) ? 1 : 0; // Avoid Id for insert
-
-				result = this.CreatePropertyIndexValuesString(objectModel, datastoreAction.PropertyIndexValues, startIndex);
-
-				//if (datastoreAction.PropertyIndexValues != null)
-				//{
-				//	for (int i = startIndex; i < datastoreAction.PropertyIndexValues.Count(); i++) // avoid Id
-				//	{
-				//		var propertyInfo = datastoreAction.PropertyIndexValues.ElementAt(i);
-
-				//		//if (propertyModel.Index == SimpleObject.IndexPropertyId)
-				//		//	continue;
-
-				//		IServerPropertyInfo propertyModel = objectModel[propertyInfo.PropertyIndex];
-				//		string propertyValueString = this.GePropertyValueString(propertyModel, propertyInfo.PropertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
-
-				//		//if (propertyModel.PropertyType.IsEnum)
-				//		//	propertyValueString = String.Format("{0}.{1}", propertyModel.PropertyType.Name, Enum.GetName(propertyModel.PropertyType, propertyValue));
-
-				//		result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyModel.PropertyName, propertyValueString); //, propertyTypeId);
-				//		splitter = "; ";
-				//	}
-				//}
-			}
-
-			return result;
+			this.dataSourceRollbackActions.Add(row);
+			//this.dataSourceDatastoreTransactionActionDetails.RefreshRow(rowIndex);
 		}
 
 
-		private IEnumerable<TransactionActionInfo> ReadRollbackActions()
+		//private string CreateTransactionRequestsInfoText(TransactionActionInfo transactionAction, ServerObjectModelInfo objectModel)
+		//{
+		//	string result = String.Empty;
+		//	//string splitter = String.Empty;
+
+		//	if (transactionAction.ActionType != TransactionActionType.Insert)
+		//	{
+		//		if (transactionAction.ActionType == TransactionActionType.Update)
+		//			result += "Old Values: ";
+
+		//		if (objectModel != null && transactionAction.PropertyIndexValues != null)
+		//		{
+		//			result = this.CreatePropertyIndexValuesString(objectModel, transactionAction.PropertyIndexValues);
+
+		//			//for (int i = 0; i < transactionAction.PropertyIndexValues.Count(); i++)
+		//			//{
+		//			//	var item = transactionAction.PropertyIndexValues.ElementAt(i);
+
+		//			//	//if (propertyIndex == SimpleObject.IndexPropertyId)
+		//			//	//	continue;
+
+		//			//	//IPropertyModel propertyModel = objectModel.PropertyModels.GetPropertyModel(propertyIndex);
+		//			//	ServerPropertyInfo propertyInfo = objectModel.GetPropertyInfo(item.PropertyIndex);
+		//			//	object propertyValue = transactionAction.PropertyIndexValues.ElementAt(i);
+		//			//	int propertyTypeId = propertyInfo.PropertyTypeId;
+		//			//	string propertyValueString = this.GePropertyValueString(propertyInfo, propertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
+
+		//			//	result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyInfo.PropertyName, propertyValueString); //, propertyTypeId);
+		//			//	splitter = ", ";
+		//			//}
+		//		}
+		//	}
+
+		//	return result;
+		//}
+
+		//private string CreateDatastoreActionInfoText(DatastoreActionInfo datastoreAction, ServerObjectModelInfo objectModel)
+		//{
+		//	string result = String.Empty;
+		//	//string splitter = String.Empty;
+
+		//	if (datastoreAction.PropertyIndexValues != null)
+		//	{
+		//		//ServerObjectModelInfo serverObjectModelInfo = Program.AppClient.GetServerObjectModelInfoFromCache(datastoreAction.TableId);
+		//		int startIndex = (datastoreAction.ActionType == TransactionActionType.Insert) ? 1 : 0; // Avoid Id for insert
+
+		//		result = this.CreatePropertyIndexValuesString(objectModel, datastoreAction.PropertyIndexValues, startIndex);
+
+		//		//if (datastoreAction.PropertyIndexValues != null)
+		//		//{
+		//		//	for (int i = startIndex; i < datastoreAction.PropertyIndexValues.Count(); i++) // avoid Id
+		//		//	{
+		//		//		var propertyInfo = datastoreAction.PropertyIndexValues.ElementAt(i);
+
+		//		//		//if (propertyModel.Index == SimpleObject.IndexPropertyId)
+		//		//		//	continue;
+
+		//		//		IServerPropertyInfo propertyModel = objectModel[propertyInfo.PropertyIndex];
+		//		//		string propertyValueString = this.GePropertyValueString(propertyModel, propertyInfo.PropertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
+
+		//		//		//if (propertyModel.PropertyType.IsEnum)
+		//		//		//	propertyValueString = String.Format("{0}.{1}", propertyModel.PropertyType.Name, Enum.GetName(propertyModel.PropertyType, propertyValue));
+
+		//		//		result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyModel.PropertyName, propertyValueString); //, propertyTypeId);
+		//		//		splitter = "; ";
+		//		//	}
+		//		//}
+		//	}
+
+		//	return result;
+		//}
+
+		public TransactionActionInfo[] ReadTransactionRequests()
 		{
-			IEnumerable<TransactionActionInfo> result;
+			TransactionActionInfo[] result;
 
-			if (this.BindingObject is TransactionInfoRow transactionInfoRow)
+			if (this.BindingObject is TransactionInfoRow transactionInfoRow && this.Context != null)
 			{
-				if (transactionInfoRow != null && transactionInfoRow.IsRollbackActionDataCompressed)
-					transactionInfoRow.RollbackActionData = SystemTransaction.Decompress(transactionInfoRow.RollbackActionData);
+				SequenceReader reader = new SequenceReader(transactionInfoRow.TransactionRequestData, Encoding.GetEncoding(transactionInfoRow.CodePage));
+				int actionCount = reader.ReadInt32Optimized();
+				TransactionActionInfo[] transactionActions = new TransactionActionInfo[actionCount];
 
-				SequenceReader reader = new SequenceReader(transactionInfoRow.RollbackActionData, transactionInfoRow.characterEncoding);
-				int count = reader.ReadInt32Optimized();
-				TransactionActionInfo[] transactionActions = new TransactionActionInfo[count];
-
-				for (int i = 0; i < count; i++)
+				for (int i = 0; i < actionCount; i++)
 				{
 					TransactionActionInfo item = new TransactionActionInfo();
 
-					item.ReadFrom(ref reader, this.GetServerObjectModel);
+					item.ReadFrom(ref reader, this.Context.GetServerObjectModel);
 					transactionActions[i] = item;
 				}
 
@@ -343,13 +427,13 @@ namespace Simple.Objects.ServerMonitor
 			return result;
 		}
 
-		public IEnumerable<DatastoreActionInfo> ReadDatastoreActions()
+		private DatastoreActionInfo[] ReadDatastoreActions()
 		{
-			IEnumerable<DatastoreActionInfo> result;
+			DatastoreActionInfo[] result;
 
-			if (this.BindingObject is TransactionInfoRow transactionInfoRow)
+			if (this.BindingObject is TransactionInfoRow transactionInfoRow && this.Context != null)
 			{
-				SequenceReader reader = new SequenceReader(transactionInfoRow.DatastoreActionsData, transactionInfoRow.characterEncoding);
+				SequenceReader reader = new SequenceReader(transactionInfoRow.DatastoreActionsData, Encoding.GetEncoding(transactionInfoRow.CodePage));
 				int datastoreActionCount = reader.ReadInt32Optimized();
 				DatastoreActionInfo[] datastoreActions = new DatastoreActionInfo[datastoreActionCount];
 
@@ -357,7 +441,7 @@ namespace Simple.Objects.ServerMonitor
 				{
 					DatastoreActionInfo item = new DatastoreActionInfo();
 
-					item.ReadFrom(ref reader, this.GetServerObjectModel);
+					item.ReadFrom(ref reader, this.Context.GetServerObjectModel);
 					datastoreActions[i] = item;
 				}
 
@@ -371,19 +455,51 @@ namespace Simple.Objects.ServerMonitor
 			return result;
 		}
 
-		private ServerObjectModelInfo? GetServerObjectModel(int tableId)
+		//private IEnumerable<TransactionActionInfo> ReadRollbackActions()
+		//{
+		//	IEnumerable<TransactionActionInfo> result;
+
+		//	if (this.BindingObject is TransactionInfoRow transactionInfoRow && this.Context != null)
+		//	{
+		//		if (transactionInfoRow != null && transactionInfoRow.IsRollbackActionDataCompressed)
+		//			transactionInfoRow.RollbackActionData = SystemTransaction.Decompress(transactionInfoRow.RollbackActionData);
+
+		//		SequenceReader reader = new SequenceReader(transactionInfoRow.RollbackActionData, transactionInfoRow.characterEncoding);
+		//		int count = reader.ReadInt32Optimized();
+		//		TransactionActionInfo[] transactionActions = new TransactionActionInfo[count];
+
+		//		for (int i = 0; i < count; i++)
+		//		{
+		//			TransactionActionInfo item = new TransactionActionInfo();
+
+		//			item.ReadFrom(ref reader, this.Context.GetServerObjectModel);
+		//			transactionActions[i] = item;
+		//		}
+
+		//		result = transactionActions;
+		//	}
+		//	else
+		//	{
+		//		result = new TransactionActionInfo[0];
+		//	}
+
+		//	return result;
+		//}
+
+
+		//private ServerObjectModelInfo? GetServerObjectModel(int tableId)
+		//{
+		//	ServerObjectModelInfo? result = null;
+
+		//	if (this.Context is FormMain formMain)
+		//		result = formMain.GetServerObjectModel(tableId);
+
+		//	return result;
+		//}
+
+		class TransactionActionRow : TransactionLogBaseRow
 		{
-			ServerObjectModelInfo? result = null;
-
-			if (this.Context is FormMain formMain)
-				result = formMain.GetServerObjectModel(tableId);
-
-			return result;
-		}
-
-		class TransactionActionLogRow : TransactionLogBaseRow
-		{
-			public TransactionActionLogRow(string actionText, string tableIdText, long objectId, string propertyValuesText)
+			public TransactionActionRow(string actionText, string tableIdText, long objectId, string propertyValuesText)
 				: base(actionText, objectId, propertyValuesText)
 			{
 				this.TableId = tableIdText;

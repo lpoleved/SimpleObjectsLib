@@ -8,12 +8,12 @@ namespace Simple.Objects.Controls
 {
 	public class UndoForeignObjectSet : UndoAction
 	{
-		public UndoForeignObjectSet(RelationForeignObjectSetRequesterEventArgs foreignRelationSetInfo)
+		public UndoForeignObjectSet(RelationForeignObjectSetChangeContainerContextRequesterEventArgs foreignRelationSetInfo)
 		{
 			this.ForeignRelationSetInfo = foreignRelationSetInfo;
 		}
 
-		public RelationForeignObjectSetRequesterEventArgs ForeignRelationSetInfo { get; private set; }
+		public RelationForeignObjectSetChangeContainerContextRequesterEventArgs ForeignRelationSetInfo { get; private set; }
 
 		public override string GetText(UndoActionType actionType)
 		{

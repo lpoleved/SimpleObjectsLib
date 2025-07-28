@@ -45,14 +45,14 @@ namespace Simple.Objects.ServerMonitor
 				{
 					//int tableId = requestArgs.TableId;
 					//var objectModel = Program.MonitorClient.GetServerObjectModelInfoFromCache(tableId);
-					var objectModel = this.GetServerObjectModel(requestArgs.TableId);
-					string graphName = this.GetRelationName(requestArgs.RealationKey);
-					string objectName = this.GetObjectName(requestArgs.TableId, requestArgs.ObjectId);
+					var objectModel = this.Context?.GetServerObjectModel(requestArgs.TableId);
+					var relationName = this.Context?.GetRelationName(requestArgs.RealationKey);
+					var objectName = this.Context?.GetObjectName(requestArgs.TableId, requestArgs.ObjectId);
 
 					//if (objectModel != null)
 					this.editorTableId.Text = String.Format("{0} ({1})", requestArgs.TableId, objectModel?.ObjectName);
 					this.editorObjectId.Text = $"{requestArgs.ObjectId.ToString()} ({objectName})";
-					this.editorRelationKey.Text = $"{requestArgs.RealationKey.ToString()} ({graphName})";
+					this.editorRelationKey.Text = $"{requestArgs.RealationKey.ToString()} ({relationName})";
 
 					//else
 					//	Task.Run(async () =>
@@ -78,7 +78,7 @@ namespace Simple.Objects.ServerMonitor
 					this.treeListObjectIds.EndUnboundLoad();
 				}
 			}
-			catch (Exception ex)
+			catch
 			{
 				return;
 			}

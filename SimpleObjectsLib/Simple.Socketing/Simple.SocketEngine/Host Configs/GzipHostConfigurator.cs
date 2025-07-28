@@ -10,58 +10,65 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
-using SuperSocket.GZip;
 using SuperSocket.ProtoBase;
+using System.IO.Compression;
+using SuperSocket.Server.Host;
 
 namespace Simple.SocketEngine
 {
-    public class GzipHostConfigurator : TcpHostConfigurator
-    {
-        public GzipHostConfigurator()
-        {
-            IsSecure = false;
-        }
-
-		public override string WebSocketSchema => "wss";
+	public class GzipHostConfigurator : TcpHostConfigurator
+	{
+		public GzipHostConfigurator()
+		{
+			WebSocketSchema = "wss";
+			IsSecure = false;
+		}
 
 		public override void Configure(ISuperSocketHostBuilder hostBuilder)
-        {
-            hostBuilder.ConfigureServices((ctx, services) =>
-            {
-                services.Configure<ServerOptions>((options) =>
-                {
-                    var listener = options.Listeners[0];
+		{
+			hostBuilder.ConfigureServices((ctx, services) =>
+			{
+				services.Configure<ServerOptions>((options) =>
+				{
+					var listener = options.Listeners[0];
 
-                });
-            });
-            hostBuilder.UseGZip();
+				});
+			});
+			hostBuilder.UseGZip();
 
-            base.Configure(hostBuilder);
-        }
-        public override ValueTask<Stream> GetClientStream(Socket socket)
-        {
-            Stream stream = new GZipReadWriteStream(new NetworkStream(socket, false), true);
-            return new ValueTask<Stream>(stream);
-        }
+			base.Configure(hostBuilder);
+		}
+		public override ValueTask<Stream> GetClientStream(Socket socket)
+		{
+			var networkStream = new NetworkStream(socket, false);
+			var stream = new ReadWriteDelegateStream(
+				networkStream,
+				new GZipStream(networkStream, CompressionMode.Decompress),
+				new GZipStream(networkStream, CompressionMode.Compress));
+			return new ValueTask<Stream>(stream);
+		}
 
-        protected virtual SslProtocols GetServerEnabledSslProtocols()
-        {
-            //return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
-            return SslProtocols.Tls12 | SslProtocols.Tls11;
-        }
+		protected virtual SslProtocols GetServerEnabledSslProtocols()
+		{
+			return SslProtocols.Tls12; // | SslProtocols.Tls13;
+		}
 
-        protected virtual SslProtocols GetClientEnabledSslProtocols()
-        {
-            //return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
-            return SslProtocols.Tls12 | SslProtocols.Tls11;
-        }
+		protected virtual SslProtocols GetClientEnabledSslProtocols()
+		{
+			return SslProtocols.Tls12; // | SslProtocols.Tls13;
+		}
 
-        public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options) where TPackageInfo : class
-        {
-            return new GZipEasyClient<TPackageInfo>(pipelineFilter, options);
-        }
-    }
+		public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
+			where TPackageInfo : class
+		{
+			var client = new EasyClient<TPackageInfo>(pipelineFilter, options);
+			client.CompressionLevel = CompressionLevel.Optimal;
+			return client;
+		}
+	}
 
 }

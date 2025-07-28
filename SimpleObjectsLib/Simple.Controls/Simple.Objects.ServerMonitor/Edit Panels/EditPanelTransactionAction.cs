@@ -126,7 +126,7 @@ namespace Simple.Objects.ServerMonitor
 				this.editorNewIds.Text = String.Empty;
 			}
 
-			if (responseArgs.MessageInfo.IsNullOrEmpty())
+			if (responseArgs.InfoMessage.IsNullOrEmpty())
 			{
 				this.labelControlInfoMessage.Visible = false;
 				this.editorInfoMessage.Visible = false;
@@ -134,7 +134,7 @@ namespace Simple.Objects.ServerMonitor
 			else
 			{
 				this.labelControlInfoMessage.Text = (responseArgs.TransactionSucceeded) ? "Info Message:" : "Error Description:";
-				this.editorInfoMessage.Text = responseArgs.MessageInfo;
+				this.editorInfoMessage.Text = responseArgs.InfoMessage;
 				this.labelControlInfoMessage.Visible = true;
 				this.editorInfoMessage.Visible = true;
 			}
@@ -174,7 +174,7 @@ namespace Simple.Objects.ServerMonitor
 
 		private void AppendTransactionRequestActionRow(int actionNumber, TransactionActionInfo transactionActionWithDataInfo)
 		{
-			ServerObjectModelInfo? objectModel = this.GetServerObjectModel(transactionActionWithDataInfo.TableId);
+			ServerObjectModelInfo? objectModel = this.Context?.GetServerObjectModel(transactionActionWithDataInfo.TableId);
 			string action = transactionActionWithDataInfo.ActionType.ToString();
 			//string objectKey = String.Format("{0} ({1})", transactionAction.ObjectKey.ToObjectKeyString(), transactionAction.ObjectModel.ObjectType.Name);
 			string tableIdText = String.Format("{0} ({1})", transactionActionWithDataInfo.TableId, objectModel?.ObjectName);

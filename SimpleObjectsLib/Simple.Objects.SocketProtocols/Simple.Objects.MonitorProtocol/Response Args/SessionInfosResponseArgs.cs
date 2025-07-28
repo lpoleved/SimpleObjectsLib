@@ -8,6 +8,7 @@ using Simple.Serialization;
 using Simple.SocketEngine;
 using SuperSocket;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions.Session;
 
 namespace Simple.Objects.MonitorProtocol
 {
@@ -22,19 +23,17 @@ namespace Simple.Objects.MonitorProtocol
 		{
 			this.SessionInfos = new SessionInfo[sessions.Count()];
 
-			for (int i = 0; i < sessions.Count(); i++) 
+			for (int i = 0; i < sessions.Count(); i++)	
 			{
-				SimpleSession? session = sessions.ElementAt(i) as SimpleSession;
-
-				if (session != null)
+				if (sessions.ElementAt(i) is SimpleSession session)
 				{
-					string serverEndPoint = (session.LocalEndPoint is IPEndPoint server) ? server.Address.ToString() : session.LocalEndPoint.ToString();
+					string serverEndPoint = (session.LocalEndPoint is IPEndPoint server) ? server.Address.ToString() : session.LocalEndPoint.ToString()!;
 					int serverPort = (session.LocalEndPoint is IPEndPoint server2) ? server2.Port : ServerBase.DefaultPort;
 					
-					string clientEndPoint = (session.RemoteEndPoint is IPEndPoint client) ? client.Address.ToString() : session.LocalEndPoint.ToString();
+					string clientEndPoint = (session.RemoteEndPoint is IPEndPoint client) ? client.Address.ToString() : session.LocalEndPoint.ToString()!;
 					int clientPort = (session.RemoteEndPoint is IPEndPoint client2) ? client2.Port : 1024;
 
-					this.SessionInfos[i] = new SessionInfo(session.SessionKey, serverEndPoint, serverPort, clientEndPoint, clientPort, session.CharacterEncoding, session.UserId.ToString());
+					this.SessionInfos[i] = new SessionInfo(session.SessionKey, serverEndPoint, serverPort, clientEndPoint, clientPort, session.CharacterEncoding, session.UserId, session.Username);
 				}
 			}
 		}
@@ -62,6 +61,7 @@ namespace Simple.Objects.MonitorProtocol
 				writer.WriteString(sessionInfo.ClientAddress);
 				writer.WriteInt32Optimized(sessionInfo.ClientPort);
 				writer.WriteInt32(sessionInfo.CharacterEncoding.CodePage);
+				writer.WriteInt64Optimized(sessionInfo.UserId);
 				writer.WriteString(sessionInfo.Username);
 			}
 		}
@@ -73,7 +73,7 @@ namespace Simple.Objects.MonitorProtocol
 			var sessions = new SessionInfo[reader.ReadInt32Optimized()];
 			
 			for (int i = 0; i < sessions.Length; i++)
-				sessions[i] = new SessionInfo(reader.ReadInt64Optimized(), reader.ReadString(), reader.ReadInt32Optimized(), reader.ReadString(), reader.ReadInt32Optimized(), Encoding.GetEncoding(reader.ReadInt32()), reader.ReadString());
+				sessions[i] = new SessionInfo(reader.ReadInt64Optimized(), reader.ReadString(), reader.ReadInt32Optimized(), reader.ReadString(), reader.ReadInt32Optimized(), Encoding.GetEncoding(reader.ReadInt32()), reader.ReadInt64Optimized(), reader.ReadString());
 			
 			this.SessionInfos = sessions;
 		}
@@ -81,7 +81,7 @@ namespace Simple.Objects.MonitorProtocol
 
 	public class SessionInfo
 	{
-		public SessionInfo(long sessionKey, string serverAddress, int serverPort, string clientAddress, int clientPort, Encoding characterEncoding, string username)
+		public SessionInfo(long sessionKey, string serverAddress, int serverPort, string clientAddress, int clientPort, Encoding characterEncoding, long userId, string username)
 		{
 			this.SessionKey = sessionKey;
 			this.ServerAddress = serverAddress;
@@ -89,6 +89,7 @@ namespace Simple.Objects.MonitorProtocol
 			this.ClientAddress = clientAddress;
 			this.ClientPort = clientPort;
 			this.CharacterEncoding = characterEncoding;
+			this.UserId = userId;
 			this.Username = username;
 		}
 
@@ -98,6 +99,7 @@ namespace Simple.Objects.MonitorProtocol
 		public string ClientAddress { get; private set; }
 		public int ClientPort { get; private set; }
 		public Encoding CharacterEncoding { get; private set; }
+		public long UserId { get; private set; }
 		public string Username { get; private set; }
 	}
 }

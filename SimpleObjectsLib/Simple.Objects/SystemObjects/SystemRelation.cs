@@ -11,7 +11,7 @@ namespace Simple.Objects
 	{
 		static SystemRelation()
 		{
-			Model.TableInfo = SystemTables.SystemRelations;
+			Model.TableInfo = SystemTablesBase.SystemRelations;
 			Model.AutoGenerateKey = false;
 		}
 
@@ -30,7 +30,7 @@ namespace Simple.Objects
 		}
 
 		[ObjectKey]
-		[DatastoreType(typeof(short))]
+		[DatastoreType(typeof(int))]
 		public int RelationKey { get; set; }
 
 		public string? Name { get; set; }

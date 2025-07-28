@@ -28,12 +28,13 @@ namespace Simple.Objects.Controls
 		private FieldInfo? imageIndexFieldInfo = typeof(TreeListNode).GetField("imageIndex", BindingFlags.Instance | BindingFlags.NonPublic);
 		private FieldInfo? selectImageIndexFieldInfo = typeof(TreeListNode).GetField("selectImageIndex", BindingFlags.Instance | BindingFlags.NonPublic);
 		private FieldInfo? stateImageIndexFieldInfo = typeof(TreeListNode).GetField("stateImageIndex", BindingFlags.Instance | BindingFlags.NonPublic);
+		private object? destinationNodeParentCandidate = null;
 
-        #endregion |   Private Members   |
+		#endregion |   Private Members   |
 
-        #region |   Constructors and Initialization   |
+		#region |   Constructors and Initialization   |
 
-        public GraphControlTreeListDevExpress(IGraphController graphController)
+		public GraphControlTreeListDevExpress(IGraphController graphController)
         {
             this.graphController = graphController;
         }
@@ -90,6 +91,7 @@ namespace Simple.Objects.Controls
                     this.treeList.BeforeDragNode += new BeforeDragNodeEventHandler(treeList_BeforeDragNode);
                     this.treeList.DragOver += new DragEventHandler(treeList_DragOver);
                     this.treeList.DragDrop += new DragEventHandler(treeList_DragDrop);
+					this.treeList.AfterDropNode += TreeList_AfterDropNode;
                     this.treeList.GiveFeedback += new GiveFeedbackEventHandler(treeList_GiveFeedback);
 					this.treeList.EndSorting += new EventHandler(treeList_EndSorting);
 
@@ -103,11 +105,12 @@ namespace Simple.Objects.Controls
             }
         }
 
-        #endregion |   Public Properties   |
 
-        #region |   Public Methods   |
+		#endregion |   Public Properties   |
 
-        public void SetEditMode(GraphEditMode editMode)
+		#region |   Public Methods   |
+
+		public void SetEditMode(GraphEditMode editMode)
         {
             if (this.TreeList is null)
                 return;
@@ -354,13 +357,13 @@ namespace Simple.Objects.Controls
             return null;
         }
 
-        public void SetCellEditValue(object node, int columnIndex, object value)
+        public void SetCellEditValue(object node, int columnIndex, object? value)
         {
             if (node is TreeListNode treeListNode)
                 treeListNode.SetValue(columnIndex, value);
         }
 
-        public void MoveNode(object sourceNode, object destinationNode)
+        public void MoveNode(object sourceNode, object? destinationNode)
         {
             this.TreeList?.MoveNode(sourceNode as TreeListNode, destinationNode as TreeListNode, false);
         }
@@ -698,28 +701,61 @@ namespace Simple.Objects.Controls
 
         private void treeList_DragOver(object sender, DragEventArgs e)
         {
-            if (this.TreeList is null)
-                return;
+            DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
+            //object dragNode = e.Data.GetData(typeof(SimpleTreeListNode));
+            //         Point p = this.TreeList.PointToClient(new Point(e.X, e.Y));
+            //         object targetNode = this.TreeList.CalcHitInfo(p).Node;
 
-            object dragNode = e.Data.GetData(typeof(SimpleTreeListNode));
-            Point p = this.TreeList.PointToClient(new Point(e.X, e.Y));
-            object targetNode = this.TreeList.CalcHitInfo(p).Node;
+            //e.Effect = this.GraphController.GetDragDropEffect(dragNode, targetNode);
 
-            e.Effect = this.GraphController.GetDragDropEffect(dragNode, targetNode);
-        }
-
-        private void treeList_DragDrop(object sender, DragEventArgs e)
-        {
-            if (this.TreeList is null)
-                return;
-
-            object dragNode = e.Data.GetData(typeof(SimpleTreeListNode));
-            Point p = this.TreeList.PointToClient(new Point(e.X, e.Y));
-            object targetNode = this.TreeList.CalcHitInfo(p).Node;
-
-            this.GraphController.DragDrop(dragNode, targetNode);
             e.Effect = DragDropEffects.None;
+
+            if (args.DragInsertPosition != DragInsertPosition.None)
+            {
+                TreeListNode? newParentNode = this.GetDragDropParentNode(args.TargetNode, args.DragInsertPosition);
+				bool canChangeParent = this.GraphController.CanNodeChangeParent(args.Node, newParentNode);
+
+                if (canChangeParent)
+                {
+                    e.Effect = DragDropEffects.Move;
+					this.destinationNodeParentCandidate = newParentNode;
+				}
+			}
         }
+
+		private TreeListNode? GetDragDropParentNode(TreeListNode targetNode, DragInsertPosition dragInsertPosition)
+		{
+			TreeListNode? parentNode = targetNode;
+
+			if (dragInsertPosition == DragInsertPosition.Before || dragInsertPosition == DragInsertPosition.After)
+				parentNode = targetNode?.ParentNode;
+
+			return parentNode;
+		}
+
+		private void treeList_DragDrop(object sender, DragEventArgs e)
+        {
+			DXDragEventArgs args = this.TreeList.GetDXDragEventArgs(e);
+
+			if (args.DragInsertPosition == DragInsertPosition.None && this.destinationNodeParentCandidate == null) // In case when node can be moved to root (last under all elements in root position, if thex ecists) we need to manualy move node.
+				this.TreeList?.MoveNode(args.Node, destinationNode: null);                                         // TreeList AfterDropNode event is not fired
+
+			this.GraphController.DragDrop(args.Node, this.destinationNodeParentCandidate);
+		}
+
+		private void TreeList_AfterDropNode(object sender, AfterDropNodeEventArgs e)
+		{
+            //if (this.TreeList is null)
+            //    return;
+            
+            if (e.Node is not null)
+            {
+				int nodeIndex = this.TreeList!.GetNodeIndex(e.Node);
+				
+                this.GraphController.AfterDropNode(e.Node, nodeIndex);
+            }
+		}
+
 
         private void treeList_GiveFeedback(object sender, GiveFeedbackEventArgs e)
         {

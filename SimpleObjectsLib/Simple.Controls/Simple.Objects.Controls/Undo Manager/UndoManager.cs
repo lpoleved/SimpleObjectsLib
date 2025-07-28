@@ -180,7 +180,7 @@ namespace Simple.Objects.Controls
 				{
 					this.objectManager.PropertyValueChange += this.ObjectManager_PropertyValueChange;
 					this.objectManager.RelationForeignObjectSet += this.ObjectManager_RelationForeignObjectSet;
-					this.objectManager.NewObjectCreated += this.ObjectManager_NewObjectCreated;
+					this.objectManager.NewObjectCreated += this.ObjectManager_NewClientObjectCreated;
 					this.objectManager.AfterDelete += this.ObjectManager_AfterDelete;
 					this.objectManager.TransactionFinished += this.ObjectManager_TransactionFinished;
 				}
@@ -191,7 +191,7 @@ namespace Simple.Objects.Controls
 				{
 					this.objectManager.PropertyValueChange += this.ObjectManager_PropertyValueChange;
 					this.objectManager.RelationForeignObjectSet += this.ObjectManager_RelationForeignObjectSet;
-					this.objectManager.NewObjectCreated += this.ObjectManager_NewObjectCreated;
+					this.objectManager.NewObjectCreated += this.ObjectManager_NewClientObjectCreated;
 					this.objectManager.AfterDelete += this.ObjectManager_AfterDelete;
 					this.objectManager.TransactionFinished += this.ObjectManager_TransactionFinished;
 				}
@@ -300,38 +300,38 @@ namespace Simple.Objects.Controls
 			this.selectedRibbonPage = this.RibbonControl.SelectedPage;
 		}
 
-		private void ObjectManager_PropertyValueChange(object sender, ChangePropertyValueSimpleObjectRequesterEventArgs e)
+		private void ObjectManager_PropertyValueChange(object sender, ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
-			if (this.CanAndo(e.Requester))
+			if (this.CanUndo(e.Requester))
 			{
 				IPropertyModel propertyModel = e.SimpleObject.GetModel().PropertyModels.GetPropertyModel(e.PropertyModel.PropertyIndex);
 
-				if (propertyModel.IsKey || propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId)
+				if (propertyModel.IsId || propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId)
 					return;
 
 				this.AddHistory(new UndoPropertyChange(e) { SelectedRibbonPage = this.selectedRibbonPage });
 			}
 		}
 
-		private void ObjectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetRequesterEventArgs e)
+		private void ObjectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetChangeContainerContextRequesterEventArgs e)
 		{
-			if (this.CanAndo(e.Requester))
+			if (this.CanUndo(e.Requester))
 				this.AddHistory(new UndoForeignObjectSet(e) { SelectedRibbonPage = this.selectedRibbonPage });
 		}
 
-		private void ObjectManager_NewObjectCreated(object sender, SimpleObjectRequesterEventArgs e)
+		private void ObjectManager_NewClientObjectCreated(object sender, SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
-			if (this.CanAndo(e.Requester))
+			if (this.CanUndo(e.Requester))
 				this.AddHistory(new UndoNewObjectCreated(e.SimpleObject) { SelectedRibbonPage = this.selectedRibbonPage });
 		}
 
-		private void ObjectManager_AfterDelete(object sender, SimpleObjectRequesterEventArgs e)
+		private void ObjectManager_AfterDelete(object sender, SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
-			if (this.CanAndo(e.Requester))
+			if (this.CanUndo(e.Requester))
 				this.AddHistory(new UndoObjectDeleted(e.SimpleObject) { SelectedRibbonPage = this.selectedRibbonPage });
 		}
 
-		private bool CanAndo(object? requester)
+		private bool CanUndo(object? requester)
 		{
 			return !(requester is UndoAction || requester is ForeignClientRequester);
 		}

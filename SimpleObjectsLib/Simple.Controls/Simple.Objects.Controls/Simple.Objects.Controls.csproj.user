@@ -19,31 +19,31 @@
     <Compile Update="Forms\SimpleRibbonFormTemplate.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Panels\EditPanelEmpty.cs">
+    <Compile Update="Edit Panels\EditPanelEmpty.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\EditPanelFolder.cs">
+    <Compile Update="Edit Panels\EditPanelFolder.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\EditPanelName.cs">
+    <Compile Update="Edit Panels\EditPanelName.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\EditPanelNameDescription.cs">
+    <Compile Update="Edit Panels\EditPanelNameDescription.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\EditPanelWithTabControl.cs">
+    <Compile Update="Edit Panels\EditPanelWithTabControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\SystemEditPanelEmpty.cs">
+    <Compile Update="Edit Panels\SystemEditPanelEmpty.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\SystemEditPanelTransaction.cs">
+    <Compile Update="Edit Panels\SystemEditPanelTransaction.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\SystemEditPanelTransactionActionInfo.cs">
+    <Compile Update="Edit Panels\SystemEditPanelTransactionActionInfo.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Panels\SystemEditPanelWithTabControl.cs">
+    <Compile Update="Edit Panels\SystemEditPanelWithTabControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Ribbon Modules\RibbonModuleDevelopment.cs">

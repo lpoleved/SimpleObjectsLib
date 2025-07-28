@@ -7,6 +7,7 @@ using System.Buffers;
 using SuperSocket.ProtoBase;
 using Simple.Serialization;
 using System.Diagnostics.Eventing.Reader;
+using System.Diagnostics;
 
 namespace Simple.SocketEngine
 {
@@ -48,9 +49,10 @@ namespace Simple.SocketEngine
 				package.WriteHeader(ref binaryWriter);
 				package.PackageArgs = new ErrorResponseArgs(PackageStatus.ExceptionIsCaughtOnArgsWriting, ex.GetFullErrorMessage());
 				package.PackageArgs?.WriteTo(ref binaryWriter, package.Session);
+				Debug.WriteLine("PackageEncoder error on writing PackageArgs: " + ex.GetFullErrorMessage());
 			}
 
-            var packageLengthData = PackageEngine.Create7BitEncodedInt64Span(binaryWriter.BytesWritten);
+			var packageLengthData = PackageEngine.Create7BitEncodedInt64Span(binaryWriter.BytesWritten);
 
             writer.Write(packageLengthData);
             binaryWriter.WriteDataTo(writer);

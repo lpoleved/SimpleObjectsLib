@@ -17,6 +17,9 @@ namespace Simple.Objects
         protected long parentId, oldParentId;
         protected int objectTableId, oldObjectTableId;
         protected long objectId, oldObjectId;
+        protected long userId = 1, oldUserId = 1;
+        protected long previousParentId, oldPreviousParentId;
+        protected bool doesPreviousParentHaveChildren, oldDoesPreviousParentHaveChildren;
 
         #endregion |   Protected Members   |
 
@@ -36,40 +39,52 @@ namespace Simple.Objects
             int maxIndex = GraphElementModel.PropertyModel.GetCollection().GetMaxIndex();
 
             GetFieldValueMethods = new Func<GraphElement, object?>[maxIndex + 1];
-            GetFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]            = (item) => item.id;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]    = (item) => item.previousId;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]      = (item) => item.graphKey;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]      = (item) => item.parentId;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex] = (item) => item.objectTableId;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]      = (item) => item.objectId;
-            GetFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]    = (item) => item.orderIndex;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]                             = (item) => item.id;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]                     = (item) => item.previousId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]                       = (item) => item.graphKey;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]                       = (item) => item.parentId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex]                  = (item) => item.objectTableId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]                       = (item) => item.objectId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.UserId.PropertyIndex]                         = (item) => item.userId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]                     = (item) => item.orderIndex;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex]               = (item) => item.previousParentId;
+            GetFieldValueMethods[GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex] = (item) => item.doesPreviousParentHaveChildren;
 
             GetOldFieldValueMethods = new Func<GraphElement, object?>[maxIndex + 1];
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]            = (item) => item.oldId;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]    = (item) => item.oldPreviousId;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]      = (item) => item.oldGraphKey;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]      = (item) => item.oldParentId;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex] = (item) => item.oldObjectTableId;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]      = (item) => item.oldObjectId;
-            GetOldFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]    = (item) => item.oldOrderIndex;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]                             = (item) => item.oldId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]                     = (item) => item.oldPreviousId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]                       = (item) => item.oldGraphKey;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]                       = (item) => item.oldParentId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex]                  = (item) => item.oldObjectTableId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]                       = (item) => item.oldObjectId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.UserId.PropertyIndex]                         = (item) => item.oldUserId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]                     = (item) => item.oldOrderIndex;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex]               = (item) => item.oldPreviousParentId;
+            GetOldFieldValueMethods[GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex] = (item) => item.oldDoesPreviousParentHaveChildren;
 
             SetFieldValueMethods = new Action<GraphElement, object>[maxIndex + 1];
-            SetFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]            = (item, value) => item.id = (long)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]    = (item, value) => item.previousId = (long)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]      = (item, value) => item.graphKey = (int)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]      = (item, value) => item.parentId = (long)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex] = (item, value) => item.objectTableId = (int)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]      = (item, value) => item.objectId = (long)value;
-            SetFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]    = (item, value) => item.orderIndex = (int)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]                             = (item, value) => item.id = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]                     = (item, value) => item.previousId = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]                       = (item, value) => item.graphKey = (int)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]                       = (item, value) => item.parentId = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex]                  = (item, value) => item.objectTableId = (int)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]                       = (item, value) => item.objectId = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.UserId.PropertyIndex]                         = (item, value) => item.userId = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]                     = (item, value) => item.orderIndex = (int)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex]               = (item, value) => item.previousParentId = (long)value;
+            SetFieldValueMethods[GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex] = (item, value) => item.doesPreviousParentHaveChildren = (bool)value;
 
             SetOldFieldValueMethods = new Action<GraphElement, object>[maxIndex + 1];
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]            = (item, value) => item.oldId = (long)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]    = (item, value) => item.oldPreviousId = (long)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]      = (item, value) => item.oldGraphKey = (int)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]      = (item, value) => item.oldParentId = (long)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex] = (item, value) => item.oldObjectTableId = (int)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]      = (item, value) => item.oldObjectId = (long)value;
-            SetOldFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]    = (item, value) => item.oldOrderIndex = (int)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.Id.PropertyIndex]                             = (item, value) => item.oldId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousId.PropertyIndex]                     = (item, value) => item.oldPreviousId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.GraphKey.PropertyIndex]                       = (item, value) => item.oldGraphKey = (int)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ParentId.PropertyIndex]                       = (item, value) => item.oldParentId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex]                  = (item, value) => item.oldObjectTableId = (int)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.ObjectId.PropertyIndex]                       = (item, value) => item.oldObjectId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.UserId.PropertyIndex]                         = (item, value) => item.oldUserId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.OrderIndex.PropertyIndex]                     = (item, value) => item.oldOrderIndex = (int)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.PreviousParentId.PropertyIndex]               = (item, value) => item.oldPreviousParentId = (long)value;
+            SetOldFieldValueMethods[GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren.PropertyIndex] = (item, value) => item.oldDoesPreviousParentHaveChildren = (bool)value;
         }
 
         #endregion |   Static Methods Initialization   |
@@ -77,7 +92,7 @@ namespace Simple.Objects
         #region |   Properties by Object Property Model   |
 
         /// <summary>
-        ///  Gets or sets GraphKey property value.
+        /// Gets or sets GraphKey
         /// </summary>
         public int GraphKey
         {
@@ -86,27 +101,53 @@ namespace Simple.Objects
 		}
 
         /// <summary>
-        /// Gets ParentId property value.
+        /// Gets ParentId
         /// </summary>
-        internal long ParentId
+        public long ParentId
         {
             get { return this.parentId; }
 		}
 
         /// <summary>
-        /// Gets ObjectTableId property value.
+        /// Gets ObjectTableId
         /// </summary>
-        internal int ObjectTableId
+        public int ObjectTableId
         {
             get { return this.objectTableId; }
 		}
 
         /// <summary>
-        /// Gets ObjectId property value.
+        /// Gets ObjectId
         /// </summary>
-        internal long ObjectId
+        public long ObjectId
         {
             get { return this.objectId; }
+		}
+
+        /// <summary>
+        /// Gets UserId
+        /// </summary>
+        public long UserId
+        {
+            get { return this.userId; }
+		}
+
+        /// <summary>
+        /// Gets or sets PreviousParentId
+        /// </summary>
+        public long PreviousParentId
+        {
+            get { return this.previousParentId; }
+            set { this.SetPropertyValue(GraphElementModel.PropertyModel.PreviousParentId, value); }
+		}
+
+        /// <summary>
+        /// Gets or sets DoesPreviousParentHaveChildren
+        /// </summary>
+        public bool DoesPreviousParentHaveChildren
+        {
+            get { return this.doesPreviousParentHaveChildren; }
+            set { this.SetPropertyValue(GraphElementModel.PropertyModel.DoesPreviousParentHaveChildren, value); }
 		}
 
         #endregion |   Properties by Object Property Model   |
@@ -125,9 +166,9 @@ namespace Simple.Objects
         /// <summary>
         /// Gets or sets one-to-many relation primary SimpleObject object.
         /// </summary>
-        public SimpleObject? SimpleObject
+        public SimpleObject SimpleObject
         {
-            get { return this.GetOneToManyPrimaryObject<SimpleObject>(RelationPolicyModelBase.OneToManyGraphElementToSimpleObject); }
+            get { return this.GetOneToManyPrimaryObject<SimpleObject>(RelationPolicyModelBase.OneToManyGraphElementToSimpleObject)!; }
             set { this.SetOneToManyPrimaryObject(value, RelationPolicyModelBase.OneToManyGraphElementToSimpleObject); }
         }
 

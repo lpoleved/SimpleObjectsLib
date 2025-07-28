@@ -402,9 +402,18 @@ namespace Simple.Objects
 					usedNamespaces.Add(propertyModel.PropertyType.Namespace);
 
 				if (!Comparison.IsEqual(propertyModel.DefaultValue, propertyModel.PropertyType.GetDefaultValue()) && propertyModel.DefaultValue != null)
-					defaultFieldValue += " = " + Conversion.ToString(propertyModel.DefaultValue);
+				{
+					defaultFieldValue = Conversion.ToString(propertyModel.DefaultValue);
+
+					if (propertyModel.PropertyType.IsArray)
+						defaultFieldValue = "new " + defaultFieldValue;
+
+					defaultFieldValue = " = " + defaultFieldValue;
+				}
 				else if (propertyModel.PropertyType == typeof(string))
-					defaultFieldValue += " = default";
+				{
+					defaultFieldValue = " = String.Empty";
+				}
 
 				if (!usedPropertyInfos.Keys.Contains(propertyName)) // Avoid adding duplicate fields
 					strProtectedMembers += "        protected " + fieldTypeName + " " + fieldName + defaultFieldValue + ", old" + propertyModel.PropertyName + defaultFieldValue + ";\r\n";
@@ -427,7 +436,7 @@ namespace Simple.Objects
 						//strPropertyListSet = "            " + setPropertyAccessModifier + "set { this.SetPropertyValue<" + fieldTypeName + ">(" + masterObjectModel.Name + ".PropertyModel." + propertyModel.PropertyName + ", " + fieldCasting + "value, ref this." + fieldName + ", this.old" + propertyModel.PropertyName + "); }\r\n";
 
 					strPropertyList += "        /// <summary>\r\n" +
-									   "        /// " + (strPropertyListSet.IsNullOrEmpty() ? "Gets " : " Gets or sets ") + propertyModel.PropertyName + " property value.\r\n" +
+									   "        /// " + (strPropertyListSet.IsNullOrEmpty() ? "Gets " : "Gets or sets ") + (propertyModel.Description.IsNullOrEmpty() ? propertyModel.PropertyName : propertyModel.Description.Replace("\r\n", "\r\n        /// ")) + "\r\n" +
 									   "        /// </summary>\r\n" +
 									   "        " + accessModifier.ToLowerString() + " " + propertyTypeName + " " + propertyModel.PropertyName + "\r\n" +
 									   "        {\r\n" +
@@ -473,7 +482,7 @@ namespace Simple.Objects
 									   "        /// </summary>\r\n" +
 									   "        " + accessModifier.ToLowerString() + " " + foreignObjectTypeNullableName + " " + propertyName + "\r\n" +
 									   "        {\r\n" +
-						 String.Format("            get {{ return this.GetOneToOneForeignObject({0}.{1}) as {2}; }}\r\n", oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName, foreignObjectTypeName) +
+						 String.Format("            get {{ return this.GetOneToOneForeignObject<{0}>({1}.{2}){3}; }}\r\n", foreignObjectTypeName, oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName, (oneToOneRelationModel.CanBeNull) ? "" : "!") +
 						 String.Format("            {0}set {{ this.SetOneToOneForeignObject(value, {1}.{2}); }}\r\n", setAccessModifierText, oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName) +
 									   "        }\r\n";
 
@@ -516,7 +525,7 @@ namespace Simple.Objects
 									   "        /// </summary>\r\n" +
 									   "        " + accessModifier.ToLowerString() + " " + primaryObjectTypeNullableName + " " + propertyName + "\r\n" +
 									   "        {\r\n" +
-						 String.Format("            get {{ return this.GetOneToOnePrimaryObject({0}.{1}) as {2}; }}\r\n", oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName, primaryObjectTypeName) +
+						 String.Format("            get {{ return this.GetOneToOnePrimaryObject<{0}>({1}.{2}){3}; }}\r\n", primaryObjectTypeName, oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName, (oneToOneRelationModel.CanBeNull) ? "" : "!") +
 						 String.Format("            {0}set {{ this.SetOneToOnePrimaryObject(value, {1}.{2}); }}\r\n", setAccessModifierText, oneToOneRelationModel.DefinitionObjectClassType.Name, oneToOneRelationModel.DefinitionFieldName) +
 									   "        }\r\n";
 				
@@ -528,10 +537,12 @@ namespace Simple.Objects
 				string propertyName = oneToManyRelationModel.PrimaryObjectName;
 				string summary = oneToManyRelationModel.PrimaryObjectSummary.IsNullOrEmpty() ? "Gets or sets one-to-many relation primary " + propertyName + " object." : oneToManyRelationModel.PrimaryObjectSummary.Replace("\r\n", "        /// \r\n");
 				string primaryObjectTypeName = oneToManyRelationModel.PrimaryObjectType.GetName();
-				string primaryObjectTypeNullableName = primaryObjectTypeName + "?"; // oneToManyRelationModel.GetObjectTypeName(oneToManyRelationModel.PrimaryObjectType);
+				string primaryObjectTypeNullableName = primaryObjectTypeName + ((oneToManyRelationModel.CanBeNull) ? "?" : ""); // oneToManyRelationModel.GetObjectTypeName(oneToManyRelationModel.PrimaryObjectType);
 				AccessModifier accessModifier = oneToManyRelationModel.ForeignAccessModifier;
 				AccessModifier setAccessModifier = oneToManyRelationModel.ForeignSetAccessModifier;
 				string setAccessModifierText = (setAccessModifier != AccessModifier.Default) ? setAccessModifier.ToLowerString() + " " : "";
+
+				if (oneToManyRelationModel.CanBeNull)
 
 				if ((accessModifier & AccessModifier.Override) != AccessModifier.Override) // If not AccessModifier.Override already
 				{
@@ -559,7 +570,7 @@ namespace Simple.Objects
 									   "        /// </summary>\r\n" +
 									   "        " + accessModifier.ToLowerString() + " " + primaryObjectTypeNullableName + " " + propertyName + "\r\n" +
 									   "        {\r\n" +
-						 String.Format("            get {{ return this.GetOneToManyPrimaryObject<{0}>({1}.{2}); }}\r\n", primaryObjectTypeName, oneToManyRelationModel.DefinitionObjectClassType.Name, oneToManyRelationModel.DefinitionFieldName) +
+						 String.Format("            get {{ return this.GetOneToManyPrimaryObject<{0}>({1}.{2}){3}; }}\r\n", primaryObjectTypeName, oneToManyRelationModel.DefinitionObjectClassType.Name, oneToManyRelationModel.DefinitionFieldName, (oneToManyRelationModel.CanBeNull) ? "" : "!") +
 						 String.Format("            {0}set {{ this.SetOneToManyPrimaryObject(value, {1}.{2}); }}\r\n", setAccessModifierText, oneToManyRelationModel.DefinitionObjectClassType.Name, oneToManyRelationModel.DefinitionFieldName) +
 									   "        }\r\n";
 

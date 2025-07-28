@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Text;
 using Simple;
@@ -32,15 +33,15 @@ namespace Simple.Modeling
 	}
 
 	public class PropertyModelCollection<TPropertyModel> : IPropertyModelCollection<TPropertyModel>, IEnumerable<TPropertyModel> //, IPropertySequence
-		where TPropertyModel : IPropertyModel
+		where TPropertyModel : class, IPropertyModel
 	{
-		private TPropertyModel[] propertyModelsByIndexArray = null;
+		private TPropertyModel[] propertyModelsByIndexArray;
 		//private PropertySequence propertySequence = null;
-		private SimpleDictionary<string, TPropertyModel> propertyModelsByName = null;
+		private SimpleDictionary<string, TPropertyModel> propertyModelsByName;
 
 
 		public PropertyModelCollection(Type modelHolderClassType, object owner)
-			: this(Activator.CreateInstance(modelHolderClassType), owner)
+			: this(Activator.CreateInstance(modelHolderClassType)!, owner)
 		{
 		}
 
@@ -195,16 +196,16 @@ namespace Simple.Modeling
 			}
 		}
 
-		public TPropertyModel this[string propertyName]
+		public TPropertyModel? this[string propertyName]
 		{
 			get 
 			{
 				TPropertyModel value;
 
-				if (!this.propertyModelsByName.TryGetValue(propertyName, out value))
-					value = default(TPropertyModel);
+				if (this.propertyModelsByName.TryGetValue(propertyName, out value))
+					return value;
 
-				return value;
+				return default;
 			}
 		}
 
@@ -223,22 +224,15 @@ namespace Simple.Modeling
 			return (this.propertyModelsByName.Values.Count > 0) ? this.propertyModelsByName.Values.Max(model => model.PropertyIndex) : -1;
 		}
 
-		public TPropertyModel GetPropertyModel(int propertyIndex)
+		public TPropertyModel? GetPropertyModel(int propertyIndex)
 		{
 			if (propertyIndex >= 0 && propertyIndex < this.propertyModelsByIndexArray.Count())
-			{
 				return this.propertyModelsByIndexArray[propertyIndex];
-			}
 			else
-			{
-				return default(TPropertyModel);
-			}
+				return default;
 		}
 
-		public TPropertyModel GetPropertyModel(string propertyName)
-		{
-			return this[propertyName];
-		}
+		public TPropertyModel? GetPropertyModel(string propertyName) => this[propertyName];
 
 		//public CustomDictionary<string, T> ToDictionary<T>()
 		//	where T : IPropertyModelBase
@@ -247,7 +241,7 @@ namespace Simple.Modeling
 		//}
 
 		public PropertyModelCollection<T> AsCustom<T>()
-			where T : IPropertyModel
+			where T : class, IPropertyModel
 		{
 			T[] customPropertyModelsByIndexArray = new T[this.propertyModelsByIndexArray.Length];
 			IDictionary<string, T> customPropertyModelsByName = this.propertyModelsByName.AsCustom<T>();
@@ -325,12 +319,12 @@ namespace Simple.Modeling
 	}
 
 	public interface IPropertyModelCollection<TPropertyModel> : IEnumerable<TPropertyModel>
-		where TPropertyModel : IPropertyModel
+		where TPropertyModel : class, IPropertyModel
 	{
-		TPropertyModel this[int propertyIndex] { get; }
-		TPropertyModel this[string propertyName] { get; }
+		TPropertyModel? this[int propertyIndex] { get; }
+		TPropertyModel? this[string propertyName] { get; }
 
-		TPropertyModel GetPropertyModel(int propertyIndex);
-		TPropertyModel GetPropertyModel(string propertyName);
+		TPropertyModel? GetPropertyModel(int propertyIndex);
+		TPropertyModel? GetPropertyModel(string propertyName);
 	}
 }

@@ -15,8 +15,8 @@ namespace Simple.Objects
 			this.AutoGenerate = true;
         }
 
-		public string DefinitionFieldName { get; set; }
-		public Type DefinitionObjectClassType { get; set; }
+		public string DefinitionFieldName { get; set; } = String.Empty;
+		public Type DefinitionObjectClassType { get; set; } = typeof(RelationPolicyModelBase);
 		public int RelationKey { get; set; }
 		public bool CanBeNull { get; set; }
 		public bool AutoGenerate { get; set; }
@@ -36,9 +36,9 @@ namespace Simple.Objects
 		/// </summary>
 		/// <param name="other">An object to compare with this object.</param>
 		/// <returns>true if the current object is equal to the other parameter; otherwise, false.</returns>
-		bool IEquatable<IRelationModel>.Equals(IRelationModel other)
+		bool IEquatable<IRelationModel>.Equals(IRelationModel? other)
 		{
-			return this.RelationKey == other.RelationKey;
+			return this.RelationKey == other?.RelationKey;
 		}
 	}
 

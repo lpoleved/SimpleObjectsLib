@@ -18,7 +18,7 @@ namespace Simple.Datastore.Controls
         public RestoreDatabaseForm()
         {
             InitializeComponent();
-            this.RestoreFolder = System.IO.Directory.GetCurrentDirectory() + "\\Datastore";
+			this.RestoreFolder = System.IO.Directory.GetCurrentDirectory() + "\\Datastore";
         }
 
         public string RestoreFolder { get; set; }

@@ -2,21 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
 
 namespace SuperSocket.Tests
 {
     public class UdpTextReader : TextReader
     {
-        public UdpPipeChannel<TextPackageInfo> Channel { get; }
+        public UdpPipeConnection Connection { get; }
 
         private IAsyncEnumerator<TextPackageInfo> _packageEnumerator;
 
-        public UdpTextReader(UdpPipeChannel<TextPackageInfo> channel)
+        public UdpTextReader(UdpPipeConnection connection, IPipelineFilter<TextPackageInfo> pipelineFilter)
         {
-            Channel = channel;
-            _packageEnumerator = channel.RunAsync().GetAsyncEnumerator();
+            Connection = connection;
+            _packageEnumerator = connection.RunAsync<TextPackageInfo>(pipelineFilter).GetAsyncEnumerator();
         }
 
         public override string ReadLine()

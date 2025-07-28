@@ -7,6 +7,7 @@ using Simple.Collections;
 using Simple.Serialization;
 using Simple.Modeling;
 using Simple.Compression;
+using System.Transactions;
 
 namespace Simple.Objects
 {
@@ -14,39 +15,46 @@ namespace Simple.Objects
     {
 		static SystemTransaction()
 		{
-			Model.TableInfo = SystemTables.SystemTransactions;
+			Model.TableInfo = SystemTablesBase.SystemTransactions;
 			Model.AutoGenerateKey = true;
 			Model.ReuseObjectKeys = false;
 		}
 
 		public SystemTransaction()
 		{
+			this.CompressionAlgorithm =  (int)TransactionCompressionAlgorithm.MiniLZOSafe;
+			this.RollbackActionData = new byte[0];
+			this.RollbackTransactionActions = new TransactionActionInfo[0];
 		}
 
 		public SystemTransaction(SimpleObjectManager objectManager, ref SystemObjectCollectionByObjectKey<long, SystemTransaction> dictionaryCollection, 
-								 long userId, Encoding characterEncoding, long clientId, int serverId, IEnumerable<TransactionActionInfo> rollbackTransactionActions, TransactionStatus status)
+								 long userId, Encoding characterEncoding, long clientId, int serverId, IEnumerable<TransactionActionInfo> rollbackTransactionActions, TransactionStatus status, TransactionCompressionAlgorithm compressionAlgorithm = TransactionCompressionAlgorithm.MiniLZOSafe)
 			: base(objectManager, ref dictionaryCollection, 
 				  (item) =>
 				  {
 					  item.UserId = userId;
-					  item.CodePage = characterEncoding.CodePage;
 					  item.ClientId = clientId;
 					  item.ServerId = serverId;
+					  item.Status = status;
 					  item.CreationTime = DateTime.Now;
 					  item.RollbackTransactionActions = rollbackTransactionActions;
-					  item.Status = status;
 					  item.RollbackActionData = null;
+					  item.CompressionAlgorithm = compressionAlgorithm;
+					  item.CodePage = characterEncoding.CodePage;
+
 					  //item.TransactionActionsBySimpleObject = new Dictionary<SimpleObject, DatastoreTransactionAction>();
 				  })
 		{
 			this.IsRollbackActionDataCompressed = this.ObjectManager?.UseCompressionForTransactionLogActionData ?? false;
-			this.RollbackActionData = this.CreateRollbackActionData(rollbackTransactionActions);
+			this.RollbackActionData = CreateRollbackActionData(rollbackTransactionActions, this.CodePage, this.IsRollbackActionDataCompressed, compressionAlgorithm, this.ObjectManager!.GetServerObjectModel, out float compresionRatio);
+			this.CompressionRatio = compresionRatio;
+			this.RollbackTransactionActions = new TransactionActionInfo[0];
 		}
 
 		protected override void OnLoad()
 		{
 			base.OnLoad();
-			this.RollbackTransactionActions = this.CreateRollbackTransactionActionsFromActionData();
+			this.RollbackTransactionActions = GetRollbackTransactionActions(this.RollbackActionData, this.CodePage, this.IsRollbackActionDataCompressed, (TransactionCompressionAlgorithm)this.CompressionAlgorithm, this.ObjectManager!.GetServerObjectModel);
 		}
 
 		[ObjectKey]
@@ -62,100 +70,144 @@ namespace Simple.Objects
 		/// Used for serialized TransactionActionLogs.
 		/// TODO: Check if this data is for rollback action: Change the property name to RollbackActionData
 		/// </summary>
-		public byte[]? RollbackActionData { get; private set; }
+		public byte[] RollbackActionData { get; private set; }
 		
 		public bool IsRollbackActionDataCompressed { get; private set; }
 
+		public TransactionCompressionAlgorithm CompressionAlgorithm { get; private set; }
+
 		public int CodePage { get; private set; }
+		
+		public string? ErrorDescription { get; set; }
 
 		[NonStorable]
-		public IEnumerable<TransactionActionInfo>? RollbackTransactionActions { get; private set; }
+		public IEnumerable<TransactionActionInfo> RollbackTransactionActions { get; private set; }
 
 		[NonStorable]
 		public float CompressionRatio { get; private set; }
 
 
-		public static void WriteTo(ref SequenceWriter writer, IEnumerable<TransactionActionInfo> transactionActions, Func<int, ServerObjectModelInfo?> getServerObjectModel)
+		//public static void WriteTo(ref SequenceWriter writer, IEnumerable<TransactionActionInfo> transactionActions, Func<int, ServerObjectModelInfo?> getServerObjectModel)
+		//{
+		//	//writer.WriteInt32Optimized(transactionActions.Count());
+
+		//	//foreach (TransactionActionInfo transactionActionInfo in transactionActions)
+		//	//{
+		//	//	int tableId = transactionActionInfo.TableId;
+		//	//	long objectId = transactionActionInfo.ObjectId;
+		//	//	ServerObjectModelInfo objectModel = getServerObjectModel(tableId);
+
+		//	//	if (transactionActionInfo.ActionType == TransactionActionType.Insert)
+		//	//	{
+		//	//		writer.WriteBoolean(true); // Insert
+		//	//	}
+		//	//	else
+		//	//	{
+		//	//		writer.WriteBoolean(false); // NOT Insert
+		//	//		writer.WriteBoolean(transactionActionInfo.ActionType == TransactionActionType.Update); // true for Update, false for Delete
+		//	//	}
+
+		//	//	writer.WriteInt32Optimized(tableId);
+		//	//	writer.WriteInt64Optimized(objectId);
+
+		//	//	SystemTransactionAction.WriteTo(ref writer, transactionActionInfo.ActionType, transactionActionInfo.PropertyIndexValues, objectModel);
+		//	//}
+
+		//	//return;
+
+		//	// TODO: Is this a same thing.....
+		//	// Add this as extenson method for IEnumerable<TransactionActionInfo> (WriteTo and ReadFrom)
+		//	//
+		//	writer.WriteInt32Optimized(transactionActions.Count());
+
+		//	foreach (TransactionActionInfo item in transactionActions)
+		//		item.WriteTo(ref writer, getServerObjectModel(item.TableId)!);
+		//}
+
+		//public static IEnumerable<TransactionActionInfo> ReadFrom(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModelByTableId) //Func<int, ISimpleObjectModel> getObjectModel)
+		//{
+		//	//int transactionActionCount = reader.ReadInt32Optimized();
+		//	//TransactionActionInfo[] transactionActions = new TransactionActionInfo[transactionActionCount];
+
+		//	//for (int i = 0; i < transactionActionCount; i++)
+		//	//{
+		//	//	TransactionActionType actionType = TransactionActionType.Delete;
+
+		//	//	if (reader.ReadBoolean()) // is Insert?
+		//	//		actionType = TransactionActionType.Insert;
+		//	//	else if (reader.ReadBoolean()) // is Update?
+		//	//		actionType = TransactionActionType.Update;
+
+		//	//	int tableId = reader.ReadInt32Optimized();
+		//	//	long objectId = reader.ReadInt64Optimized();
+		//	//	ServerObjectModelInfo? objectModel = getServerObjectModel(tableId);
+		//	//	IEnumerable<PropertyIndexValuePair>? propertyIndexValues = SystemTransactionAction.ReadFrom(ref reader, actionType, objectModel);
+
+		//	//	transactionActions[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues);
+		//	//}
+
+		//	//return transactionActions;
+
+		//	// TODO: Is this a same thing.....
+		//	int count = reader.ReadInt32Optimized();
+		//	TransactionActionInfo[] result = new TransactionActionInfo[count];
+
+		//	for (int i = 0; i < count; i++)
+		//	{
+		//		TransactionActionInfo item = new TransactionActionInfo();
+
+		//		item.ReadFrom(ref reader, getServerObjectModelByTableId);
+		//		result[i] = item;
+		//	}
+
+		//	return result;
+		//}
+
+#if DEBUG
+		//public new void Save()
+		//{
+		//	//lock (this.lockObject)
+		//	//{
+		//		this.OnBeforeSave();
+
+		//		int[] propertyIndexes = this.GetModel().StorablePropertyIndexes;
+
+		//		propertyIndexes = new int[] { 0, 1, 2, 3 };
+
+		//		var propertyIndexValues = this.GetPropertyIndexValuePairs(propertyIndexes);
+
+		//		if (this.IsNew) // -> Insert
+		//		{
+		//			this.ObjectManager?.LocalDatastore?.InsertRecord(this.GetModel().TableInfo, propertyIndexValues, this.GetModel().GetPropertyModel);
+		//			this.IsNew = false;
+		//		}
+		//		else // -> Update
+		//		{
+		//			long key = this.GetKeyValue();
+
+		//			this.ObjectManager?.LocalDatastore?.UpdateRecord(this.GetModel().TableInfo, this.GetModel().ObjectKeyPropertyModel.PropertyIndex, key, propertyIndexValues, this.GetModel().GetPropertyModel);
+		//		}
+
+		//		this.OnAfterSave();
+		//	//}
+		//}
+#endif
+
+		public static byte[] Compress(byte[] actionData, TransactionCompressionAlgorithm compressionAlgorithm)
 		{
-			//writer.WriteInt32Optimized(transactionActions.Count());
+			if (compressionAlgorithm == TransactionCompressionAlgorithm.MiniLZOSafe)
+				return MiniLZOSafe.Compress(actionData);
 
-			//foreach (TransactionActionInfo transactionActionInfo in transactionActions)
-			//{
-			//	int tableId = transactionActionInfo.TableId;
-			//	long objectId = transactionActionInfo.ObjectId;
-			//	ServerObjectModelInfo objectModel = getServerObjectModel(tableId);
-
-			//	if (transactionActionInfo.ActionType == TransactionActionType.Insert)
-			//	{
-			//		writer.WriteBoolean(true); // Insert
-			//	}
-			//	else
-			//	{
-			//		writer.WriteBoolean(false); // NOT Insert
-			//		writer.WriteBoolean(transactionActionInfo.ActionType == TransactionActionType.Update); // true for Update, false for Delete
-			//	}
-
-			//	writer.WriteInt32Optimized(tableId);
-			//	writer.WriteInt64Optimized(objectId);
-
-			//	SystemTransactionAction.WriteTo(ref writer, transactionActionInfo.ActionType, transactionActionInfo.PropertyIndexValues, objectModel);
-			//}
-
-			//return;
-
-			// TODO: Is this a same thing.....
-			// Add this as extenson method for IEnumerable<TransactionActionInfo> (WriteTo and ReadFrom)
-			//
-			writer.WriteInt32Optimized(transactionActions.Count());
-
-			foreach (TransactionActionInfo item in transactionActions)
-				item.WriteTo(ref writer, getServerObjectModel(item.TableId)!);
+			throw new ArgumentException("CompressionAlgorithm is not defined");
 		}
 
-		public static IEnumerable<TransactionActionInfo> ReadFrom(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel) //Func<int, ISimpleObjectModel> getObjectModel)
+		public static byte[] Decompress(byte[] actionData, TransactionCompressionAlgorithm compressionAlgorithm)
 		{
-			//int transactionActionCount = reader.ReadInt32Optimized();
-			//TransactionActionInfo[] transactionActions = new TransactionActionInfo[transactionActionCount];
+			if (compressionAlgorithm == TransactionCompressionAlgorithm.MiniLZOSafe)
+				return MiniLZOSafe.Decompress(actionData);
 
-			//for (int i = 0; i < transactionActionCount; i++)
-			//{
-			//	TransactionActionType actionType = TransactionActionType.Delete;
-
-			//	if (reader.ReadBoolean()) // is Insert?
-			//		actionType = TransactionActionType.Insert;
-			//	else if (reader.ReadBoolean()) // is Update?
-			//		actionType = TransactionActionType.Update;
-
-			//	int tableId = reader.ReadInt32Optimized();
-			//	long objectId = reader.ReadInt64Optimized();
-			//	ServerObjectModelInfo? objectModel = getServerObjectModel(tableId);
-			//	IEnumerable<PropertyIndexValuePair>? propertyIndexValues = SystemTransactionAction.ReadFrom(ref reader, actionType, objectModel);
-
-			//	transactionActions[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues);
-			//}
-
-			//return transactionActions;
-
-
-			// TODO: Is this a same thing.....
-			int count = reader.ReadInt32Optimized();
-			TransactionActionInfo[] result = new TransactionActionInfo[count];
-
-			for (int i = 0; i < count; i++)
-			{
-				TransactionActionInfo item = new TransactionActionInfo();
-
-				item.ReadFrom(ref reader, getServerObjectModel);
-				result[i] = item;
-			}
-
-			return result;
+			throw new ArgumentException("CompressionAlgorithm is not defined");
 		}
-
-
-		public static byte[] Compress(byte[] actionData) => MiniLZOSafe.Compress(actionData);
-
-		public static byte[] Decompress(byte[] actionData) => MiniLZOSafe.Decompress(actionData);
 
 		//private void WritePropertyValues(SerializationWriter writer, TransactionActionWithDataInfo transactionActionInfo, ISimpleObjectModel objectModel)
 		//{
@@ -182,50 +234,54 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		private byte[] CreateRollbackActionData(IEnumerable<TransactionActionInfo> rollbackTransactionActions)
+		public static byte[] CreateRollbackActionData(IEnumerable<TransactionActionInfo> rollbackTransactionActions, int codePage, bool compressRollbackActionData, TransactionCompressionAlgorithm compressionAlgorithm, Func<int, ServerObjectModelInfo?> getServerObjectModelByTableId, out float compresioRation)
 		{
 			//BufferSequenceWriter bufferSequenceWriter = new BufferSequenceWriter();
 			Span<byte> span = stackalloc byte[256];
-			SequenceWriter writer = new SequenceWriter(span, Encoding.GetEncoding(this.CodePage));
+			SequenceWriter writer = new SequenceWriter(span, Encoding.GetEncoding(codePage));
 
-			WriteTo(ref writer, rollbackTransactionActions, this.ObjectManager!.GetServerObjectModel!);
+			writer.WriteInt32Optimized(rollbackTransactionActions.Count());
 
-			var actionData = writer.ToArray();
+			foreach (TransactionActionInfo item in rollbackTransactionActions)
+				item.WriteTo(ref writer, getServerObjectModelByTableId(item.TableId)!);
 
-			this.IsRollbackActionDataCompressed = this.ObjectManager.UseCompressionForTransactionLogActionData;
 
-			if (this.IsRollbackActionDataCompressed)
+			byte[] data = writer.ToArray();
+
+			//this.IsRollbackActionDataCompressed = this.ObjectManager.UseCompressionForTransactionLogActionData;
+
+			if (compressRollbackActionData)
 			{
-				int uncompressedLength = actionData.Length;
+				int uncompressedLength = data.Length;
 
-				actionData = Compress(actionData);
-				this.CompressionRatio = 100 - ((float)actionData.Length / (float)uncompressedLength) * 100;
+				data = Compress(data, compressionAlgorithm);
+				compresioRation = 100 - ((float)data.Length / (float)uncompressedLength) * 100;
 			}
 			else
 			{
-				this.CompressionRatio = 0;
+				compresioRation = 0;
 			}
 
-			return actionData;
+			return data;
 		}
 
 
-		private IEnumerable<TransactionActionInfo> CreateRollbackTransactionActionsFromActionData()
+		public static TransactionActionInfo[] GetRollbackTransactionActions(byte[] rollbackActionData, int codePage, bool isRollbackActionDataCompressed, TransactionCompressionAlgorithm compressionAlgorithm, Func<int, ServerObjectModelInfo?> getServerObjectModelByTableId)
 		{
-			IEnumerable<TransactionActionInfo> result;
+			byte[] data = rollbackActionData;
 
-			if (this.RollbackActionData != null && this.ObjectManager != null)
+			if (isRollbackActionDataCompressed)
+				data = Decompress(rollbackActionData, compressionAlgorithm);
+
+			SequenceReader reader = new SequenceReader(data, Encoding.GetEncoding(codePage));
+			TransactionActionInfo[] result = new TransactionActionInfo[reader.ReadInt32Optimized()];
+
+			for (int i = 0; i < result.Count(); i++)
 			{
-				if (this.IsRollbackActionDataCompressed && this.RollbackActionData != null)
-					this.RollbackActionData = Decompress(this.RollbackActionData);
+				TransactionActionInfo item = new TransactionActionInfo();
 
-				SequenceReader reader = new SequenceReader(this.RollbackActionData!);
-
-				result = ReadFrom(ref reader, this.ObjectManager.GetServerObjectModel);
-			}
-			else
-			{
-				result = new TransactionActionInfo[0];
+				item.ReadFrom(ref reader, getServerObjectModelByTableId);
+				result[i] = item;
 			}
 
 			return result;
@@ -414,5 +470,10 @@ namespace Simple.Objects
 		Started = 0,
 		Completed = 1,
 		Rollbacked = 2
+	}
+
+	public enum TransactionCompressionAlgorithm
+	{
+		MiniLZOSafe = 0,
 	}
 }

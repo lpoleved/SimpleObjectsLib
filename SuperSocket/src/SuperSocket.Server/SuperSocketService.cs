@@ -8,66 +8,153 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using static SuperSocket.Extensions;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Connections;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Server.Abstractions.Middleware;
+using SuperSocket.Server.Connection;
+using SuperSocket.ProtoBase.ProxyProtocol;
 
 namespace SuperSocket.Server
 {
-    public class SuperSocketService<TReceivePackageInfo> : IHostedService, IServer, IChannelRegister, ILoggerAccessor, ISessionEventHost
+    /// <summary>
+    /// Represents a SuperSocket service that handles connections and sessions.
+    /// </summary>
+    /// <typeparam name="TReceivePackageInfo">The type of the package information received.</typeparam>
+    public class SuperSocketService<TReceivePackageInfo> : ISuperSocketHostedService
     {
+        /// <summary>
+        /// The service provider used for dependency injection.
+        /// </summary>
         private readonly IServiceProvider _serviceProvider;
 
+        /// <summary>
+        /// Gets the service provider for dependency injection.
+        /// </summary>
         public IServiceProvider ServiceProvider
         {
             get { return _serviceProvider; }
         }
 
+        /// <summary>
+        /// Gets the server options for configuration.
+        /// </summary>
         public ServerOptions Options { get; }
+        
+        /// <summary>
+        /// The logger factory used to create loggers.
+        /// </summary>
         private readonly ILoggerFactory _loggerFactory;
+        
+        /// <summary>
+        /// The logger instance for this service.
+        /// </summary>
         private readonly ILogger _logger;
 
+        /// <summary>
+        /// Gets the logger for this service.
+        /// </summary>
         internal protected ILogger Logger
         {
             get { return _logger; }
         }
 
+        /// <summary>
+        /// Gets the logger for the service.
+        /// </summary>
         ILogger ILoggerAccessor.Logger
         {
             get { return _logger; }
         }
 
+        /// <summary>
+        /// The pipeline filter factory for processing received data.
+        /// </summary>
         private IPipelineFilterFactory<TReceivePackageInfo> _pipelineFilterFactory;
-        private IChannelCreatorFactory _channelCreatorFactory;
-        private List<IChannelCreator> _channelCreators;
+        
+        /// <summary>
+        /// The factory for creating connection listeners.
+        /// </summary>
+        private IConnectionListenerFactory _connectionListenerFactory;
+        
+        /// <summary>
+        /// The list of active connection listeners.
+        /// </summary>
+        private List<IConnectionListener> _connectionListeners;
+        
+        /// <summary>
+        /// The scheduler for handling received packages.
+        /// </summary>
         private IPackageHandlingScheduler<TReceivePackageInfo> _packageHandlingScheduler;
+        
+        /// <summary>
+        /// The accessor for the current package handling context.
+        /// </summary>
         private IPackageHandlingContextAccessor<TReceivePackageInfo> _packageHandlingContextAccessor;
 
+        /// <summary>
+        /// Gets the name of the server.
+        /// </summary>
         public string Name { get; }
 
+        /// <summary>
+        /// The current count of active sessions.
+        /// </summary>
         private int _sessionCount;
 
+        /// <summary>
+        /// Gets the current session count.
+        /// </summary>
         public int SessionCount => _sessionCount;
 
+        /// <summary>
+        /// The factory for creating new sessions.
+        /// </summary>
         private ISessionFactory _sessionFactory;
 
+        /// <summary>
+        /// The array of configured middlewares.
+        /// </summary>
         private IMiddleware[] _middlewares;
 
+        /// <summary>
+        /// Gets the array of configured middlewares.
+        /// </summary>
         protected IMiddleware[] Middlewares
         {
             get { return _middlewares; }
         }
 
+        /// <summary>
+        /// The current state of the server.
+        /// </summary>
         private ServerState _state = ServerState.None;
 
+        /// <summary>
+        /// Gets the current state of the server.
+        /// </summary>
         public ServerState State
         {
             get { return _state; }
         }
 
+        /// <summary>
+        /// Gets or sets the data context for the server.
+        /// </summary>
         public object DataContext { get; set; }
 
+        /// <summary>
+        /// The handlers for session events.
+        /// </summary>
         private SessionHandlers _sessionHandlers;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SuperSocketService{TReceivePackageInfo}"/> class.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider for dependency injection.</param>
+        /// <param name="serverOptions">The server options for configuration.</param>
         public SuperSocketService(IServiceProvider serviceProvider, IOptions<ServerOptions> serverOptions)
         {
             if (serviceProvider == null)
@@ -82,7 +169,7 @@ namespace SuperSocket.Server
             _pipelineFilterFactory = GetPipelineFilterFactory();
             _loggerFactory = serviceProvider.GetService<ILoggerFactory>();
             _logger = _loggerFactory.CreateLogger("SuperSocketService");
-            _channelCreatorFactory = serviceProvider.GetService<IChannelCreatorFactory>() ?? new TcpChannelCreatorFactory(serviceProvider);
+            _connectionListenerFactory = serviceProvider.GetService<IConnectionListenerFactory>();
             _sessionHandlers = serviceProvider.GetService<SessionHandlers>();
             _sessionFactory = serviceProvider.GetService<ISessionFactory>();
             _packageHandlingContextAccessor = serviceProvider.GetService<IPackageHandlingContextAccessor<TReceivePackageInfo>>();
@@ -98,7 +185,7 @@ namespace SuperSocket.Server
             else
             {
                 var errorHandler = serviceProvider.GetService<Func<IAppSession, PackageHandlingException<TReceivePackageInfo>, ValueTask<bool>>>()
-                ?? OnSessionErrorAsync;
+                    ?? OnSessionErrorAsync;
 
                 _packageHandlingScheduler = serviceProvider.GetService<IPackageHandlingScheduler<TReceivePackageInfo>>()
                     ?? new SerialPackageHandlingScheduler<TReceivePackageInfo>();
@@ -106,15 +193,30 @@ namespace SuperSocket.Server
             }
         }
 
+        /// <summary>
+        /// Gets the pipeline filter factory to be used for processing received data.
+        /// </summary>
+        /// <returns>A configured pipeline filter factory.</returns>
         protected virtual IPipelineFilterFactory<TReceivePackageInfo> GetPipelineFilterFactory()
         {
-            return _serviceProvider.GetRequiredService<IPipelineFilterFactory<TReceivePackageInfo>>();
+            var filterFactory = _serviceProvider.GetRequiredService<IPipelineFilterFactory<TReceivePackageInfo>>();
+
+            if (Options.EnableProxyProtocol)
+                filterFactory = new ProxyProtocolPipelineFilterFactory<TReceivePackageInfo>(filterFactory);
+
+            return filterFactory;
         }
 
-        private bool AddChannelCreator(ListenOptions listenOptions, ServerOptions serverOptions)
+        /// <summary>
+        /// Adds a new connection listener using the specified options.
+        /// </summary>
+        /// <param name="listenOptions">The options for the listener, or null for default options.</param>
+        /// <param name="serverOptions">The server options for configuration.</param>
+        /// <returns>True if the listener was successfully created and started; otherwise, false.</returns>
+        private bool AddConnectionListener(ListenOptions listenOptions, ServerOptions serverOptions)
         {
-            var listener = _channelCreatorFactory.CreateChannelCreator<TReceivePackageInfo>(listenOptions, serverOptions, _loggerFactory, _pipelineFilterFactory);
-            listener.NewClientAccepted += OnNewClientAccept;
+            var listener = _connectionListenerFactory.CreateConnectionListener(listenOptions, serverOptions, _loggerFactory);
+            listener.NewConnectionAccept += OnNewConnectionAccept;
 
             if (!listener.Start())
             {
@@ -123,13 +225,18 @@ namespace SuperSocket.Server
             }
 
             _logger.LogInformation($"The listener [{listener}] has been started.");
-            _channelCreators.Add(listener);
+            _connectionListeners.Add(listener);
             return true;
         }
 
+        /// <summary>
+        /// Starts listening for incoming connections.
+        /// </summary>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result indicates whether any listeners were started successfully.</returns>
         private Task<bool> StartListenAsync(CancellationToken cancellationToken)
         {
-            _channelCreators = new List<IChannelCreator>();
+            _connectionListeners = new List<IConnectionListener>();
 
             var serverOptions = Options;
 
@@ -140,7 +247,7 @@ namespace SuperSocket.Server
                     if (cancellationToken.IsCancellationRequested)
                         break;
 
-                    if (!AddChannelCreator(l, serverOptions))
+                    if (!AddConnectionListener(l, serverOptions))
                     {
                         continue;
                     }
@@ -150,33 +257,60 @@ namespace SuperSocket.Server
             {
                 _logger.LogWarning("No listener was defined, so this server only can accept connections from the ActiveConnect.");
 
-                if (!AddChannelCreator(null, serverOptions))
+                if (!AddConnectionListener(null, serverOptions))
                 {
-                    _logger.LogError($"Failed to add the channel creator.");
+                    _logger.LogError($"Failed to add the connection creator.");
                     return Task.FromResult(false);
                 }
             }
 
-            return Task.FromResult(_channelCreators.Any());
+            return Task.FromResult(_connectionListeners.Any());
         }
 
-        protected virtual ValueTask OnNewClientAccept(IChannelCreator listener, IChannel channel)
+        /// <summary>
+        /// Called when a new connection is accepted by a listener.
+        /// </summary>
+        /// <param name="listenOptions">The options for the listener that accepted the connection.</param>
+        /// <param name="connection">The newly established connection.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        protected virtual ValueTask OnNewConnectionAccept(ListenOptions listenOptions, IConnection connection)
         {
-            return AcceptNewChannel(channel);
+            return AcceptNewConnection(connection);
         }
 
-        private ValueTask AcceptNewChannel(IChannel channel)
+        /// <summary>
+        /// Accepts a new connection and creates a session for it.
+        /// </summary>
+        /// <param name="connection">The newly established connection.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        private ValueTask AcceptNewConnection(IConnection connection)
         {
             var session = _sessionFactory.Create() as AppSession;
-            return HandleSession(session, channel);
+            return HandleSession(session, connection);
         }
 
-        async Task IChannelRegister.RegisterChannel(object connection)
+        /// <summary>
+        /// Registers a new connection source with the server.
+        /// </summary>
+        /// <param name="connectionSource">The source of the connection to register.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        async Task IConnectionRegister.RegisterConnection(object connectionSource)
         {
-            var channel = await _channelCreators.FirstOrDefault().CreateChannel(connection);
-            await AcceptNewChannel(channel);
+            var connectionListener = _connectionListeners.FirstOrDefault();
+#if NET6_0_OR_GREATER
+            using var cts = CancellationTokenSourcePool.Shared.Rent(connectionListener.Options.ConnectionAcceptTimeOut);
+#else
+            using var cts = new CancellationTokenSource(connectionListener.Options.ConnectionAcceptTimeOut);
+#endif
+            var connection = await connectionListener.ConnectionFactory.CreateConnection(connectionSource, cts.Token);
+            await AcceptNewConnection(connection);
         }
 
+        /// <summary>
+        /// Creates a context for the pipeline filter based on the session.
+        /// </summary>
+        /// <param name="session">The session for which to create the context.</param>
+        /// <returns>The created pipeline context.</returns>
         protected virtual object CreatePipelineContext(IAppSession session)
         {
             return session;
@@ -184,18 +318,19 @@ namespace SuperSocket.Server
 
         #region Middlewares
 
+        /// <summary>
+        /// Initializes the middleware components from the service provider.
+        /// </summary>
         private void InitializeMiddlewares()
         {
             _middlewares = _serviceProvider.GetServices<IMiddleware>()
                 .OrderBy(m => m.Order)
                 .ToArray();
-
-            foreach (var m in _middlewares)
-            {
-                m.Start(this);
-            }
         }
 
+        /// <summary>
+        /// Shuts down all middleware components.
+        /// </summary>
         private void ShutdownMiddlewares()
         {
             foreach (var m in _middlewares)
@@ -211,6 +346,11 @@ namespace SuperSocket.Server
             }
         }
 
+        /// <summary>
+        /// Registers a session with all middleware components.
+        /// </summary>
+        /// <param name="session">The session to register.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result indicates whether the registration was successful with all middlewares.</returns>
         private async ValueTask<bool> RegisterSessionInMiddlewares(IAppSession session)
         {
             var middlewares = _middlewares;
@@ -232,6 +372,11 @@ namespace SuperSocket.Server
             return true;
         }
 
+        /// <summary>
+        /// Unregisters a session from all middleware components.
+        /// </summary>
+        /// <param name="session">The session to unregister.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         private async ValueTask UnRegisterSessionFromMiddlewares(IAppSession session)
         {
             var middlewares = _middlewares;
@@ -259,21 +404,25 @@ namespace SuperSocket.Server
 
         #endregion
 
-        private async ValueTask<bool> InitializeSession(IAppSession session, IChannel channel)
+        /// <summary>
+        /// Initializes a session with the given connection and registers it with middlewares.
+        /// </summary>
+        /// <param name="session">The session to initialize.</param>
+        /// <param name="connection">The connection to associate with the session.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result indicates whether initialization was successful.</returns>
+        private async ValueTask<bool> InitializeSession(IAppSession session, IConnection connection)
         {
-            session.Initialize(this, channel);
-
-            if (channel is IPipeChannel pipeChannel)
-            {
-                pipeChannel.PipelineFilter.Context = CreatePipelineContext(session);
-            }
+            session.Initialize(this, connection);
 
             var middlewares = _middlewares;
 
             try
             {
                 if (!await RegisterSessionInMiddlewares(session))
+                {
+                    session.CloseAsync(CloseReason.Rejected).DoNotAwait();
                     return false;
+                }
             }
             catch (Exception e)
             {
@@ -281,11 +430,15 @@ namespace SuperSocket.Server
                 return false;
             }
 
-            channel.Closed += (s, e) => OnChannelClosed(session, e);
+            connection.Closed += (s, e) => OnConnectionClosed(session, e);
             return true;
         }
 
-
+        /// <summary>
+        /// Called when a session is connected and has been initialized.
+        /// </summary>
+        /// <param name="session">The connected session.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual ValueTask OnSessionConnectedAsync(IAppSession session)
         {
             var connectedHandler = _sessionHandlers?.Connected;
@@ -296,11 +449,22 @@ namespace SuperSocket.Server
             return new ValueTask();
         }
 
-        private void OnChannelClosed(IAppSession session, CloseEventArgs e)
+        /// <summary>
+        /// Handles the closing of a connection.
+        /// </summary>
+        /// <param name="session">The session associated with the closed connection.</param>
+        /// <param name="e">The event arguments containing the reason for closure.</param>
+        private void OnConnectionClosed(IAppSession session, CloseEventArgs e)
         {
             FireSessionClosedEvent(session as AppSession, e.Reason).DoNotAwait();
         }
 
+        /// <summary>
+        /// Called when a session is closed.
+        /// </summary>
+        /// <param name="session">The closed session.</param>
+        /// <param name="e">The event arguments containing the reason for closure.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual ValueTask OnSessionClosedAsync(IAppSession session, CloseEventArgs e)
         {
             var closedHandler = _sessionHandlers?.Closed;
@@ -308,13 +472,18 @@ namespace SuperSocket.Server
             if (closedHandler != null)
                 return closedHandler.Invoke(session, e);
 
-            #if NETSTANDARD2_1
-                return GetCompletedTask();
-            #else
-                return ValueTask.CompletedTask;
-            #endif
+#if NETSTANDARD2_1
+            return GetCompletedTask();
+#else
+            return ValueTask.CompletedTask;
+#endif
         }
 
+        /// <summary>
+        /// Fires the session connected event for a session.
+        /// </summary>
+        /// <param name="session">The connected session.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual async ValueTask FireSessionConnectedEvent(AppSession session)
         {
             if (session is IHandshakeRequiredSession handshakeSession)
@@ -337,6 +506,12 @@ namespace SuperSocket.Server
             }
         }
 
+        /// <summary>
+        /// Fires the session closed event for a session.
+        /// </summary>
+        /// <param name="session">The closed session.</param>
+        /// <param name="reason">The reason for the session closure.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual async ValueTask FireSessionClosedEvent(AppSession session, CloseReason reason)
         {
             if (session is IHandshakeRequiredSession handshakeSession)
@@ -344,7 +519,7 @@ namespace SuperSocket.Server
                 if (!handshakeSession.Handshaked)
                     return;
             }
-            
+
             await UnRegisterSessionFromMiddlewares(session);
 
             _logger.LogInformation($"The session disconnected: {session.SessionID} ({reason})");
@@ -363,37 +538,74 @@ namespace SuperSocket.Server
             }
         }
 
-        ValueTask ISessionEventHost.HandleSessionConnectedEvent(AppSession session)
+        /// <summary>
+        /// Handles the session connected event from the session event host interface.
+        /// </summary>
+        /// <param name="session">The connected session.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        ValueTask ISessionEventHost.HandleSessionConnectedEvent(IAppSession session)
         {
-            return FireSessionConnectedEvent(session);
+            return FireSessionConnectedEvent((AppSession)session);
         }
 
-        ValueTask ISessionEventHost.HandleSessionClosedEvent(AppSession session, CloseReason reason)
+        /// <summary>
+        /// Handles the session closed event from the session event host interface.
+        /// </summary>
+        /// <param name="session">The closed session.</param>
+        /// <param name="reason">The reason for the session closure.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        ValueTask ISessionEventHost.HandleSessionClosedEvent(IAppSession session, CloseReason reason)
         {
-            return FireSessionClosedEvent(session, reason);
+            return FireSessionClosedEvent((AppSession)session, reason);
         }
 
-        private async ValueTask HandleSession(AppSession session, IChannel channel)
+        /// <summary>
+        /// Handles a session by processing its incoming packages.
+        /// </summary>
+        /// <param name="session">The session to handle.</param>
+        /// <param name="connection">The connection associated with the session.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        private async ValueTask HandleSession(AppSession session, IConnection connection)
         {
-            if (!await InitializeSession(session, channel))
+            if (!await InitializeSession(session, connection))
                 return;
 
             try
             {
-                channel.Start();
+                var pipelineFilter = _pipelineFilterFactory.Create();
+                pipelineFilter.Context = CreatePipelineContext(session);
+
+                var packageStream = connection.RunAsync<TReceivePackageInfo>(pipelineFilter);
 
                 await FireSessionConnectedEvent(session);
 
-                var packageChannel = channel as IChannel<TReceivePackageInfo>;
                 var packageHandlingScheduler = _packageHandlingScheduler;
 
-                await foreach (var p in packageChannel.RunAsync())
+#if NET6_0_OR_GREATER
+                using var cancellationTokenSource = GetPackageHandlingCancellationTokenSource(connection.ConnectionToken);
+#endif
+                ValueTask prevPackageHandlingTask = ValueTask.CompletedTask;
+
+                await foreach (var p in packageStream)
                 {
-                    if(_packageHandlingContextAccessor != null)
+                    if (_packageHandlingContextAccessor != null)
                     {
                         _packageHandlingContextAccessor.PackageHandlingContext = new PackageHandlingContext<IAppSession, TReceivePackageInfo>(session, p);
                     }
-                    await packageHandlingScheduler.HandlePackage(session, p);
+
+#if !NET6_0_OR_GREATER
+                    using var cancellationTokenSource = GetPackageHandlingCancellationTokenSource(connection.ConnectionToken);
+#endif
+                    if (prevPackageHandlingTask != ValueTask.CompletedTask)
+                    {
+                        await prevPackageHandlingTask;
+                    }
+
+                    prevPackageHandlingTask = packageHandlingScheduler.HandlePackage(session, p, cancellationTokenSource.Token);
+
+#if NET6_0_OR_GREATER
+                    cancellationTokenSource.TryReset();
+#endif
                 }
             }
             catch (Exception e)
@@ -402,28 +614,56 @@ namespace SuperSocket.Server
             }
         }
 
+        /// <summary>
+        /// Gets a cancellation token source for package handling with a timeout.
+        /// </summary>
+        /// <param name="cancellationToken">The base cancellation token to link with.</param>
+        /// <returns>A new cancellation token source linked to the provided token with a timeout.</returns>
+        protected virtual CancellationTokenSource GetPackageHandlingCancellationTokenSource(CancellationToken cancellationToken)
+        {
+            var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(Options.PackageHandlingTimeOut));
+            return cancellationTokenSource;
+        }
+
+        /// <summary>
+        /// Called when an error occurs while processing a package for a session.
+        /// </summary>
+        /// <param name="session">The session where the error occurred.</param>
+        /// <param name="exception">The exception that was thrown during package handling.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result indicates whether the session should continue processing packages.</returns>
         protected virtual ValueTask<bool> OnSessionErrorAsync(IAppSession session, PackageHandlingException<TReceivePackageInfo> exception)
         {
             _logger.LogError(exception, $"Session[{session.SessionID}]: session exception.");
             return new ValueTask<bool>(true);
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Starts the SuperSocket service asynchronously.
+        /// </summary>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        public async Task<bool> StartAsync(CancellationToken cancellationToken)
         {
             var state = _state;
 
-            if (state != ServerState.None && state != ServerState.Stopped)
+            if (state != ServerState.None && state != ServerState.Stopped && state != ServerState.Failed)
             {
                 throw new InvalidOperationException($"The server cannot be started right now, because its state is {state}.");
             }
 
             _state = ServerState.Starting;
 
+            foreach (var m in _middlewares)
+            {
+                m.Start(this);
+            }
+
             if (!await StartListenAsync(cancellationToken))
             {
                 _state = ServerState.Failed;
                 _logger.LogError("Failed to start any listener.");
-                return;
+                return false;
             }
 
             _state = ServerState.Started;
@@ -436,32 +676,52 @@ namespace SuperSocket.Server
             {
                 _logger.LogError(e, "There is one exception thrown from the method OnStartedAsync().");
             }
+
+            return true;
         }
 
+        /// <summary>
+        /// Called after the server has started successfully.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual ValueTask OnStartedAsync()
         {
-            #if NETSTANDARD2_1
-                return GetCompletedTask();
-            #else
-                return ValueTask.CompletedTask;
-            #endif
+#if NETSTANDARD2_1
+            return GetCompletedTask();
+#else
+            return ValueTask.CompletedTask;
+#endif
         }
 
+        /// <summary>
+        /// Called before the server stops.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual ValueTask OnStopAsync()
         {
-            #if NETSTANDARD2_1
-                return GetCompletedTask();
-            #else
-                return ValueTask.CompletedTask;
-            #endif
+#if NETSTANDARD2_1
+            return GetCompletedTask();
+#else
+            return ValueTask.CompletedTask;
+#endif
         }
 
-        private async Task StopListener(IChannelCreator listener)
+        /// <summary>
+        /// Stops a connection listener.
+        /// </summary>
+        /// <param name="listener">The listener to stop.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        private async Task StopListener(IConnectionListener listener)
         {
             await listener.StopAsync().ConfigureAwait(false);
             _logger.LogInformation($"The listener [{listener}] has been stopped.");
         }
 
+        /// <summary>
+        /// Stops the SuperSocket service asynchronously.
+        /// </summary>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             var state = _state;
@@ -473,7 +733,7 @@ namespace SuperSocket.Server
 
             _state = ServerState.Stopping;
 
-            var tasks = _channelCreators.Where(l => l.IsRunning).Select(l => StopListener(l))
+            var tasks = _connectionListeners.Where(l => l.IsRunning).Select(l => StopListener(l))
                 .Union(new Task[] { Task.Run(ShutdownMiddlewares) });
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -490,22 +750,36 @@ namespace SuperSocket.Server
             _state = ServerState.Stopped;
         }
 
-        async Task<bool> IServer.StartAsync()
+        /// <summary>
+        /// Implementation of IHostedService.StartAsync. Starts the SuperSocket service and throws an exception if it fails.
+        /// </summary>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            await StartAsync(CancellationToken.None);
-            return true;
-        }
-
-        async Task IServer.StopAsync()
-        {
-            await StopAsync(CancellationToken.None);
+            if (!await StartAsync(cancellationToken))
+            {
+                throw new Exception("Failed to start the server.");
+            }
         }
 
         #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+        /// <summary>
+        /// Flag to detect redundant dispose calls.
+        /// </summary>
+        private bool disposedValue = false;
 
+        /// <summary>
+        /// Asynchronously disposes of resources used by the service.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         ValueTask IAsyncDisposable.DisposeAsync() => DisposeAsync(true);
 
+        /// <summary>
+        /// Asynchronously releases the unmanaged resources used by the service and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         protected virtual async ValueTask DisposeAsync(bool disposing)
         {
             if (!disposedValue)
@@ -523,17 +797,34 @@ namespace SuperSocket.Server
                     {
                         _logger.LogError(e, "Failed to stop the server");
                     }
+
+                    var connectionListeners = _connectionListeners;
+
+                    if (connectionListeners != null && connectionListeners.Any())
+                    {
+                        foreach (var listener in connectionListeners)
+                        {
+                            listener.Dispose();
+                        }
+                    }
                 }
 
                 disposedValue = true;
             }
         }
 
+        /// <summary>
+        /// Releases the unmanaged resources used by the service and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
             DisposeAsync(disposing).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Implementation of IDisposable.Dispose. Releases all resources used by the service.
+        /// </summary>
         void IDisposable.Dispose()
         {
             DisposeAsync(true).GetAwaiter().GetResult();

@@ -10,89 +10,97 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Client;
-using SuperSocket.GZip;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Host;
+using System.IO.Compression;
+using Simple.SocketEngine;
 
 namespace Simple.SocketEngine
 {
-    public class GzipSecureHostConfigurator : TcpHostConfigurator
-    {
-        public GzipSecureHostConfigurator() { IsSecure = true; }
-
-		public override string WebSocketSchema => "wss";
+	public class GzipSecureHostConfigurator : TcpHostConfigurator
+	{
+		public GzipSecureHostConfigurator()
+		{
+			WebSocketSchema = "wss";
+			IsSecure = true;
+		}
 
 		public override void Configure(ISuperSocketHostBuilder hostBuilder)
-        {
-            hostBuilder.ConfigureServices((ctx, services) =>
-            {
-                services.Configure<ServerOptions>((options) =>
-                {
-                    var listener = options.Listeners[0];
+		{
+			hostBuilder.ConfigureServices((ctx, services) =>
+			{
+				services.Configure<ServerOptions>((options) =>
+				{
+					var listener = options.Listeners[0];
 
-                    if (listener.Security == SslProtocols.None)
-                        listener.Security = GetServerEnabledSslProtocols();
+					listener.AuthenticationOptions = new ServerAuthenticationOptions
+					{
+						CertificateOptions = new CertificateOptions
+						{
+							FilePath = "supersocket.pfx",
+							Password = "supersocket"
+						},
+						EnabledSslProtocols = GetServerEnabledSslProtocols()
+					};
+				});
+			});
 
-                    listener.CertificateOptions = new CertificateOptions
-                    {
-                        FilePath = "supersocket.pfx",
-                        Password = "supersocket"
-                    };
-                });
-            });
+			hostBuilder.UseGZip();
+			base.Configure(hostBuilder);
+		}
+		public override async ValueTask<Stream> GetClientStream(Socket socket)
+		{
+			var stream = new SslStream(new DerivedNetworkStream(socket), false);
+			var options = new SslClientAuthenticationOptions();
+			
+			options.TargetHost = "supersocket";
+			options.EnabledSslProtocols = GetClientEnabledSslProtocols();
+			options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
 
-            hostBuilder.UseGZip();
-            base.Configure(hostBuilder);
-        }
-        public override async ValueTask<Stream> GetClientStream(Socket socket)
-        {
-            var stream = new SslStream(new NetworkStream(socket), false);
-            var options = new SslClientAuthenticationOptions();
-            
-            options.TargetHost = "supersocket";
-            options.EnabledSslProtocols = GetClientEnabledSslProtocols();
-            options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
-
-#if NETSTANDARD
-            await stream.AuthenticateAsClientAsync(options.ToString());
+#if NETSTANDARD2_1
+			await stream.AuthenticateAsClientAsync("MyPassword");
 #else
-            await stream.AuthenticateAsClientAsync(options);
+			await stream.AuthenticateAsClientAsync(options);
 #endif
-            var zipStream = new GZipReadWriteStream(stream, true);
-            
-            return zipStream;
-        }
 
-        protected virtual SslProtocols GetServerEnabledSslProtocols()
-        {
-#if NETSTANDARD
-            return SslProtocols.Tls12 | SslProtocols.Tls11;
-#else
-            return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
-#endif
-        }
+			var zipStream = new ReadWriteDelegateStream(
+				stream,
+				new GZipStream(stream, CompressionMode.Decompress),
+				new GZipStream(stream, CompressionMode.Compress));
 
-        protected virtual SslProtocols GetClientEnabledSslProtocols()
-        {
-#if NETSTANDARD
-            return SslProtocols.Tls12 | SslProtocols.Tls11;
-#else
-            return SslProtocols.Tls13 | SslProtocols.Tls12 | SslProtocols.Tls11;
-#endif
-        }
+			return zipStream;
+		}
 
-        public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ChannelOptions options) where TPackageInfo : class
-        {
-            var client = new GZipEasyClient<TPackageInfo>(pipelineFilter, options);
-            client.Security = new SecurityOptions
-            {
-                TargetHost = "supersocket",
-                EnabledSslProtocols = GetClientEnabledSslProtocols(),
-                RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
-            };
-            return client;
-        }
-    }
+		protected virtual SslProtocols GetServerEnabledSslProtocols()
+		{
+			return SslProtocols.Tls12; // | SslProtocols.Tls13;
+		}
+
+		protected virtual SslProtocols GetClientEnabledSslProtocols()
+		{
+			return SslProtocols.Tls12; // | SslProtocols.Tls13;
+		}
+
+		public override IEasyClient<TPackageInfo> ConfigureEasyClient<TPackageInfo>(IPipelineFilter<TPackageInfo> pipelineFilter, ConnectionOptions options)
+			where TPackageInfo : class
+		{
+			var client = new EasyClient<TPackageInfo>(pipelineFilter, options);
+			
+			client.Security = new SecurityOptions
+			{
+				TargetHost = "supersocket",
+				EnabledSslProtocols = GetClientEnabledSslProtocols(),
+				RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
+			};
+			
+			client.CompressionLevel = CompressionLevel.Optimal;
+			
+			return client;
+		}
+	}
 
 }

@@ -8,7 +8,7 @@ namespace Simple.Objects.Controls
 {
 	public abstract class UndoAction
 	{
-		public RibbonPage SelectedRibbonPage { get; set; }
+		public RibbonPage? SelectedRibbonPage { get; set; }
 
 		public abstract string GetText(UndoActionType actionType);
 		public abstract void Undo();

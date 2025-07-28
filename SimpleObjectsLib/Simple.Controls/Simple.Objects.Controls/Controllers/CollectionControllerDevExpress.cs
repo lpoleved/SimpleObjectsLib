@@ -480,17 +480,11 @@ namespace Simple.Objects.Controls
 			foreach (Component button in buttons)
 			{
 				if (button is BarItem barItem)
-				{
 					barItem.ItemClick += new ItemClickEventHandler(AddButton_BarItemClick);
-				}
 				else if (button is Control control)
-				{
 					control.Click += new EventHandler(AddButton_ControlClick);
-				}
 				else
-				{
 					throw new ArgumentException("Button type " + button.GetType() + " is not supported.");
-				}
 
 				addButtonPolicy.Buttons.Add(button);
 			}
@@ -501,17 +495,11 @@ namespace Simple.Objects.Controls
 		public void RemoveAddButtonPolicy(Component button)
 		{
 			if (button is BarItem barItem)
-			{
 				barItem.ItemClick -= new ItemClickEventHandler(AddButton_BarItemClick);
-			}
 			else if (button is Control control)
-			{
 				control.Click -= new EventHandler(AddButton_ControlClick);
-			}
 			else
-			{
 				throw new ArgumentException("Button type " + button.GetType() + " is not supported.");
-			}
 
 			this.RemoveAddButtonPolicyByButton(button);
 		}

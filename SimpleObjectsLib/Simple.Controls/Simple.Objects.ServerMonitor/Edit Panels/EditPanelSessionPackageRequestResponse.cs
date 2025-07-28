@@ -42,7 +42,7 @@ namespace Simple.Objects.ServerMonitor
 
 			if (this.PackageInfoRow != null)
 			{
-				ISimpleObjectSession? session = this.Context?.GetSessionContext(this.PackageInfoRow.SessionKey);
+				ISimpleObjectSession? session = this.Context?.GetSimpleObjectSession(this.PackageInfoRow.SessionKey);
 				PackageInfo request = this.PackageInfoRow.RequestOrMessagePackageInfo;
 				PackageInfo response = this.PackageInfoRow.ResponsePackageInfo!;
 				int packageKey = request.Key;
@@ -80,7 +80,7 @@ namespace Simple.Objects.ServerMonitor
 					setPackageHexText.Start();
 				}
 
-				if (request.PackageArgs is null)
+				if (session != null && request.PackageArgs is null)
 				{
 					RequestArgs? requestArgs = this.CreateRequestArgs();
 
@@ -91,7 +91,7 @@ namespace Simple.Objects.ServerMonitor
 						try
 						{
 							reader.AdvancePosition(request.PackageLengthSize + request.HeaderSize);
-							request.ReadArgs(requestArgs, ref reader, session: session!);
+							request.ReadArgs(requestArgs, ref reader, session);
 						}
 						catch (Exception ex)
 						{
@@ -126,7 +126,7 @@ namespace Simple.Objects.ServerMonitor
 					setPackageHexText.Start();
 				}
 
-				if (response.PackageArgs is null)
+				if (session != null && response.PackageArgs is null)
 				{
 					ResponseArgs? responseArgs = this.CreateResponseArgs();
 
@@ -137,7 +137,7 @@ namespace Simple.Objects.ServerMonitor
 						try
 						{
 							reader.AdvancePosition(response.PackageLengthSize + response.HeaderSize);
-							response.ReadArgs(responseArgs, ref reader, session: session!);
+							response.ReadArgs(responseArgs, ref reader, session);
 						}
 						catch (Exception ex)
 						{

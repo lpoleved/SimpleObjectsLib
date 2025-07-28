@@ -35,7 +35,7 @@ namespace Simple.Modeling
 		//bool IsMemberOfSerializationSequence { get; }
 		//bool IsSerializationOptimizable { get; }
 		bool IsNullable { get; }
-		bool IsKey { get; }
+		bool IsId { get; }
 		//bool IsRelationTableId { get; }
 		//bool IsRelationObjectId { get; }
 		bool IsPreviousId { get; set; }
@@ -52,10 +52,15 @@ namespace Simple.Modeling
 		bool AvoidRejectChanges { get; }
 		AccessModifier GetAccessModifier { get; }
 		AccessModifier SetAccessModifier { get; }
-		bool FirePropertyValueChangeEvent { get; }
-		bool AddOrRemoveInChangedProperties { get; }
+		//bool FirePropertyValueChangeEvent { get; }
+
+		// TODO: Remove this
+		//bool AddOrRemoveInChangedProperties { get; }
+		bool TrimStringBeforeComparison { get; }
+
+
 		bool AutoGenerateProperty { get; }
 		//object DefaultValue { get; }
-		object Owner { get; }
+		object? Owner { get; }
 	}
 }

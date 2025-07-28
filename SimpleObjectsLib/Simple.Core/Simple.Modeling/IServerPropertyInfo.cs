@@ -15,7 +15,9 @@ namespace Simple.Modeling
 		bool IsRelationTableId { get; }
 		bool IsRelationObjectId { get; }
 		bool IsSerializationOptimizable { get; }
-		bool IsClientSeriazable { get; }
+		bool IsClientToServerSeriazable { get; }
+		bool IsServerToClientSeriazable { get; }
+		bool IsServerToClientTransactionInfoSeriazable { get; }
 		bool IsStorable { get; }
 		bool IsEncrypted { get; }
 		bool IncludeInTransactionActionLog { get; }

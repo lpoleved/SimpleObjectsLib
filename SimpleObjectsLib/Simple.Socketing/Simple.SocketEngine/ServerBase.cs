@@ -13,8 +13,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.ProtoBase;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Abstractions.Session;
+
 //using SuperSocket.SocketBase.Config;
 //using SuperSocket.SocketEngine;
 //using SuperSocket.ProtoBase;
@@ -22,6 +26,7 @@ using Simple;
 //using Simple.Threading;
 using Simple.Serialization;
 using Simple.SocketEngine;
+using SuperSocket.Server.Host;
 //using Simple.Objects;
 
 namespace Simple.SocketEngine
@@ -315,7 +320,7 @@ namespace Simple.SocketEngine
 			}
         }
 
-		protected async ValueTask<bool> IsAnyAuthenticatedClient(long exceptionSessionKey = 0)
+		protected async ValueTask<bool> IsAnyClientAuthenticated(long exceptionSessionKey = 0)
 		{
 			var sessions = await this.Server.GetAsyncSessionContainer().GetSessionsAsync();
 
@@ -432,7 +437,7 @@ namespace Simple.SocketEngine
 	public delegate ValueTask PackageDataEncodingEventAsyncHandler(byte[] packageData, Encoding characterEncoding);
 	public delegate ValueTask SessionPackageDataAsyncEventHandler(SimpleSession session, byte[] packageData);
 	public delegate ValueTask SessionErrorMessagePackageDataAsyncEventHandler(SimpleSession session, string errorMessage, string errorDescription, byte[] packageData);
-	public delegate ValueTask SessionRequestResponsePackageInfoAsyncEventHandler(SimpleSession session, byte[] requestPackageData, byte[]? responsePackageData);
+	public delegate ValueTask SessionRequestResponsePackageInfoAsyncEventHandler(SimpleSession session, byte[] requestPackageData, byte[] responsePackageData);
 
 	#endregion |   Event Delegates   |
 }

@@ -81,9 +81,9 @@ namespace Simple.Objects.ServerMonitor
 			// editorUser
 			// 
 			editorUser.Location = new Point(254, 12);
-			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorUser.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorUser.Properties.Appearance.Options.UseFont = true;
-			editorUser.Size = new Size(452, 20);
+			editorUser.Size = new Size(498, 20);
 			// 
 			// labelControlUser
 			// 
@@ -92,14 +92,14 @@ namespace Simple.Objects.ServerMonitor
 			// editorMessageCodeOrRequestId
 			// 
 			editorMessageCodeOrRequestId.Location = new Point(254, 36);
-			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorMessageCodeOrRequestId.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorMessageCodeOrRequestId.Properties.Appearance.Options.UseFont = true;
-			editorMessageCodeOrRequestId.Size = new Size(452, 20);
+			editorMessageCodeOrRequestId.Size = new Size(498, 20);
 			// 
 			// editorActionType
 			// 
 			editorActionType.Location = new Point(76, 34);
-			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorActionType.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorActionType.Properties.Appearance.Options.UseFont = true;
 			// 
 			// labelControlPackageJobActionType
@@ -109,7 +109,7 @@ namespace Simple.Objects.ServerMonitor
 			// editorSessionKey
 			// 
 			editorSessionKey.Location = new Point(76, 12);
-			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorSessionKey.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorSessionKey.Properties.Appearance.Options.UseFont = true;
 			// 
 			// labelControlMessageCodeOrRequestId
@@ -117,8 +117,8 @@ namespace Simple.Objects.ServerMonitor
 			labelControlMessageCodeOrRequestId.Appearance.Options.UseTextOptions = true;
 			labelControlMessageCodeOrRequestId.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
 			labelControlMessageCodeOrRequestId.Location = new Point(198, 39);
-			labelControlMessageCodeOrRequestId.Size = new Size(54, 13);
-			labelControlMessageCodeOrRequestId.Text = "RequestId:";
+			labelControlMessageCodeOrRequestId.Size = new Size(57, 13);
+			labelControlMessageCodeOrRequestId.Text = "Request Id:";
 			// 
 			// tabControl
 			// 
@@ -174,7 +174,7 @@ namespace Simple.Objects.ServerMonitor
 			editorRequestPackageHeaderValue.ImeMode = ImeMode.KatakanaHalf;
 			editorRequestPackageHeaderValue.Location = new Point(104, 39);
 			editorRequestPackageHeaderValue.Name = "editorRequestPackageHeaderValue";
-			editorRequestPackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorRequestPackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorRequestPackageHeaderValue.Properties.Appearance.Options.UseFont = true;
 			editorRequestPackageHeaderValue.Properties.ReadOnly = true;
 			editorRequestPackageHeaderValue.Size = new Size(96, 20);
@@ -227,7 +227,7 @@ namespace Simple.Objects.ServerMonitor
 			editorRequestPackageLength.ImeMode = ImeMode.KatakanaHalf;
 			editorRequestPackageLength.Location = new Point(92, 13);
 			editorRequestPackageLength.Name = "editorRequestPackageLength";
-			editorRequestPackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorRequestPackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorRequestPackageLength.Properties.Appearance.Options.UseFont = true;
 			editorRequestPackageLength.Properties.ReadOnly = true;
 			editorRequestPackageLength.Size = new Size(108, 20);
@@ -265,7 +265,7 @@ namespace Simple.Objects.ServerMonitor
 			editorResponsePackageHeaderValue.ImeMode = ImeMode.KatakanaHalf;
 			editorResponsePackageHeaderValue.Location = new Point(104, 39);
 			editorResponsePackageHeaderValue.Name = "editorResponsePackageHeaderValue";
-			editorResponsePackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorResponsePackageHeaderValue.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorResponsePackageHeaderValue.Properties.Appearance.Options.UseFont = true;
 			editorResponsePackageHeaderValue.Properties.ReadOnly = true;
 			editorResponsePackageHeaderValue.Size = new Size(96, 20);
@@ -318,7 +318,7 @@ namespace Simple.Objects.ServerMonitor
 			editorResponsePackageLength.ImeMode = ImeMode.KatakanaHalf;
 			editorResponsePackageLength.Location = new Point(92, 13);
 			editorResponsePackageLength.Name = "editorResponsePackageLength";
-			editorResponsePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+			editorResponsePackageLength.Properties.Appearance.Font = new Font("Tahoma", 8.25F, FontStyle.Bold);
 			editorResponsePackageLength.Properties.Appearance.Options.UseFont = true;
 			editorResponsePackageLength.Properties.ReadOnly = true;
 			editorResponsePackageLength.Size = new Size(108, 20);

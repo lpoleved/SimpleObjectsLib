@@ -6,19 +6,23 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SuperSocket;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
-using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
 using SuperSocket.WebSocket.Extensions;
 using SuperSocket.WebSocket.Server.Extensions;
 
 namespace SuperSocket.WebSocket.Server
 {
+    /// <summary>
+    /// Handles WebSocket packages, including handshake and protocol management.
+    /// </summary>
     public class WebSocketPackageHandler : IPackageHandler<WebSocketPackage>
     {
         private const string _magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -41,8 +45,16 @@ namespace SuperSocket.WebSocket.Server
 
         private Dictionary<string, IEnumerable<IWebSocketExtensionFactory>> _extensionFactories;
 
-        private static readonly IPackageEncoder<WebSocketPackage> _defaultMessageEncoder = new WebSocketEncoder();
+        private readonly Func<WebSocketEncoder> _websocketEncoderFactory;
 
+        private readonly Lazy<WebSocketEncoder> _defaultMessageEncoder;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WebSocketPackageHandler"/> class.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider.</param>
+        /// <param name="loggerFactory">The logger factory.</param>
+        /// <param name="handshakeOptions">The handshake options.</param>
         public WebSocketPackageHandler(IServiceProvider serviceProvider, ILoggerFactory loggerFactory, IOptions<HandshakeOptions> handshakeOptions)
         {
             _serviceProvider = serviceProvider;
@@ -61,6 +73,11 @@ namespace SuperSocket.WebSocket.Server
             _packageHandlerDelegate = serviceProvider.GetService<Func<WebSocketSession, WebSocketPackage, ValueTask>>();
             _logger = loggerFactory.CreateLogger<WebSocketPackageHandler>();
             _handshakeOptions = handshakeOptions.Value;
+
+            _websocketEncoderFactory = _serviceProvider.GetService<Func<WebSocketEncoder>>()
+                ?? (() => new WebSocketEncoder());
+
+            _defaultMessageEncoder = new Lazy<WebSocketEncoder>(_websocketEncoderFactory);
         }
 
         private CloseStatus GetCloseStatusFromPackage(WebSocketPackage package)
@@ -90,7 +107,14 @@ namespace SuperSocket.WebSocket.Server
             return closeStatus;
         }
 
-        public async ValueTask Handle(IAppSession session, WebSocketPackage package)
+        /// <summary>
+        /// Handles a WebSocket package asynchronously.
+        /// </summary>
+        /// <param name="session">The session associated with the package.</param>
+        /// <param name="package">The WebSocket package.</param>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous handling operation.</returns>
+        public async ValueTask Handle(IAppSession session, WebSocketPackage package, CancellationToken cancellationToken)
         {
             var websocketSession = session as WebSocketSession;
             
@@ -128,7 +152,7 @@ namespace SuperSocket.WebSocket.Server
 
                     try
                     {
-                        await websocketSession.SendAsync(package);
+                        await websocketSession.SendAsync(package, cancellationToken);
                     }
                     catch (InvalidOperationException)
                     {
@@ -145,7 +169,7 @@ namespace SuperSocket.WebSocket.Server
             else if (package.OpCode == OpCode.Ping)
             {
                 package.OpCode = OpCode.Pong;
-                await websocketSession.SendAsync(package);
+                await websocketSession.SendAsync(package, cancellationToken);
                 return;
             }
             else if (package.OpCode == OpCode.Pong)
@@ -158,7 +182,7 @@ namespace SuperSocket.WebSocket.Server
 
             if (protocolHandler != null)
             {
-                await protocolHandler.Handle(session, package);
+                await protocolHandler.Handle(session, package, cancellationToken);
                 return;
             }
 
@@ -167,7 +191,7 @@ namespace SuperSocket.WebSocket.Server
 
             if (websocketCommandMiddleware != null)
             {
-                await websocketCommandMiddleware.Handle(session, package);
+                await websocketCommandMiddleware.Handle(session, package, cancellationToken);
                 return;
             }
 
@@ -292,6 +316,18 @@ namespace SuperSocket.WebSocket.Server
             return sb.ToString();
         }
 
+        private WebSocketEncoder GetWebSocketEncoder(IReadOnlyList<IWebSocketExtension> extensions)
+        {
+            if (extensions == null || !extensions.Any())
+            {
+                return _defaultMessageEncoder.Value;
+            }
+
+            var encoder = _websocketEncoderFactory.Invoke();
+            encoder.Extensions = extensions;
+            return encoder;
+        }
+
         private async ValueTask<bool> HandleHandshake(IAppSession session, WebSocketPackage p)
         {
             const string requiredVersion = "13";
@@ -334,21 +370,14 @@ namespace SuperSocket.WebSocket.Server
 
             if (selectedExtensionHeadItems != null && selectedExtensionHeadItems.Count > 0)
             {
-                var pipeChannel = session.Channel as IPipeChannel;                
-                pipeChannel.PipelineFilter.Context = new WebSocketPipelineFilterContext
+                var pipeConnection = session.Connection as IPipeConnection;
+                pipeConnection.PipelineFilter.Context = new WebSocketPipelineFilterContext
                 {
                     Extensions = extensions
                 };
+            }
 
-                ws.MessageEncoder = new WebSocketEncoder
-                {
-                    Extensions = extensions
-                };
-            }
-            else
-            {
-                ws.MessageEncoder = _defaultMessageEncoder;
-            }
+            ws.MessageEncoder = GetWebSocketEncoder(extensions);
 
             string secKeyAccept = string.Empty;
 
@@ -363,7 +392,7 @@ namespace SuperSocket.WebSocket.Server
 
             var encoding = _textEncoding;
 
-            await session.Channel.SendAsync((writer) =>
+            await session.Connection.SendAsync((writer) =>
             {
                 writer.Write(WebSocketConstant.ResponseHeadLine10, encoding);
                 writer.Write(WebSocketConstant.ResponseUpgradeLine, encoding);

@@ -6,11 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using SuperSocket.ProtoBase;
 using Xunit;
-using Xunit.Abstractions;
 using Microsoft.Extensions.Hosting;
 using SuperSocket;
 using SuperSocket.WebSocket.Server;
 using SuperSocket.WebSocket;
+using SuperSocket.Server.Abstractions.Host;
 
 namespace SuperSocket.Tests.WebSocket
 {

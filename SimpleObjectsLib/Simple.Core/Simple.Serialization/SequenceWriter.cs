@@ -1445,7 +1445,11 @@ namespace Simple.Serialization
 		/// </summary>
 		/// <typeparam name="T">The type of the value.</typeparam>
 		/// <param name="value">The value to write.</param>
-		public void Write<T>(T value) => this.Write((dynamic)value!);
+		
+		//public void Write<T>(T value) => this.Write((dynamic)value!);
+		
+		//public void Write(dynamic value) => this.Write(value);
+		
 		//public void Write<T>(T value) where T : notnull => this.Write((dynamic)value);
 		//public void Write<T>(object? value) where T : notnull => this.Write((dynamic)value!);
 
@@ -1454,7 +1458,7 @@ namespace Simple.Serialization
 		/// </summary>
 		/// <typeparam name="T">The type of the value.</typeparam>
 		/// <param name="value">The value to write.</param>
-		public void WriteOptimized<T>(T value) => this.WriteOptimized((dynamic)value!);
+		//public void WriteOptimized<T>(T value) => this.WriteOptimized((dynamic)value!);
 
 		#region |   Primitive Signed Types: bool, sbyte, short, int, long   |
 

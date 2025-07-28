@@ -105,15 +105,20 @@ namespace Simple.Datastore
 
 		protected override void OnAddCommandParameter(IDbCommand dbCommand, IDbDataParameter dbDataParameter, IPropertyModel propertyModel, string fieldName, object? fieldValue)
 		{
-			if (propertyModel.OleDbType != OleDbType.Empty)
+			if (dbDataParameter is OleDbParameter oleDbParameter)
 			{
-				if (dbDataParameter is OleDbParameter oleDbParameter)
-					oleDbParameter.OleDbType = propertyModel.OleDbType;
-			}
-			else if (propertyModel.PropertyType == typeof(DateTime))
-			{
-				if (dbDataParameter is OleDbParameter oleDbParameter)
+				if (propertyModel.PropertyType == typeof(DateTime))
+				{
 					oleDbParameter.OleDbType = OleDbType.Date;
+				}
+				else if (oleDbParameter.OleDbType == OleDbType.BigInt) // Access has no long (4 bytes) field, so any long value should be converted to OleDbType.Integer (BingInt fild in access). Note that Access Integer field is 2 bytes, BigInt is 4 bytes.
+				{
+					oleDbParameter.OleDbType = OleDbType.Integer;
+				}
+				else if (propertyModel.OleDbType != OleDbType.Empty)
+				{
+					oleDbParameter.OleDbType = propertyModel.OleDbType;
+				}
 			}
 		}
 

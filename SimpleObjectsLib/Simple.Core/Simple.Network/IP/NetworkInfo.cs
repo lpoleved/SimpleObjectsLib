@@ -80,7 +80,7 @@ namespace Simple.Network
 			return IpHelper.CreateNetworkIpAddressText(this.IpAddressText, this.SubnetMaskPrefix);
 		}
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is NetworkInfo)
                 return this.Equals((NetworkInfo)obj);
@@ -92,7 +92,18 @@ namespace Simple.Network
 
 		public bool Equals(NetworkInfo? ipAddressInfo) => ipAddressInfo != null && this == ipAddressInfo;
 
-        public static bool operator ==(NetworkInfo? a, NetworkInfo? b) => a != null && b != null && a.SubnetMask == b.SubnetMask && a.SubnetMaskPrefix == b.SubnetMaskPrefix;
+        public static bool operator ==(NetworkInfo? a, NetworkInfo? b)
+        {
+			// If both are null, or both are same instance, return true.
+			if (System.Object.ReferenceEquals(a, b))
+				return true;
+
+			// If one is null, but not both, return false.
+			if ((object?)a == null ^ (object?)b == null)
+				return false;
+
+            return a.SubnetMask == b.SubnetMask && a.SubnetMaskPrefix == b.SubnetMaskPrefix;
+        }
 
         public static bool operator !=(NetworkInfo? a, NetworkInfo? b) => !(a == b);
     }

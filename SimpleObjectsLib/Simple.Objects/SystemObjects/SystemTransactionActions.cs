@@ -15,7 +15,7 @@ namespace Simple.Objects
 
 		static SystemTransactionAction()
 		{
-			Model.TableInfo = SystemTables.SystemTransactionActions;
+			Model.TableInfo = SystemTablesBase.SystemTransactionActions;
 			Model.AutoGenerateKey = true;
 		}
 

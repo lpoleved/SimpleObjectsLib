@@ -1,0 +1,13 @@
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\bin\Debug\netstandard2.1\Simple.Threading.deps.json
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\bin\Debug\netstandard2.1\Simple.Threading.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\bin\Debug\netstandard2.1\Simple.Threading.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\bin\Debug\netstandard2.1\Simple.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\bin\Debug\netstandard2.1\Simple.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.csproj.AssemblyReference.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.GeneratedMSBuildEditorConfig.editorconfig
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.AssemblyInfoInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.AssemblyInfo.cs
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.csproj.CoreCompileInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.T.405CB87B.Up2Date
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Threading\obj\Debug\netstandard2.1\Simple.Threading.pdb

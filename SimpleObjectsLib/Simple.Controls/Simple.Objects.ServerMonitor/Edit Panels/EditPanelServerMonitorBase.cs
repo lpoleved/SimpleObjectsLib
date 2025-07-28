@@ -32,56 +32,62 @@ namespace Simple.Objects.ServerMonitor
 			this.tabPageText = this.tabPageObjectName.Text;
 		}
 
+		protected new IMonitorSessionContext? Context => base.Context as IMonitorSessionContext;
 
-		protected new FormMain? Context => base.Context as FormMain;
+		//protected string GetGraphName(int graphKey)
+		//{
+		//	if (this.Context is FormMain formMain)
+		//		return formMain.GetGraphName(graphKey);
 
-		protected string GetGraphName(int graphKey)
-		{
-			if (this.Context is FormMain formMain)
-				return formMain.GetGraphName(graphKey);
+		//	return String.Empty;
+		//}
 
-			return String.Empty;
-		}
+		//protected string GetRelationName(int relationKey)
+		//{
+		//	if (this.Context is FormMain formMain)
+		//		return formMain.GetRelationName(relationKey);
 
-		protected string GetRelationName(int relationKey)
-		{
-			if (this.Context is FormMain formMain)
-				return formMain.GetRelationName(relationKey);
+		//	return String.Empty;
+		//}
 
-			return String.Empty;
-		}
+		//protected string GetObjectName(int tableId, long objectId)
+		//{
+		//	if (this.Context is FormMain formMain)
+		//		return formMain.GetObjectName(tableId, objectId);
 
-		protected string GetObjectName(int tableId, long objectId)
-		{
-			if (this.Context is FormMain formMain)
-				return formMain.GetObjectName(tableId, objectId);
+		//	return String.Empty;
+		//}
 
-			return String.Empty;
-		}
+		//protected ServerObjectModelInfo? GetServerObjectModel(int tableId)
+		//{
+		//	ServerObjectModelInfo? result = null;
 
-		protected ServerObjectModelInfo? GetServerObjectModel(int tableId)
-		{
-			ServerObjectModelInfo? result = null;
+		//	if (this.Context is FormMain formMain)
+		//		result = formMain.GetServerObjectModel(tableId);
 
-			if (this.Context is FormMain formMain)
-				result = formMain.GetServerObjectModel(tableId);
+		//	return result;
+		//}
 
-			return result;
-		}
-
-		protected string CreatePropertyIndexValuesString(ServerObjectModelInfo objectModel, IEnumerable<PropertyIndexValuePair> propertyIndexValues, int startIndex = 0)
+		protected string CreatePropertyIndexValuesString(ServerObjectModelInfo? objectModel, IEnumerable<PropertyIndexValuePair>? propertyIndexValues, int startIndex = 0)
 		{
 			string result = String.Empty;
 			string splitter = String.Empty;
 
-			for (int i = startIndex; i < propertyIndexValues.Count(); i++) // avoid Id
+			if (propertyIndexValues != null)
 			{
-				var propertyInfo = propertyIndexValues.ElementAt(i);
-				IServerPropertyInfo propertyModel = objectModel[propertyInfo.PropertyIndex];
-				string propertyValueString = this.GePropertyValueString(propertyModel, propertyInfo.PropertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
+				for (int i = startIndex; i < propertyIndexValues.Count(); i++) // avoid Id
+				{
+					var propertyInfo = propertyIndexValues.ElementAt(i);
+					IServerPropertyInfo? propertyModel = objectModel?[propertyInfo.PropertyIndex];
+					string propertyValueString = this.GePropertyValueString(propertyModel, propertyInfo.PropertyValue); // SimpleObject.GetPropertyValueString(propertyModel, propertyValue);
 
-				result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyModel.PropertyName, propertyValueString); //, propertyTypeId);
-				splitter = "; ";
+					if (propertyModel != null)
+						result += String.Format("{0}{1} {2}={3}", splitter, propertyInfo.PropertyIndex, propertyModel.PropertyName, propertyValueString); //, propertyTypeId);
+					else
+						result += String.Format("{0}{1}-{2}", splitter, propertyInfo.PropertyIndex, propertyValueString); //, propertyTypeId);
+					
+					splitter = "; ";
+				}
 			}
 
 			return result;

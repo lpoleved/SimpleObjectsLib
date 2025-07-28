@@ -145,17 +145,18 @@ namespace Simple.Objects.ServerMonitor
 		protected string CreatePackageText(PackageInfo packageInfo)
 		{
 			string text;
+			string requestIdOrMessageCodeText = (packageInfo.HeaderInfo.PackageType == PackageType.Message) ? "Message Code" : "Request Id";
 
 			text = packageInfo.PackageLength.To7BitEncodedHexString() + "   <- Package length, " + this.GetByteText(packageInfo.PackageLengthSize) + "\r\n";
-			text += $"  ---- Header, {this.GetByteText(packageInfo.HeaderSize)} ----\r\n";
+			text += $"  ==== Header, {this.GetByteText(packageInfo.HeaderSize)} ====r\n";
 			text += packageInfo.HeaderInfo.Value.To7BitEncodedHexString(out int headerInfoSize) + "   <- Header Info, " + this.GetByteText(headerInfoSize) + "\r\n";
-			text += packageInfo.Key.To7BitEncodedHexString(out int requestIdSize) + "   <- RequestId, " + this.GetByteText(requestIdSize) + "\r\n";
+			text += packageInfo.Key.To7BitEncodedHexString(out int requestIdSize) + $"   <- {requestIdOrMessageCodeText}, " + this.GetByteText(requestIdSize) + "\r\n";
 
 			//if (packageInfo.HeaderInfo.PackageType != PackageType.Message)
 			//	text += packageInfo.Token.To7BitEncodedHexString(out int tokenSize) + "   <- Token, " + this.GetByteText(tokenSize) + "\r\n";
 			long bodyLength = packageInfo.PackageLength - packageInfo.HeaderSize;
 
-			text += $"  ---- Package Args Body, {this.GetByteText(bodyLength)} ----\r\n";
+			text += $"  ==== Package Args Body, {this.GetByteText(bodyLength)} ====\r\n";
 
 			if (bodyLength > 0)
 				text += BitConverter.ToString(packageInfo.Buffer, startIndex: packageInfo.PackageLengthSize + packageInfo.HeaderSize);

@@ -510,9 +510,10 @@ namespace Simple.Datastore.SqlServer
 
             if (String.IsNullOrEmpty(username)) // Windows Authentication
             {
-				connectionString = string.Format("Server={0}; Integrated Security=SSPI; Trusted_Connection=True;", serverName); // Encrypt=False
-				//connectionString = string.Format("Server={0}; Integrated Security=SSPI; TrustServerCertificate=True;", serverName); // Encrypt=False
-                //connectionString = string.Format("Data Source={0}; Integrated Security=True; Trust Server Certificate=True;", serverName);
+				connectionString = string.Format("Server={0}; Integrated Security=SSPI; TrustServerCertificate=True;", serverName);
+				//connectionString = string.Format("Server={0}; Integrated Security=SSPI; Trusted_Connection=True;", serverName); // Encrypt=False
+                //connectionString = string.Format("Server={0}; Integrated Security=SSPI; TrustServerCertificate=True;", serverName); // Encrypt=False
+				//connectionString = string.Format("Data Source={0}; Integrated Security=True; Trust Server Certificate=True;", serverName);
 			}
 			else
             {

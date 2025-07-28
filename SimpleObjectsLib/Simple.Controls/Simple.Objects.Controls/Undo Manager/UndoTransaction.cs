@@ -28,12 +28,12 @@ namespace Simple.Objects.Controls
 
 		public override void Undo()
 		{
-			this.Transaction.ObjectManager.UndoTransaction(this.Transaction, requester: this);
+			this.Transaction.ObjectManager?.UndoTransaction(this.Transaction, ObjectActionContext.Unspecified, requester: this);
 		}
 
 		public override void Redo()
 		{
-			this.Transaction.ObjectManager.UndoTransaction(this.Transaction, requester: this);
+			this.Transaction.ObjectManager?.UndoTransaction(this.Transaction, ObjectActionContext.Unspecified, requester: this);
 		}
 	}
 }

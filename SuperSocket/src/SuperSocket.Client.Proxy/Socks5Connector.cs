@@ -6,52 +6,82 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using SuperSocket.Client;
 using SuperSocket.ProtoBase;
 
 namespace SuperSocket.Client.Proxy
 {
     /// <summary>
-    /// https://tools.ietf.org/html/rfc1928
-    /// https://en.wikipedia.org/wiki/SOCKS
+    /// Represents a connector for SOCKS5 proxy connections.
     /// </summary>
+    /// <remarks>
+    /// Implements the SOCKS5 protocol as defined in RFC 1928.
+    /// </remarks>
     public class Socks5Connector : ProxyConnectorBase
     {
         private string _username;
 
         private string _password;
 
-        readonly static byte[] _authenHandshakeRequest = new byte[] { 0x05, 0x02, 0x00, 0x02 };
+        private readonly byte[] _authenHandshakeRequest;
+        private static readonly byte[] Handshake = new byte[] { 0x05, 0x01, 0x00 };
+        private static readonly byte[] AuthenHandshake = new byte[] { 0x05, 0x02, 0x00, 0x02 };
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Socks5Connector"/> class with the specified proxy endpoint.
+        /// </summary>
+        /// <param name="proxyEndPoint">The endpoint of the SOCKS5 proxy server.</param>
         public Socks5Connector(EndPoint proxyEndPoint)
             : base(proxyEndPoint)
         {
-
+            _authenHandshakeRequest = Handshake;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Socks5Connector"/> class with the specified proxy endpoint, username, and password.
+        /// </summary>
+        /// <param name="proxyEndPoint">The endpoint of the SOCKS5 proxy server.</param>
+        /// <param name="username">The username for authentication.</param>
+        /// <param name="password">The password for authentication.</param>
         public Socks5Connector(EndPoint proxyEndPoint, string username, string password)
             : this(proxyEndPoint)
         {
             _username = username;
             _password = password;
+            _authenHandshakeRequest = AuthenHandshake;
         }
 
+        /// <summary>
+        /// Connects to the specified remote endpoint through the SOCKS5 proxy.
+        /// </summary>
+        /// <param name="remoteEndPoint">The remote endpoint to connect to.</param>
+        /// <param name="state">The connection state from the previous connector.</param>
+        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         protected override async ValueTask<ConnectState> ConnectProxyAsync(EndPoint remoteEndPoint, ConnectState state, CancellationToken cancellationToken)
         {
-            var channel = state.CreateChannel<Socks5Pack>(new Socks5AuthPipelineFilter(), new ChannelOptions { ReadAsDemand = true });
+            var connection = state.CreateConnection(new ConnectionOptions { ReadAsDemand = true });
 
-            channel.Start();
+            var pipeLineFilter = new Socks5AuthPipelineFilter();
 
-            var packStream = channel.GetPackageStream();
+            if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
+            {
+                pipeLineFilter.AuthStep = 1;
+            }
+            else
+            {
+                pipeLineFilter.AuthStep = 0;
+            }
 
-            await channel.SendAsync(_authenHandshakeRequest);
+            var packStream = connection.GetPackageStream(pipeLineFilter);
+
+            await connection.SendAsync(_authenHandshakeRequest);
 
             var response = await packStream.ReceiveAsync();
 
             if (!HandleResponse(response, Socket5ResponseType.Handshake, out string errorMessage))
             {
-                await channel.CloseAsync(CloseReason.ProtocolError);
+                await connection.CloseAsync(CloseReason.ProtocolError);
 
                 return new ConnectState
                 {
@@ -64,13 +94,13 @@ namespace SuperSocket.Client.Proxy
             {
                 var passAuthenRequest = GetPassAuthenBytes();
 
-                await channel.SendAsync(passAuthenRequest);
+                await connection.SendAsync(passAuthenRequest);
 
                 response = await packStream.ReceiveAsync();
 
                 if (!HandleResponse(response, Socket5ResponseType.AuthUserName, out errorMessage))
                 {
-                    await channel.CloseAsync(CloseReason.ProtocolError);
+                    await connection.CloseAsync(CloseReason.ProtocolError);
 
                     return new ConnectState
                     {
@@ -82,13 +112,13 @@ namespace SuperSocket.Client.Proxy
 
             var endPointRequest = GetEndPointBytes(remoteEndPoint);
 
-            await channel.SendAsync(endPointRequest);
+            await connection.SendAsync(endPointRequest);
 
             response = await packStream.ReceiveAsync();
 
             if (!HandleResponse(response, Socket5ResponseType.AuthEndPoint, out errorMessage))
             {
-                await channel.CloseAsync(CloseReason.ProtocolError);
+                await connection.CloseAsync(CloseReason.ProtocolError);
 
                 return new ConnectState
                 {
@@ -97,7 +127,7 @@ namespace SuperSocket.Client.Proxy
                 };
             }
 
-            await channel.DetachAsync();
+            await connection.DetachAsync();
 
             return state;
         }
@@ -235,7 +265,7 @@ namespace SuperSocket.Client.Proxy
 
                 port = endPoint.Port;
 
-                var maxLen = 7 + Encoding.ASCII.GetMaxByteCount(endPoint.Host.Length);
+                var maxLen = 6 + Encoding.ASCII.GetMaxByteCount(endPoint.Host.Length);
                 buffer = new byte[maxLen];
 
                 buffer[3] = 0x03;
@@ -264,36 +294,76 @@ namespace SuperSocket.Client.Proxy
             AuthEndPoint,
         }
 
+        /// <summary>
+        /// Represents the address type used in SOCKS5 protocol.
+        /// </summary>
         public class Socks5Address
         {
+            /// <summary>
+            /// Gets or sets the IP address.
+            /// </summary>
             public IPAddress IPAddress { get; set; }
 
+            /// <summary>
+            /// Gets or sets the domain name.
+            /// </summary>
             public string DomainName { get; set; }
         }
 
+        /// <summary>
+        /// Represents a SOCKS5 packet.
+        /// </summary>
         public class Socks5Pack
         {
+            /// <summary>
+            /// Gets or sets the version of the SOCKS5 protocol.
+            /// </summary>
             public byte Version { get; set; }
 
+            /// <summary>
+            /// Gets or sets the status of the SOCKS5 connection.
+            /// </summary>
             public byte Status { get; set; }
 
+            /// <summary>
+            /// Gets or sets the reserved byte.
+            /// </summary>
             public byte Reserve { get; set; }
 
+            /// <summary>
+            /// Gets or sets the destination address.
+            /// </summary>
             public Socks5Address DestAddr { get; set; }
 
+            /// <summary>
+            /// Gets or sets the destination port.
+            /// </summary>
             public short DestPort { get; set; }
         }
 
+        /// <summary>
+        /// Represents a pipeline filter for SOCKS5 authentication.
+        /// </summary>
         public class Socks5AuthPipelineFilter : FixedSizePipelineFilter<Socks5Pack>
         {
+            /// <summary>
+            /// Gets or sets the authentication step.
+            /// </summary>
             public int AuthStep { get; set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Socks5AuthPipelineFilter"/> class.
+            /// </summary>
             public Socks5AuthPipelineFilter()
                 : base(2)
             {
 
             }
 
+            /// <summary>
+            /// Gets the body length from the header.
+            /// </summary>
+            /// <param name="buffer">The buffer containing the header.</param>
             protected override Socks5Pack DecodePackage(ref ReadOnlySequence<byte> buffer)
             {
                 var reader = new SequenceReader<byte>(buffer);
@@ -313,14 +383,24 @@ namespace SuperSocket.Client.Proxy
             }
         }
 
+        /// <summary>
+        /// Represents a pipeline filter for SOCKS5 address.
+        /// </summary>
         public class Socks5AddressPipelineFilter : FixedHeaderPipelineFilter<Socks5Pack>
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Socks5AddressPipelineFilter"/> class.
+            /// </summary>
             public Socks5AddressPipelineFilter()
                 : base(5)
             {
 
             }
 
+            /// <summary>
+            /// Gets the body length from the header.
+            /// </summary>
+            /// <param name="buffer">The buffer containing the header.</param>
             protected override int GetBodyLengthFromHeader(ref ReadOnlySequence<byte> buffer)
             {
                 var reader = new SequenceReader<byte>(buffer);
@@ -342,6 +422,10 @@ namespace SuperSocket.Client.Proxy
                 throw new Exception($"Unsupported addressType: {addressType}");
             }
 
+            /// <summary>
+            /// Decodes the package from the buffer.
+            /// </summary>
+            /// <param name="buffer">The buffer containing the package data.</param>
             protected override Socks5Pack DecodePackage(ref ReadOnlySequence<byte> buffer)
             {
                 var reader = new SequenceReader<byte>(buffer);

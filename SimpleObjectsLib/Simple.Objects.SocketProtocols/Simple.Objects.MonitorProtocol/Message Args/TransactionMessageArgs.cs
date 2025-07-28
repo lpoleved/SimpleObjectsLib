@@ -19,6 +19,10 @@ namespace Simple.Objects.MonitorProtocol
 	[SystemMessageArgs((int)MonitorSystemMessage.TransactionFinished)]
 	public class TransactionMessageArgs : MessageArgs
 	{
+		private IEnumerable<TransactionActionInfo>? transactionRequests;
+		private IEnumerable<DatastoreActionInfo>? datastoreActions;
+		private Func<int, ServerObjectModelInfo?>? getServerObjectModelInfoByTableId { get; set; }
+
 		//private Func<int, ISimpleObjectModel> getObjectModelByTableId = null;
 		//private Func<int, IPropertySequence> getPropertySequenceBySequenceId = null;
 		//private Func<int, ServerObjectModelInfo> getServerObjectPropertyInfoByTableId = null;
@@ -40,7 +44,7 @@ namespace Simple.Objects.MonitorProtocol
 		//	this.ReadFrom(reader, null); //??????
 		//}
 
-		public TransactionMessageArgs(SystemTransaction transaction, IEnumerable<DatastoreActionInfo> datastoreActions)
+		public TransactionMessageArgs(IEnumerable<TransactionActionInfo> transactionRequests, SystemTransaction transaction, IEnumerable<DatastoreActionInfo> datastoreActions, Func<int, ServerObjectModelInfo?> getServerObjectModelInfoByTableId)
 		{
 			this.TransactionId = transaction.TransactionId;
 			this.UserId = transaction.UserId;
@@ -49,8 +53,10 @@ namespace Simple.Objects.MonitorProtocol
 			this.CreationTime = transaction.CreationTime;
 			this.RollbackActionData = transaction.RollbackActionData;
 			this.IsRollbackActionDataCompressed = transaction.IsRollbackActionDataCompressed;
-			//this.TransactionRequests = transactionRequests;
-			this.DatastoreActions = datastoreActions;
+			this.CompressionAlgorithm = transaction.CompressionAlgorithm;
+			this.transactionRequests = transactionRequests;
+			this.datastoreActions = datastoreActions;
+			this.getServerObjectModelInfoByTableId = getServerObjectModelInfoByTableId;
 		}
 
 		public long TransactionId { get; private set; }
@@ -58,15 +64,19 @@ namespace Simple.Objects.MonitorProtocol
 		public int CodePage { get; private set; }
 		public TransactionStatus TransactionStatus { get; set; }
 		public DateTime CreationTime { get; private set; }
+		
+		public byte[]? TransactionRequestsData { get; private set; }
+		public byte[]? DatastoreActionsData { get; private set; }
 		public byte[]? RollbackActionData { get; private set; }
 		public bool IsRollbackActionDataCompressed { get; private set; }
+		public TransactionCompressionAlgorithm CompressionAlgorithm { get; private set; }
 		public float CompressionRatio { get; private set; }
-		internal IEnumerable<TransactionActionInfo>? RollbackActions { get; private set; }
+		
+
+		//public IEnumerable<TransactionActionInfo>? RollbackActions { get; private set; }
 		//public IEnumerable<TransactionActionInfo>? TransactionRequests { get; private set; }
 		//public byte[]? TransactionActionsData { get; private set; }
 
-		public byte[]? DatastoreActionsData { get; private set; }
-		internal IEnumerable<DatastoreActionInfo>? DatastoreActions { get; private set; }
 		//{
 		//	get
 		//	{
@@ -103,6 +113,45 @@ namespace Simple.Objects.MonitorProtocol
 				writer.WriteBits((byte)this.TransactionStatus, 2);
 				writer.WriteDateTimeOptimized(this.CreationTime);
 				writer.WriteBoolean(this.IsRollbackActionDataCompressed);
+				writer.WriteInt32Optimized((int)this.CompressionAlgorithm);
+				//
+				// Transaction Requests
+				//
+				Span<byte> transactionRequestsWriterSpan = stackalloc byte[this.transactionRequests!.Count() * 30];
+				SequenceWriter transactionRequestsWriter = new SequenceWriter(transactionRequestsWriterSpan, Encoding.GetEncoding(this.CodePage));
+
+				transactionRequestsWriter.WriteInt32Optimized(this.transactionRequests!.Count());
+
+				foreach (TransactionActionInfo item in this.transactionRequests!)
+				{
+					var objectModel = simpleObjectSession.GetServerObjectModel(item.TableId);
+
+					item.WriteTo(ref transactionRequestsWriter, objectModel!);
+				}
+
+				this.TransactionRequestsData = transactionRequestsWriter.ToArray();
+				writer.WriteInt32Optimized(this.TransactionRequestsData.Length);
+				writer.WriteBinary(this.TransactionRequestsData);
+
+				//
+				// Datastore Actions
+				//
+				Span<byte> datastoreActionsWriterSpan = stackalloc byte[this.datastoreActions!.Count() * 30];
+				SequenceWriter datastoreActionsWriter = new SequenceWriter(datastoreActionsWriterSpan, Encoding.GetEncoding(this.CodePage));
+
+				datastoreActionsWriter.WriteInt32Optimized(this.datastoreActions!.Count());
+
+				foreach (DatastoreActionInfo item in this.datastoreActions!)
+				{
+					//var objectModel = simpleObjectSession.GetServerObjectModel(item.TableId);
+					var objectModel = this.getServerObjectModelInfoByTableId!(item.TableId); // simpleObjectSession.GetServerObjectModel(item.TableId);
+
+					item.WriteTo(ref datastoreActionsWriter, objectModel!);
+				}
+
+				this.DatastoreActionsData = datastoreActionsWriter.ToArray();
+				writer.WriteInt32Optimized(this.DatastoreActionsData.Length);
+				writer.WriteBinary(this.DatastoreActionsData);
 
 				//
 				// Rolback Action Data
@@ -129,24 +178,6 @@ namespace Simple.Objects.MonitorProtocol
 				//writer.WriteInt32Optimized(this.TransactionActionsData.Length);
 				//writer.WriteSequence(this.TransactionActionsData);
 
-				//
-				// Datastore Actions
-				//
-				Span<byte> datastoreActionsWriterSpan = stackalloc byte[this.DatastoreActions!.Count() * 30];
-				SequenceWriter datastoreActionsWriter = new SequenceWriter(datastoreActionsWriterSpan, Encoding.GetEncoding(this.CodePage));
-
-				datastoreActionsWriter.WriteInt32Optimized(this.DatastoreActions!.Count());
-
-				foreach (DatastoreActionInfo item in this.DatastoreActions!)
-				{
-					var objectModel = simpleObjectSession.GetServerObjectModel(item.TableId);
-
-					item.WriteTo(ref datastoreActionsWriter, objectModel);
-				}
-
-				this.DatastoreActionsData = datastoreActionsWriter.ToArray();
-				writer.WriteInt32Optimized(this.DatastoreActionsData.Length);
-				writer.WriteBinary(this.DatastoreActionsData);
 			}
 		}
 
@@ -163,7 +194,6 @@ namespace Simple.Objects.MonitorProtocol
 			{
 				// The problem here is that we are in package decoding while need to send request. It must be doing on a different way.
 				
-				
 				//Func<int, ServerObjectModelInfo?> getServerObjectModel = (int tableId) => simpleObjectSession.GetServerObjectModel(tableId).GetAwaiter().GetResult(); // this.getServerObjectPropertyInfoByTableId); // this.getObjectModelByTableId);
 
 				this.TransactionId = reader.ReadInt64Optimized();
@@ -172,18 +202,21 @@ namespace Simple.Objects.MonitorProtocol
 				this.TransactionStatus = (TransactionStatus)reader.ReadBits(2);
 				this.CreationTime = reader.ReadDateTimeOptimized();
 				this.IsRollbackActionDataCompressed = reader.ReadBoolean();
+				this.CompressionAlgorithm = (TransactionCompressionAlgorithm)reader.ReadInt32Optimized();
+
+				this.TransactionRequestsData = reader.ReadBinary(reader.ReadInt32Optimized()).ToArray();
+				this.DatastoreActionsData = reader.ReadBinary(reader.ReadInt32Optimized()).ToArray();
 
 				int rollbackActionDataLength = reader.ReadInt32Optimized();
 
 				if (rollbackActionDataLength > 0)
+				{
 					this.RollbackActionData = reader.ReadBinary(rollbackActionDataLength).ToArray(); // new byte[actionDataLength];
+					
+					if (this.IsRollbackActionDataCompressed)
+						this.RollbackActionData = SystemTransaction.Decompress(this.RollbackActionData, this.CompressionAlgorithm);
+				}
 
-				if (this.IsRollbackActionDataCompressed)
-					this.RollbackActionData = SystemTransaction.Decompress(this.RollbackActionData!.ToArray());
-
-				int datastoreActionCount = reader.ReadInt32Optimized();
-
-				this.DatastoreActionsData = reader.ReadBinary(datastoreActionCount).ToArray();
 			}
 		}
 

@@ -14,33 +14,33 @@ namespace Simple.Objects.Controls
 {
 	public class UndoPropertyChange : UndoAction
 	{
-		public UndoPropertyChange(ChangePropertyValueSimpleObjectRequesterEventArgs propertyChangeInfo)
+		public UndoPropertyChange(ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs propertyChangeInfo)
 		{
 			this.PropertyChangeInfo = propertyChangeInfo;
 		}
 
-		public ChangePropertyValueSimpleObjectRequesterEventArgs PropertyChangeInfo { get; private set; }
+		public ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs PropertyChangeInfo { get; private set; }
 
 		public override string GetText(UndoActionType actionType)
 		{
 			string text = String.Empty;
 			string? valueDiff = String.Empty;
 
-			if ((this.PropertyChangeInfo.OldValue == null && actionType == UndoActionType.Undo) || (this.PropertyChangeInfo.Value == null && actionType == UndoActionType.Redo))
+			if ((this.PropertyChangeInfo.OldPropertyValue == null && actionType == UndoActionType.Undo) || (this.PropertyChangeInfo.PropertyValue == null && actionType == UndoActionType.Redo))
 			{
 				text = "Set ";
 				valueDiff = "null";
 			}
-			else if (this.PropertyChangeInfo.Value is String)
+			else if (this.PropertyChangeInfo.PropertyValue is String)
 			{
-				string? value = this.PropertyChangeInfo.Value as String;
-				string? oldValue = this.PropertyChangeInfo.OldValue as String;
+				string? value = this.PropertyChangeInfo.PropertyValue as String;
+				string? oldValue = this.PropertyChangeInfo.OldPropertyValue as String;
 
 				if (actionType == UndoActionType.Undo)
 				{
 					if (value != null)
 					{
-						if (value.Length > oldValue.Length)
+						if (value.Length > oldValue?.Length)
 						{
 							// new text is inserted
 							text = "Delete ";
@@ -50,7 +50,7 @@ namespace Simple.Objects.Controls
 						{
 							// old text is deleted
 							text = "Add ";
-							valueDiff = oldValue.Substring(value.Length);
+							valueDiff = oldValue?.Substring(value.Length);
 						}
 					}
 					else
@@ -63,7 +63,7 @@ namespace Simple.Objects.Controls
 				{
 					if (oldValue != null)
 					{
-						if (value.Length > oldValue.Length)
+						if (value?.Length > oldValue.Length)
 						{
 							// new text is inserted
 							text = "Add ";
@@ -73,7 +73,7 @@ namespace Simple.Objects.Controls
 						{
 							// old text is deleted
 							text = "Delete ";
-							valueDiff = oldValue.Substring(value.Length);
+							valueDiff = oldValue.Substring(value?.Length ?? 0);
 						}
 					}
 					else
@@ -86,11 +86,11 @@ namespace Simple.Objects.Controls
 			else
 			{
 				text = "Set ";
-				valueDiff = (actionType == UndoActionType.Undo) ? this.PropertyChangeInfo.OldValue.ToString() :
-																  this.PropertyChangeInfo.Value.ToString();
+				valueDiff = (actionType == UndoActionType.Undo) ? this.PropertyChangeInfo.OldPropertyValue?.ToString() :
+																  this.PropertyChangeInfo.PropertyValue?.ToString();
 			}
 
-			if (valueDiff.Trim().Length == 0)
+			if (valueDiff?.Trim().Length == 0)
 				valueDiff = "'" + valueDiff + "'";
 
 			text += valueDiff;
@@ -100,12 +100,14 @@ namespace Simple.Objects.Controls
 
 		public override void Undo()
 		{
-			this.PropertyChangeInfo.SimpleObject.SetPropertyValue(this.PropertyChangeInfo.PropertyModel, this.PropertyChangeInfo.OldValue, requester: this);
+			if (this.PropertyChangeInfo.PropertyModel != null)
+				this.PropertyChangeInfo.SimpleObject.SetPropertyValue(this.PropertyChangeInfo.PropertyModel, this.PropertyChangeInfo.OldPropertyValue, requester: this);
 		}
 
 		public override void Redo()
 		{
-			this.PropertyChangeInfo.SimpleObject.SetPropertyValue(this.PropertyChangeInfo.PropertyModel, this.PropertyChangeInfo.Value, requester: this);
+			if (this.PropertyChangeInfo.PropertyModel != null)
+				this.PropertyChangeInfo.SimpleObject.SetPropertyValue(this.PropertyChangeInfo.PropertyModel, this.PropertyChangeInfo.PropertyValue, requester: this);
 		}
 	}
 }

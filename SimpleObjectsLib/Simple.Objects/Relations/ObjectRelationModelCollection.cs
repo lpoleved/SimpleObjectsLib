@@ -7,7 +7,7 @@ using System.Text;
 namespace Simple.Objects
 {
 	public class ObjectRelationModelCollection<T> : IObjectRelationModelCollection<T>
-		where T : IRelationModel
+		where T :class, IRelationModel
 	{
 		private T[] innerArray;
 		private IDictionary<int, T> relationModelDictionary;
@@ -23,18 +23,14 @@ namespace Simple.Objects
 				this.innerArray[item.Key] = item.Value;
 		}
 		
-		public T this[int relationKey]
+		public T? this[int relationKey]
 		{
 			get 
 			{
 				if (relationKey >= 0 && relationKey < this.innerArray.Length)
-				{
 					return this.innerArray[relationKey];
-				}
 				else
-				{
 					return default(T);
-				}
 			}
 		}
 
@@ -48,7 +44,7 @@ namespace Simple.Objects
 		//	get { return this.relationModelDictionary.Values; }
 		//}
 
-		public T GetRelationModel(int relationKey)
+		public T? GetRelationModel(int relationKey)
 		{
 			return this[relationKey];
 		}
@@ -78,11 +74,11 @@ namespace Simple.Objects
 	}
 
 	public interface IObjectRelationModelCollection<T> : IEnumerable<T>
-		where T : IRelationModel 
+		where T : class, IRelationModel
 	{
-		T this[int relationKey] { get; }
+		T? this[int relationKey] { get; }
 		int Count { get; }
-		T GetRelationModel(int relationKey);
+		T? GetRelationModel(int relationKey);
 		bool ContainsKey(int relationKey);
 	}
 }

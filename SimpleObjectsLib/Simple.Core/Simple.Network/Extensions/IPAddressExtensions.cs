@@ -51,12 +51,25 @@ namespace Simple.Network
         public static bool Contains<T>(this ReadOnlySpan<T> values, T element)
         {
             foreach (T value in values)
-                if (value.Equals(element))
+                if (object.Equals(value, element))
                     return true;
 
             return false;
         }
 
+        public static string ToString(this IEnumerable<IpAddress> ipAddresses, string separator = " ")
+        {
+            string result = string.Empty;
 
+            foreach (IpAddress ipAddress in ipAddresses)
+            {
+                if (result.Length > 0)
+                    result += separator;
+
+                result += ipAddress.ToString();
+            }
+
+            return result;
+        }
     }
 }

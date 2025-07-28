@@ -11,7 +11,7 @@ namespace Simple
 	public class PropertyValues 
 	{
 		private Dictionary<int, object> valuesByIndex = new Dictionary<int, object>();
-		private ReadOnlyDictionary<int, object> readOnlyValues = null;
+		private ReadOnlyDictionary<int, object>? readOnlyValues = null;
 
 		public object GetValue(int index)
 		{
@@ -31,13 +31,9 @@ namespace Simple
 		public void SetValue<T>(int index, T value)
 		{
 			if (value.IsDefault<T>())
-			{
 				this.valuesByIndex.Remove(index);
-			}
 			else
-			{
 				this.valuesByIndex[index] = value;
-			}
 		}
 
 		public virtual void LoadValues(Dictionary<int, object> valuesByIndex)

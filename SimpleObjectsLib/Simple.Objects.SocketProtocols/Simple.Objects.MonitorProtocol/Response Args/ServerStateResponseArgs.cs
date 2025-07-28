@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using SuperSocket;
+using SuperSocket.Server.Abstractions;
 using Simple.Modeling;
 using Simple.Objects;
 using Simple.Serialization;

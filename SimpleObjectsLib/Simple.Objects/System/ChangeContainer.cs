@@ -30,9 +30,15 @@ namespace Simple.Objects
 
 		//TODO: Implement Validation !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+		public static int Count = 0;
+		public int No;
+
 		public ChangeContainer()
 		{
 			this.transactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
+
+			Count++;
+			this.No = Count;
 			//	this.readOnlyTransactionRequests = this.transactionRequests.AsReadOnly();
 			//this.objectManager = objectManager;
 			//	if (this.objectManager != null)
@@ -68,7 +74,7 @@ namespace Simple.Objects
 		public event RequestActionSimpleObjectRequesterEventHandler? AfterSet;
 		public event OldCountEventHandler? AfterClear;
 		public event CountChangeEventHandler? RequestCountChange;
-		public event RequireCommitChangeEventHandler? RequireCommitChange;
+		public event RequireCommitChangeContainerEventHandler? RequireCommitChange;
 		//public event RequireSavingChangeSimpleObject RequireSavingCountChange
 
 		//public SimpleObjectValidationResult ValidationResult 
@@ -120,9 +126,7 @@ namespace Simple.Objects
 			return this.transactionRequests.ContainsKey(simpleObject);
 		}
 
-		public void CancelDeleteRequests() => this.CancelDeleteRequests(requester: null);
-
-		public void CancelDeleteRequests(object? requester)
+		public void CancelDeleteRequests(ObjectActionContext context, object? requester = null)
 		{
 			if (this.lockChanges)
 				throw new AccessViolationException("Attempting to SET change action while ChangeContainter is locked.");
@@ -135,7 +139,7 @@ namespace Simple.Objects
 					TransactionRequestAction transactionRequest = item.Value;
 
 					if (transactionRequest == TransactionRequestAction.Delete)
-						simpleObject.CancelDeleteRequest(this, requester);
+						simpleObject.CancelDeleteRequest(this, context, requester);
 				}
 			}
 		}
@@ -150,22 +154,20 @@ namespace Simple.Objects
 			lock (this.lockObject)
 			{
 				if (this.transactionRequests.TryGetValue(simpleObject, out existingItemAction))
-				{
 					if (existingItemAction == TransactionRequestAction.Delete)
-						this.RemoveInternal(simpleObject, requester);
-				}
+						this.RemoveInternal(simpleObject, out bool raiseRequireCommitChangeEvent, requester);
 			}
 		}
 
 		internal void Set(SimpleObject simpleObject, TransactionRequestAction requestAction, object? requester)
 		{
 			TransactionRequestAction existingItemAction;
-			RaiseRequireCommitChangeEventArgs? setResult = null;
-			bool callOnAdd = false;
-			bool callOnSet = false;
+			bool raiseRequireCommitChangeEvent;
 
 			if (this.lockChanges)
 				throw new AccessViolationException("Attempting to SET change action while Change Containter is locked.");
+
+			_ = simpleObject.Id; // Enforce Id creation if not yet
 
 			lock (this.lockObject)
 			{
@@ -173,32 +175,22 @@ namespace Simple.Objects
 				{
 					if (existingItemAction == TransactionRequestAction.Save && requestAction == TransactionRequestAction.Delete)
 					{
-						setResult = this.SetInternal(simpleObject, TransactionRequestAction.Delete, requester);
-						callOnSet = true;
+						this.SetInternal(simpleObject, TransactionRequestAction.Delete, out raiseRequireCommitChangeEvent, requester);
+						this.OnSet(simpleObject, requestAction, raiseRequireCommitChangeEvent, requester);
 					}
 				}
 				else
 				{
-					setResult = this.AddInternal(simpleObject, requestAction, requester);
-					callOnAdd = true;
+					this.AddInternal(simpleObject, requestAction, out raiseRequireCommitChangeEvent, requester);
+					this.OnAdd(simpleObject, requestAction, raiseRequireCommitChangeEvent, requester);
 				}
-			}
-
-			if (callOnAdd)
-			{
-				this.OnAdd(simpleObject, requestAction, setResult.RaiseRequireCommitChangeEvent, requester);
-			}
-			else if (callOnSet)
-			{
-				this.OnSet(simpleObject, requestAction, setResult.RaiseRequireCommitChangeEvent, requester);
 			}
 		}
 
 		internal void Unset(SimpleObject simpleObject, TransactionRequestAction requestAction, object? requester)
 		{
 			TransactionRequestAction existingItemAction;
-			RaiseRequireCommitChangeEventArgs? setResult = null;
-			RemoveRaiseRequireCommitChangeEventArgs? removeResult = null;
+			bool raiseRequireCommitChangeEvent;
 
 			if (this.lockChanges)
 				throw new AccessViolationException("Attempting to SET change action while Change Containter is locked.");
@@ -209,75 +201,88 @@ namespace Simple.Objects
 				{
 					if (this.transactionRequests.TryGetValue(simpleObject, out existingItemAction))
 						if (existingItemAction == TransactionRequestAction.Save) // if Delete is existing action object remains
-							removeResult = this.RemoveInternal(simpleObject, requester);
-
+							if (this.RemoveInternal(simpleObject, out raiseRequireCommitChangeEvent, requester))
+								this.OnRemove(simpleObject, requestAction, raiseRequireCommitChangeEvent, requester);
 				}
 				else // requestAction == TransactionRequestAction.Delete
 				{
 					if (simpleObject.IsChanged)
 					{
-						setResult = this.SetInternal(simpleObject, TransactionRequestAction.Save, requester);
+						this.SetInternal(simpleObject, TransactionRequestAction.Save, out raiseRequireCommitChangeEvent, requester);
+						this.OnSet(simpleObject, requestAction, raiseRequireCommitChangeEvent, requester);
 					}
 					else
 					{
-						removeResult = this.RemoveInternal(simpleObject, requester);
+						if (this.RemoveInternal(simpleObject, out raiseRequireCommitChangeEvent, requester))
+							this.OnRemove(simpleObject, requestAction, raiseRequireCommitChangeEvent, requester);
 					}
 				}
 			}
-
-			if (removeResult != null)
-			{
-				if (removeResult.IsRemoved)
-					this.OnRemove(simpleObject, requestAction, removeResult.RaiseRequireCommitChangeEvent, requester);
-			}
-			else if (setResult != null)
-			{
-				this.OnSet(simpleObject, requestAction, setResult.RaiseRequireCommitChangeEvent, requester);
-			}
 		}
 
-		public SimpleObjectValidationResult Validate()
+		public ValidationResult Validate()
 		{
-			SimpleObjectValidationResult validationResult = SimpleObjectValidationResult.DefaultSuccessResult;
-
 			lock (this.lockObject)
 			{
+				SimpleObjectValidationResult? result = null;
+
 				foreach (var item in this.TransactionRequests.ToArray())
 				{
 					SimpleObject simpleObject = item.Key;
 					TransactionRequestAction transactionAction = item.Value;
 
 					if (transactionAction == TransactionRequestAction.Save)
-					{
-						validationResult = simpleObject.Manager.ValidateSave(simpleObject, this.TransactionRequests);
-
-						if (!validationResult.Passed)
-							break;
-					}
+						result = simpleObject.Manager.ValidateSave(simpleObject, this.TransactionRequests);
 					else // if (transactionAction == TransactionRequestAction.Delete)
-					{
-						validationResult = simpleObject.Manager.ValidateDelete(simpleObject, this.TransactionRequests);
+						result = simpleObject.Manager.ValidateDelete(simpleObject, this.TransactionRequests);
 
-						if (!validationResult.Passed)
-							break;
-					}
+					if (!result.Passed)
+						return result;
 				}
 
-				return validationResult;
+				return result ?? SimpleObjectValidationResult.DefaultSuccessResult;
 			}
 		}
+
+		//public SimpleObjectValidationResult? GetFirstErrorValidationResult()
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		foreach (var item in this.TransactionRequests.ToArray())
+		//		{
+		//			SimpleObject simpleObject = item.Key;
+		//			TransactionRequestAction transactionAction = item.Value;
+
+		//			if (transactionAction == TransactionRequestAction.Save)
+		//			{
+		//				var validationResult = simpleObject.Manager.ValidateSave(simpleObject, this.TransactionRequests);
+
+		//				if (!validationResult.Passed)
+		//					return validationResult;
+		//			}
+		//			else // if (transactionAction == TransactionRequestAction.Delete)
+		//			{
+		//				var validationResult = simpleObject.Manager.ValidateDelete(simpleObject, this.TransactionRequests);
+
+		//				if (!validationResult.Passed)
+		//					return validationResult;
+		//			}
+		//		}
+
+		//		return default;
+		//	}
+		//}
 
 		public void Sort()
 		{
 			lock (this.lockObject)
 			{
-				KeyValuePair<SimpleObject, TransactionRequestAction>[] itemList = null;
-				bool somthingIsAdded;
-
+				KeyValuePair<SimpleObject, TransactionRequestAction>[] itemList;
 				OrderedDictionary<SimpleObject, TransactionRequestAction> insertTransactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
 				//OrderedDictionary<SimpleObject, TransactionRequestAction> newInsertTransactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
 				OrderedDictionary<SimpleObject, TransactionRequestAction> updateTransactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
 				OrderedDictionary<SimpleObject, TransactionRequestAction> deleteTransactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
+				bool somthingIsAdded;
 				//OrderedDictionary<SimpleObject, TransactionRequestAction> newDeleteTransactionRequests = new OrderedDictionary<SimpleObject, TransactionRequestAction>();
 				//Dictionary<SimpleObject, TransactionRequestAction> additionalExtraUpdateTransactionRequests = new Dictionary<SimpleObject, TransactionRequestAction>();
 
@@ -287,13 +292,9 @@ namespace Simple.Objects
 					if (item.Value == TransactionRequestAction.Save)
 					{
 						if (item.Key.IsNew)
-						{
 							insertTransactionRequests.Add(item.Key, item.Value);
-						}
 						else
-						{
 							updateTransactionRequests.Add(item.Key, item.Value);
-						}
 					}
 					else
 					{
@@ -305,7 +306,7 @@ namespace Simple.Objects
 
 				itemList = insertTransactionRequests.ToArray();
 				insertTransactionRequests.Clear();
-				
+
 				do
 				{
 					somthingIsAdded = false;
@@ -335,7 +336,7 @@ namespace Simple.Objects
 						insertTransactionRequests.Add(item.Key, item.Value);
 
 				insertTransactionRequests.SortKeys((s1, s2) => (s1 is GroupMembership).CompareTo(s2 is GroupMembership)); // Insert many to many at last
-				// Update : No soting needed since all elements are saved in database
+																														  // Update : No soting needed since all elements are saved in database
 
 				//Dictionary<SimpleObject, TransactionRequestAction> newUpdateTransactionRequests = new Dictionary<SimpleObject, TransactionRequestAction>();
 				//Dictionary<SimpleObject, TransactionRequestAction> additionalUpdateTransactionRequests = new Dictionary<SimpleObject, TransactionRequestAction>();
@@ -353,7 +354,7 @@ namespace Simple.Objects
 
 						if (item.Equals(default(KeyValuePair<SimpleObject, TransactionRequestAction>)))
 							continue;
-						
+
 						SimpleObject simpleObject = item.Key;
 						TransactionRequestAction requestAction = item.Value;
 
@@ -424,6 +425,60 @@ namespace Simple.Objects
 			}
 		}
 
+		public void AcceptChanges(object? requester = null)
+		{
+			//List<SimpleObject> relatedObjectsForDelete = new List<SimpleObject>();
+
+			this.LockChanges();
+
+			// Acknowledge transaction by accepting changes of the envolved SimpleObjects
+			foreach (KeyValuePair<SimpleObject, TransactionRequestAction> item in this.TransactionRequests)
+			{
+				SimpleObject simpleObject = item.Key;
+				TransactionRequestAction transactionAction = item.Value;
+
+				if (transactionAction == TransactionRequestAction.Save)
+				{
+					simpleObject.AcceptChangesInternal(changeContainer: null, requester);
+					simpleObject.SetIsNew(false);
+				}
+				else //if (transactionAction == TransactionRequestAction.Delete)
+				{
+					// TODO: What we need to do to AcceptChanges on objects ready to be deleted
+					//simpleObject.Manager.RemoveObjectFromCache(simpleObject.GetModel().TableInfo.TableId, simpleObject.Id);
+					//simpleObject.Manager.FindRelatedObjectsForDelete(simpleObject, ref relatedObjectsForDelete, checkSimpleObjectGraphElements);
+
+					//foreach (SimpleObject relatedSimpleObject in relatedObjectsForDelete)
+					//	relatedSimpleObject.RequestDelete(changeContainer, requester);
+
+
+					simpleObject.IsDeleted = true;
+
+					//if (requester != this) // Requester is this when transaction rollback is in progress.
+					//{
+					//simpleObject.Manager.OnAfterDelete(simpleObject, changeContainer: this, requester);
+					//simpleObject.Manager.RaiseAfterDelete(simpleObject, requester);
+					//}
+
+					simpleObject.Dispose();
+					//System.GC.SuppressFinalize(simpleObject);
+					//simpleObject = null;
+				}
+			}
+
+			this.Clear();
+			this.UnlockChanges();
+		}
+
+		internal void RemoveAllRelationFromObjectsForDelete()
+		{
+			lock (this.lockObject)
+			{
+				// Store the the current snapshot
+				var itemList = this.transactionRequests.ToArray();
+			}
+		}
+
 		internal void LockChanges() { this.lockChanges = true; }
 		internal void UnlockChanges() { this.lockChanges = false; }
 
@@ -476,7 +531,7 @@ namespace Simple.Objects
 		{
 			lock (this.lockObject)
 			{
-				SimpleDictionary<int, SimpleObject?> changedForeignObjectByRelationKeys;
+				SimpleDictionary<int, SimpleObject?>? changedForeignObjectByRelationKeys;
 
 				if (!this.changedForeignObjectByRelationKeysBySimpleObject.TryGetValue(simpleObject, out changedForeignObjectByRelationKeys))
 					this.changedForeignObjectByRelationKeysBySimpleObject.Add(simpleObject, changedForeignObjectByRelationKeys = new SimpleDictionary<int, SimpleObject?>());
@@ -497,7 +552,7 @@ namespace Simple.Objects
 				this.changedForeignObjectByRelationKeysBySimpleObject.Clear();
 				this.requireCommitCount = 0;
 				this.RaiseAfterClear(oldCount);
-				
+
 				if (oldCount > 0)
 					this.RaiseCountChange(oldCount);
 
@@ -522,7 +577,7 @@ namespace Simple.Objects
 		//			}
 		//		}
 		//	}
-			
+
 		//	if (requireSaving)
 		//	{
 		//		this.requireSavingCount++;
@@ -568,18 +623,17 @@ namespace Simple.Objects
 		//}
 
 
-		private RaiseRequireCommitChangeEventArgs AddInternal(SimpleObject simpleObject, TransactionRequestAction requestAction, object? requester)
+		private void AddInternal(SimpleObject simpleObject, TransactionRequestAction requestAction, out bool raiseRequireCommitChangeEvent, object? requester)
 		{
-			bool raiseRequireCommitChangeEvent = false;
-			
+			raiseRequireCommitChangeEvent = false;
+
+			//this.transactionRequests.Insert(0, simpleObject, requestAction);
 			this.transactionRequests.Add(simpleObject, requestAction);
 			this.SetChangedForeignObjectsDictionary(simpleObject);
 
 			if ((requestAction == TransactionRequestAction.Save && simpleObject.RequireSaving()) || requestAction == TransactionRequestAction.Delete)
 				if (++this.requireCommitCount == 1)
 					raiseRequireCommitChangeEvent = true;
-
-			return new RaiseRequireCommitChangeEventArgs(raiseRequireCommitChangeEvent);
 		}
 
 		private void OnAdd(SimpleObject simpleObject, TransactionRequestAction requestAction, bool raiseRequireCommitChangeEvent, object? requester)
@@ -591,17 +645,15 @@ namespace Simple.Objects
 				this.RaiseRequireCommitChange(this.RequireCommit);
 		}
 
-		private RaiseRequireCommitChangeEventArgs SetInternal(SimpleObject simpleObject, TransactionRequestAction requestAction, object? requester)
+		private void SetInternal(SimpleObject simpleObject, TransactionRequestAction requestAction, out bool raiseRequireCommitChangeEvent, object? requester)
 		{
-			bool raiseRequireCommitChangeEvent = false;
+			raiseRequireCommitChangeEvent = false;
 
 			this.transactionRequests[simpleObject] = requestAction;
 
 			if (simpleObject.RequireSaving() && requestAction == TransactionRequestAction.Delete)
 				if (++this.requireCommitCount == 1)
 					raiseRequireCommitChangeEvent = true;
-
-			return new RaiseRequireCommitChangeEventArgs(raiseRequireCommitChangeEvent);
 		}
 
 		private void OnSet(SimpleObject simpleObject, TransactionRequestAction requestAction, bool raiseRequireCommitChangeEvent, object? requester)
@@ -612,11 +664,12 @@ namespace Simple.Objects
 				this.RaiseRequireCommitChange(this.RequireCommit);
 		}
 
-		private RemoveRaiseRequireCommitChangeEventArgs RemoveInternal(SimpleObject simpleObject, object? requester)
+		private bool RemoveInternal(SimpleObject simpleObject, out bool raiseRequireCommitChangeEvent, object? requester)
 		{
-			TransactionRequestAction requestAction;
-			bool raiseRequireCommitChangeEvent = false;
 			bool isRemoved = false;
+			TransactionRequestAction requestAction;
+
+			raiseRequireCommitChangeEvent = false;
 
 			if (this.transactionRequests.TryGetValue(simpleObject, out requestAction))
 			{
@@ -629,7 +682,7 @@ namespace Simple.Objects
 						raiseRequireCommitChangeEvent = true;
 			}
 
-			return new RemoveRaiseRequireCommitChangeEventArgs(isRemoved, raiseRequireCommitChangeEvent);
+			return isRemoved;
 		}
 
 		private void OnRemove(SimpleObject simpleObject, TransactionRequestAction requestAction, bool raiseRequireCommitChangeEvent, object? requester)
@@ -657,7 +710,10 @@ namespace Simple.Objects
 				SimpleDictionary<int, SimpleObject>? changedForeignObjectByRelationKeys;
 
 				if (!this.changedForeignObjectByRelationKeysBySimpleObject.TryGetValue(simpleObject, out changedForeignObjectByRelationKeys))
-					this.changedForeignObjectByRelationKeysBySimpleObject.Add(simpleObject, changedForeignObjectByRelationKeys = new SimpleDictionary<int, SimpleObject>());
+				{
+					changedForeignObjectByRelationKeys = new SimpleDictionary<int, SimpleObject>();
+					this.changedForeignObjectByRelationKeysBySimpleObject.Add(simpleObject, changedForeignObjectByRelationKeys);
+				}
 
 				if (changedForeignObjectByRelationKeys != null)
 				{
@@ -698,7 +754,7 @@ namespace Simple.Objects
 
 		private void RaiseRequireCommitChange(bool requireCommit)
 		{
-			this.RequireCommitChange?.Invoke(this, new RequireCommitChangeEventArgs(requireCommit));
+			this.RequireCommitChange?.Invoke(this, new RequireCommiChangeContainertEventArgs(requireCommit, changeContainer: this));
 		}
 
 		public void Dispose()
@@ -708,71 +764,72 @@ namespace Simple.Objects
 			this.changedForeignObjectByRelationKeysBySimpleObject.Clear();
 		}
 
-	//private void ObjectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_RequireSavingChange(object sender, RequireSavingChangeSimpleObjectEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_RequireSavingChange(object sender, RequireSavingChangeSimpleObjectEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_OrderIndexChange(object sender, ChangeSortedSimpleObjectRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_OrderIndexChange(object sender, ChangeSortedSimpleObjectRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_ChangedPropertiesCountChange(object sender, CountChangeSimpleObjectEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_ChangedPropertiesCountChange(object sender, CountChangeSimpleObjectEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_GraphElementParentChange(object sender, ChangeParentGraphElementRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_GraphElementParentChange(object sender, ChangeParentGraphElementRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_PropertyValueChange(object sender, ChangePropertyValueSimpleObjectRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_PropertyValueChange(object sender, ChangePropertyValueSimpleObjectRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_AfterDelete(object sender, SimpleObjectRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_AfterDelete(object sender, SimpleObjectRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_BeforeDeleting(object sender, SimpleObjectRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_BeforeDeleting(object sender, SimpleObjectRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	//private void ObjectManager_GraphElementCreated(object sender, GraphElementRequesterEventArgs e)
-	//{
-	//	throw new NotImplementedException();
-	//}
+		//private void ObjectManager_GraphElementCreated(object sender, GraphElementRequesterEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
-	private class RaiseRequireCommitChangeEventArgs
-		{
-			public RaiseRequireCommitChangeEventArgs(bool raiseRequireCommitChangeEvent)
-			{
-				this.RaiseRequireCommitChangeEvent = raiseRequireCommitChangeEvent;
-			}
+		//private class RaiseRequireCommitChangeEventArgs
+		//	{
+		//		public RaiseRequireCommitChangeEventArgs(bool raiseRequireCommitChangeEvent)
+		//		{
+		//			this.RaiseRequireCommitChangeEvent = raiseRequireCommitChangeEvent;
+		//		}
 
-			public bool RaiseRequireCommitChangeEvent { get; private set; }
-		}
+		//		public bool RaiseRequireCommitChangeEvent { get; private set; }
+		//	}
 
-		private class RemoveRaiseRequireCommitChangeEventArgs : RaiseRequireCommitChangeEventArgs
-		{
-			public RemoveRaiseRequireCommitChangeEventArgs(bool isRemoved, bool raiseRequireCommitChangeEvent)
-				: base(raiseRequireCommitChangeEvent)
-			{
-				this.IsRemoved = isRemoved;
-			}
+		//	private class RemoveRaiseRequireCommitChangeEventArgs : RaiseRequireCommitChangeEventArgs
+		//	{
+		//		public RemoveRaiseRequireCommitChangeEventArgs(bool isRemoved, bool raiseRequireCommitChangeEvent)
+		//			: base(raiseRequireCommitChangeEvent)
+		//		{
+		//			this.IsRemoved = isRemoved;
+		//		}
 
-			public bool IsRemoved { get; private set; }
-		}
+		//		public bool IsRemoved { get; private set; }
+		//	}
+		//}
 	}
 
 	public delegate void RequestActionSimpleObjectRequesterEventHandler(object sender, RequestActionSimpleObjectRequesterEventArgs e);

@@ -26,16 +26,16 @@ namespace Simple.Network
 
     	static IpHelper()
         {
-            SubnetMasks[ 0] = "0.0.0.0";         SubnetMaskWildCards[0] = "255.255.255.255";
-            SubnetMasks[ 1] = "128.0.0.0";       SubnetMaskWildCards[1] = "127.255.255.255";
-            SubnetMasks[ 2] = "192.0.0.0";       SubnetMaskWildCards[2] = "63.255.255.255";
-            SubnetMasks[ 3] = "224.0.0.0";       SubnetMaskWildCards[3] = "31.255.255.255";
-            SubnetMasks[ 4] = "240.0.0.0";       SubnetMaskWildCards[4] = "15.255.255.255";
-            SubnetMasks[ 5] = "248.0.0.0";       SubnetMaskWildCards[5] = "7.255.255.255";
-            SubnetMasks[ 6] = "252.0.0.0";       SubnetMaskWildCards[6] = "3.255.255.255";
-            SubnetMasks[ 7] = "254.0.0.0";       SubnetMaskWildCards[7] = "1.255.255.255";
-            SubnetMasks[ 8] = "255.0.0.0";       SubnetMaskWildCards[8] = "0.255.255.255";
-            SubnetMasks[ 9] = "255.128.0.0";     SubnetMaskWildCards[9] = "0.127.255.255";
+            SubnetMasks[ 0] = "0.0.0.0";         SubnetMaskWildCards[ 0] = "255.255.255.255";
+            SubnetMasks[ 1] = "128.0.0.0";       SubnetMaskWildCards[ 1] = "127.255.255.255";
+            SubnetMasks[ 2] = "192.0.0.0";       SubnetMaskWildCards[ 2] = "63.255.255.255";
+            SubnetMasks[ 3] = "224.0.0.0";       SubnetMaskWildCards[ 3] = "31.255.255.255";
+            SubnetMasks[ 4] = "240.0.0.0";       SubnetMaskWildCards[ 4] = "15.255.255.255";
+            SubnetMasks[ 5] = "248.0.0.0";       SubnetMaskWildCards[ 5] = "7.255.255.255";
+            SubnetMasks[ 6] = "252.0.0.0";       SubnetMaskWildCards[ 6] = "3.255.255.255";
+            SubnetMasks[ 7] = "254.0.0.0";       SubnetMaskWildCards[ 7] = "1.255.255.255";
+            SubnetMasks[ 8] = "255.0.0.0";       SubnetMaskWildCards[ 8] = "0.255.255.255";
+            SubnetMasks[ 9] = "255.128.0.0";     SubnetMaskWildCards[ 9] = "0.127.255.255";
             SubnetMasks[10] = "255.192.0.0";     SubnetMaskWildCards[10] = "0.63.255.255";
             SubnetMasks[11] = "255.224.0.0";     SubnetMaskWildCards[11] = "0.31.255.255";
             SubnetMasks[12] = "255.240.0.0";     SubnetMaskWildCards[12] = "0.15.255.255";
@@ -92,7 +92,7 @@ namespace Simple.Network
 
         public static bool ValidateIpAddress(string? ipV4OrV6AddressText)
         {
-            if (IPAddress.TryParse(ipV4OrV6AddressText, out IPAddress address))
+            if (IPAddress.TryParse(ipV4OrV6AddressText, out IPAddress? address))
                 return address.AddressFamily == AddressFamily.InterNetwork || address.AddressFamily == AddressFamily.InterNetworkV6;
 
             return false;
@@ -427,13 +427,12 @@ namespace Simple.Network
             return broadcastAddress.ToString();
         }
 
-		public static bool IsInSameSubnet(string ipAddress, int subnetMaskPrefix, string ipAddressSameSubnetCandidate) => IsInSameSubnet(ipAddress, IpHelper.GetSubnetMask(subnetMaskPrefix), ipAddressSameSubnetCandidate);
+		public static bool IsInSameSubnet(string? ipAddress, int subnetMaskPrefix, string? ipAddressSameSubnetCandidate) => IsInSameSubnet(ipAddress, IpHelper.GetSubnetMask(subnetMaskPrefix), ipAddressSameSubnetCandidate);
 
-        public static bool IsInSameSubnet(string ipAddress, string ipSubnetMask, string ipAddressSameSubnetCandidate)
+        public static bool IsInSameSubnet(string? ipAddress, string? ipSubnetMask, string? ipAddressSameSubnetCandidate)
         {
-            if (ipAddress.Trim() == String.Empty || ipSubnetMask.Trim() == String.Empty || ipAddressSameSubnetCandidate.Trim() == String.Empty)
+            if (ipAddress != null && ipSubnetMask != null && ipAddressSameSubnetCandidate != null && (ipAddress.Trim() == String.Empty || ipSubnetMask.Trim() == String.Empty || ipAddressSameSubnetCandidate.Trim() == String.Empty))
                 return false;
-
 
             IPAddress address = IPAddress.Parse(ipAddress);
             IPAddress subnetMask = IPAddress.Parse(ipSubnetMask);
@@ -449,13 +448,9 @@ namespace Simple.Network
             string result = String.Empty;
 
             if (ipAddress == null || ipAddress.Trim().Length == 0)
-            {
                 result = String.Empty;
-            }
             else if (ipSubnetMaskNumberOfBits >= 0 && ipSubnetMaskNumberOfBits <= 32)
-            {
                 result = ipSubnetMaskNumberOfBits < 32 ? String.Format("{0}/{1}", ipAddress, ipSubnetMaskNumberOfBits) : ipAddress;
-            }
 
             return result;
         }
@@ -516,6 +511,42 @@ namespace Simple.Network
 
             return -1;
         }
+
+		/// <summary>
+		/// Parse the IP address range text. 
+		/// Examples:11-254
+		///			 20-100, 120-200
+		///			 10.1.1.100-254
+		/// </summary>
+		/// <param name="ipAddressRengeText"></param>
+		/// <returns></returns>
+		public static IEnumerable<IpAddressRange>? ParseIpAddressRange(string ipAddressRengeText) 
+		{
+			IEnumerable<IpAddressRange>? result;
+
+			if (ipAddressRengeText.Length == 0)
+				return default;
+
+			var segments = ipAddressRengeText.Split(',');
+
+			foreach (var segment in segments)
+			{
+
+			}		
+
+			var elements = ipAddressRengeText.Split('-');
+
+			for (int i = 0; i < elements.Length; i++)
+			{
+				string element = elements[i];
+
+
+			}
+
+			result = null;
+
+			return result;
+		}
 
         private static int IndexOf(string[] stringArray, string item)
         {

@@ -1,0 +1,10 @@
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\bin\Debug\netstandard2.1\Simple.deps.json
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\bin\Debug\netstandard2.1\Simple.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\bin\Debug\netstandard2.1\Simple.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.csproj.AssemblyReference.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.GeneratedMSBuildEditorConfig.editorconfig
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.AssemblyInfoInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.AssemblyInfo.cs
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.csproj.CoreCompileInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple\obj\Debug\netstandard2.1\Simple.pdb

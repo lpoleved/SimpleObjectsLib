@@ -26,7 +26,7 @@ namespace Simple.Objects.ServerMonitor
 	{
 		private int columnIndexIndex, columnNameIndex, columnObjectTypeIdIndex, columnObjectTypeNameIndex;
 		private int columnDatastoreTypeIdIndex, columnIsRelationTableIdIndex, columnIsRelationObjectIdIndex;
-		private int columnIsSerializationOptimizableIndex, columnIsMemberOfSerializationSequenceIndex;
+		private int columnIsSerializationOptimizableIndex, columnIsClientSeriazableIndex, columnIsServerSeriazableIndex;
 		private int columnIsStorableIndex, columnIsEncryptedIndex, columnIncludeInTransactionActionLogIndex, columnDefaultValueIndex;
 		//private GridColumn columnTableId, columnObjectName, columnPropertyIndexSequence;
 		//private int columnNoIndex, columnTableIdIndex, columnObjectNameIndex, columnPropertyIndexSequence;
@@ -87,11 +87,18 @@ namespace Simple.Objects.ServerMonitor
 			column.Caption = "IsSerializationOptimizable";
 			column.Visible = true;
 
-			// bool IsMemberOfSerializationSequence
+			// bool IsMemberOfClientSerializationSequence
 			column = this.treeListObjectPropertyValues.Columns.Add();
-			this.columnIsMemberOfSerializationSequenceIndex = column.AbsoluteIndex;
-			column.Name = "IsMemberOfSerializationSequence";
-			column.Caption = "IsMemberOfSerializationSequence";
+			this.columnIsClientSeriazableIndex = column.AbsoluteIndex;
+			column.Name = "IsClientSeriazable";
+			column.Caption = "IsClientSeriazable";
+			column.Visible = true;
+
+			// bool IsMemberOfServerSerializationSequence
+			column = this.treeListObjectPropertyValues.Columns.Add();
+			this.columnIsServerSeriazableIndex = column.AbsoluteIndex;
+			column.Name = "IsServerSeriazable";
+			column.Caption = "IsServerSeriazable";
 			column.Visible = true;
 
 			// bool IsStorable 
@@ -154,7 +161,8 @@ namespace Simple.Objects.ServerMonitor
 					node.SetValue(this.columnIsRelationTableIdIndex, serverPropertyInfo.IsRelationTableId.ToString());
 					node.SetValue(this.columnIsRelationObjectIdIndex, serverPropertyInfo.IsRelationObjectId.ToString());
 					node.SetValue(this.columnIsSerializationOptimizableIndex, serverPropertyInfo.IsSerializationOptimizable.ToString());
-					node.SetValue(this.columnIsMemberOfSerializationSequenceIndex, serverPropertyInfo.IsClientSeriazable.ToString());
+					node.SetValue(this.columnIsClientSeriazableIndex, serverPropertyInfo.IsClientToServerSeriazable.ToString());
+					node.SetValue(this.columnIsServerSeriazableIndex, serverPropertyInfo.IsServerToClientSeriazable.ToString());
 					node.SetValue(this.columnIsStorableIndex, serverPropertyInfo.IsStorable.ToString());
 					node.SetValue(this.columnIsEncryptedIndex, serverPropertyInfo.IsEncrypted.ToString());
 					node.SetValue(this.columnIncludeInTransactionActionLogIndex, serverPropertyInfo.IncludeInTransactionActionLog.ToString());

@@ -2,22 +2,34 @@ using System;
 
 namespace SuperSocket.ProtoBase
 {
-    public abstract class PipelineFilterFactoryBase<TPackageInfo> : IPipelineFilterFactory<TPackageInfo>
+    /// <summary>
+    /// Provides a base class for creating pipeline filter factories.
+    /// </summary>
+    /// <typeparam name="TPackageInfo">The type of the package information.</typeparam>
+    public abstract class PipelineFilterFactoryBase<TPackageInfo> : IPipelineFilterFactory<TPackageInfo>, IPipelineFilterFactory
     {
-        protected IPackageDecoder<TPackageInfo> PackageDecoder { get; private set; }
-        
-        public PipelineFilterFactoryBase(IServiceProvider serviceProvider)
+        /// <summary>
+        /// Creates a pipeline filter for the specified client.
+        /// </summary>
+        /// <returns>The created pipeline filter.</returns>
+        protected abstract IPipelineFilter<TPackageInfo> Create();
+
+        /// <summary>
+        /// Creates a pipeline filter for the specified client and assigns the package decoder.
+        /// </summary>
+        /// <returns>The created pipeline filter with the package decoder assigned.</returns>
+        IPipelineFilter<TPackageInfo> IPipelineFilterFactory<TPackageInfo>.Create()
         {
-            PackageDecoder = serviceProvider.GetService(typeof(IPackageDecoder<TPackageInfo>)) as IPackageDecoder<TPackageInfo>;
+            return Create();
         }
 
-        protected abstract IPipelineFilter<TPackageInfo> CreateCore(object client);
-
-        public virtual IPipelineFilter<TPackageInfo> Create(object client)
+        /// <summary>
+        /// Creates a pipeline filter for the specified client.
+        /// </summary>
+        /// <returns>The created pipeline filter.</returns>
+        IPipelineFilter IPipelineFilterFactory.Create()
         {
-            var filter = CreateCore(client);
-            filter.Decoder = PackageDecoder;
-            return filter;
+            return Create();
         }
     }
 }

@@ -11,6 +11,7 @@ using Simple.SocketEngine;
 namespace Simple.Objects.SocketProtocol
 {
 	[SystemResponseArgs((int)SystemRequest.GetOneToManyForeignObjectCollection)]
+	[SystemResponseArgs((int)SystemRequest.GetGroupMembershipCollection)]
 	[SystemResponseArgs((int)SystemRequest.GetObjectIdsTEMP)]
 	public class ObjectIdsResponseArgs : ResponseArgs
     {

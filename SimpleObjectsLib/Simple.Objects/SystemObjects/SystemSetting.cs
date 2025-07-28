@@ -9,7 +9,7 @@ namespace Simple.Objects
     {
 		static SystemSetting()
 		{
-			Model.TableInfo = SystemTables.SystemSettings;
+			Model.TableInfo = SystemTablesBase.SystemSettings;
 			Model.AutoGenerateKey = false;
 		}
 

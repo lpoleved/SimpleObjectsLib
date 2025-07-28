@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Simple.Modeling;
 using Simple.Serialization;
+using Simple.SocketEngine;
 
 namespace Simple.Objects.SocketProtocol
 {
@@ -41,6 +44,13 @@ namespace Simple.Objects.SocketProtocol
 				propertyIndexValues[i] = new PropertyIndexValuePair(propertyIndex, propertyValue);
 			}
 
+		}
+
+		public static PackageArgsFactory AddSimpleObjectAssembly(this PackageArgsFactory packageArgsFactory)
+		{
+			packageArgsFactory.Assemblies.Add(Assembly.GetExecutingAssembly());
+
+			return packageArgsFactory;
 		}
 	}
 }

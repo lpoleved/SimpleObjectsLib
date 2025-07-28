@@ -46,7 +46,7 @@ namespace Simple.Objects.Controls
 			{
 				if (this.objectManager != null)
 				{
-					this.objectManager.NewObjectCreated -= objectManager_NewObjectCreated;
+					this.objectManager.NewObjectCreated -= objectManager_NewClientObjectCreated;
 					this.objectManager.BeforeDelete -= objectManager_BeforeDeleting;
 					this.objectManager.PropertyValueChange -= objectManager_PropertyValueChange;
 					this.objectManager.RelationForeignObjectSet -= objectManager_RelationForeignObjectSet;
@@ -64,7 +64,7 @@ namespace Simple.Objects.Controls
 
 				if (this.objectManager != null)
 				{
-					this.objectManager.NewObjectCreated += objectManager_NewObjectCreated;
+					this.objectManager.NewObjectCreated += objectManager_NewClientObjectCreated;
 					this.objectManager.BeforeDelete += objectManager_BeforeDeleting;
 					this.objectManager.PropertyValueChange += objectManager_PropertyValueChange;
 					this.objectManager.RelationForeignObjectSet += objectManager_RelationForeignObjectSet;
@@ -95,7 +95,7 @@ namespace Simple.Objects.Controls
             return graphElement.IsChanged;
         }
 
-        protected override object GetBindingObject(SimpleObject graphElement)
+        protected override object? GetBindingObject(SimpleObject? graphElement)
         {
             return graphElement;
         }
@@ -105,9 +105,9 @@ namespace Simple.Objects.Controls
             return true;
         }
 
-        protected override SimpleObject CreateNewGraphElement(Type objectType, SimpleObject parentGraphElement, object requester)
+        protected override SimpleObject? CreateNewGraphElement(Type objectType, SimpleObject? parentGraphElement, object? requester)
         {
-			return this.ObjectManager.CreateNewEmptyObject(objectType, isNew: true, objectId: 0, requester);
+			return this.ObjectManager?.CreateNewEmptyObject(objectType, isNew: true, objectId: 0, ObjectActionContext.Client, requester);
 		}
 
 		protected override bool DeleteGraphElement(SimpleObject graphElement)
@@ -121,7 +121,7 @@ namespace Simple.Objects.Controls
 
 			if (!deleteNode)
 			{
-				string imageName = graphElement.GetImageName();
+				string? imageName = graphElement.GetImageName();
 				string newImageName = ImageControl.ImageNameAddOption(imageName, ImageControl.ImageOptionRemoveExt, insertionPosition: 1);
 
 				this.SetGraphElementImage(graphElement, newImageName);
@@ -148,56 +148,58 @@ namespace Simple.Objects.Controls
             return true;
         }
 
-        protected override bool CanGraphElementChangeParent(SimpleObject graphElement, SimpleObject newParentGraphElement)
+        protected override bool CanGraphElementChangeParent(SimpleObject graphElement, SimpleObject? newParentGraphElement)
         {
             return false;
         }
 
-        protected override IEnumerable<SimpleObject> GetChildGraphElements(SimpleObject graphElement)
+        protected override IEnumerable<SimpleObject> GetChildGraphElements(SimpleObject? graphElement)
         {
-            if (graphElement == null)
-            {
-				return this.GetCollection() as IEnumerable<SimpleObject>;
-            }
+            if (graphElement == null && this.GetCollection() is IEnumerable<SimpleObject> collection)
+				return collection; 
             else
-            {
-                return new SimpleObjectCollection<SimpleObject>(this.ObjectManager, GraphElementModel.TableId, new List<long>());
-            }
+                return new SimpleObjectCollection<SimpleObject>(this.ObjectManager!, GraphElementModel.TableId, new List<long>());
         }
 
-        protected override object GetGraphElementPropertyValue(SimpleObject graphElement, int propertyIndex)
+        protected override object? GetGraphElementPropertyValue(SimpleObject graphElement, int propertyIndex)
         {
             return graphElement.GetPropertyValue(propertyIndex);
         }
 
-        protected override void SetGraphElementPropertyValue(SimpleObject graphElement, int propertyIndex, object value, object requester)
+        protected override void SetGraphElementPropertyValue(SimpleObject graphElement, int propertyIndex, object? value, object? requester)
         {
             graphElement.SetPropertyValue(propertyIndex, value, requester);
         }
 
-        protected override void SetParentGraphElement(SimpleObject graphElement, SimpleObject parentGraphElement)
+        protected override void SetParentGraphElement(SimpleObject graphElement, SimpleObject? parentGraphElement)
         {
             throw new NotImplementedException();
         }
 
-        protected override string GetGraphElementName(SimpleObject graphElement)
+		protected override void SetOrderIndex(SimpleObject? graphElement, int orderIndex)
+		{
+			if (graphElement is SortableSimpleObject sortableSimpleObject)
+				sortableSimpleObject.OrderIndex = orderIndex;
+		}
+
+		protected override string GetGraphElementName(SimpleObject graphElement)
         {
-            return graphElement.ToString();
+            return graphElement.ToString() ?? String.Empty;
         }
 
         protected override string GetGraphElementImageName(SimpleObject graphElement)
         {
-            return graphElement.GetImageName();
+            return graphElement.GetImageName() ?? String.Empty;
         }
 
-        protected override IPropertyModel GetBindingObjectPropertyModel(Type bindingObjectType, int propertyIndex)
+        protected override IPropertyModel? GetBindingObjectPropertyModel(Type bindingObjectType, int propertyIndex)
         {
-            return this.ObjectManager.GetObjectModel(bindingObjectType).PropertyModels[propertyIndex];
+            return this.ObjectManager?.GetObjectModel(bindingObjectType)?.PropertyModels[propertyIndex];
         }
 
-        protected override IPropertyModel GetBindingObjectPropertyModel(Type bindingObjectType, string propertyName)
+        protected override IPropertyModel? GetBindingObjectPropertyModel(Type bindingObjectType, string propertyName)
         {
-            return this.ObjectManager.GetObjectModel(bindingObjectType).PropertyModels[propertyName];
+            return this.ObjectManager?.GetObjectModel(bindingObjectType)?.PropertyModels[propertyName];
         }
 
         protected override bool ControlTryAddNewObjectByButtonClick(Component button, object requester)
@@ -209,8 +211,8 @@ namespace Simple.Objects.Controls
         {
             bool success = base.ControlTryAddNewObjectByButtonClick(button, parentGraphElement, requester);
 
-            if (success && this.FocusedGraphElement is not null)
-                this.FocusedGraphElement.SetOneToManyPrimaryObject(this.ChangableBindingObjectControlFocusedBindingObject as SimpleObject, this.OneToManyRelationKey, requester: this);
+            if (success && this.FocusedGraphElement is not null && this.ChangableBindingObjectControlFocusedBindingObject != null)
+                this.FocusedGraphElement.SetOneToManyPrimaryObject(this.ChangableBindingObjectControlFocusedBindingObject, this.OneToManyRelationKey, requester: this);
 
             return success;
         }
@@ -219,14 +221,10 @@ namespace Simple.Objects.Controls
 
 		protected SimpleObjectCollection? GetCollection()
         {
-            if (this.OneToManyRelationKey > 0 && this.ChangableBindingObjectControlFocusedBindingObject is not null)
-            {
+            if (this.OneToManyRelationKey > 0 && this.ChangableBindingObjectControlFocusedBindingObject != null)
                 return this.ChangableBindingObjectControlFocusedBindingObject.GetOneToManyForeignObjectCollection(this.OneToManyRelationKey);
-            }
             else
-            {
                 return null;
-            }
         }
 
 		//private void InitializeObjectManager()
@@ -247,7 +245,7 @@ namespace Simple.Objects.Controls
 		//	}
 		//}
 
-		private void objectManager_NewObjectCreated(object sender, SimpleObjectRequesterEventArgs e)
+		private void objectManager_NewClientObjectCreated(object sender, SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -255,16 +253,12 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnNewObjectCreated(e)));
-			}
 			else
-			{
 				this.OnNewObjectCreated(e);
-			}
 		}
 
-		protected virtual void OnNewObjectCreated(SimpleObjectRequesterEventArgs e)
+		protected virtual void OnNewObjectCreated(SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
 			if (e.Requester == this)
 			{
@@ -283,7 +277,7 @@ namespace Simple.Objects.Controls
 			//}
 		}
 
-		private void objectManager_BeforeDeleting(object sender, SimpleObjectRequesterEventArgs e)
+		private void objectManager_BeforeDeleting(object sender, SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -291,21 +285,17 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnBeforeDeleting(e)));
-			}
 			else
-			{
 				this.OnBeforeDeleting(e);
-			}
 		}
 
-		protected virtual void OnBeforeDeleting(SimpleObjectRequesterEventArgs e)
+		protected virtual void OnBeforeDeleting(SimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
 			this.RemoveGraphElement(e.SimpleObject as SimpleObject);
 		}
 
-		private void objectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetRequesterEventArgs e)
+		private void objectManager_RelationForeignObjectSet(object sender, RelationForeignObjectSetChangeContainerContextRequesterEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -313,16 +303,12 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnRelationForeignObjectSet(e)));
-			}
 			else
-			{
 				this.OnRelationForeignObjectSet(e);
-			}
 		}
 
-		protected virtual void OnRelationForeignObjectSet(RelationForeignObjectSetRequesterEventArgs e)
+		protected virtual void OnRelationForeignObjectSet(RelationForeignObjectSetChangeContainerContextRequesterEventArgs e)
 		{
 			if (e.RelationModel.RelationKey == this.OneToManyRelationKey && e.ForeignSimpleObject == this.ChangableBindingObjectControlFocusedBindingObject && 
 				e.SimpleObject.GetOneToManyPrimaryObject(this.OneToManyRelationKey) == this.ChangableBindingObjectControlFocusedBindingObject && !this.ContainsGraphElement(e.SimpleObject))
@@ -334,10 +320,10 @@ namespace Simple.Objects.Controls
 
 			// TODO: Check if this replace with if (this.FocusedGraphElement == e.SimpleObject)
 			if (this.ContainsGraphElement(e.SimpleObject))
-				this.RaiseBindingObjectRelationForeignObjectSet(new BindingObjectRelationForeignObjectSetRequesterEventArgs(e));
+				this.RaiseBindingObjectRelationForeignObjectSet(new BindingObjectRelationForeignObjectSetEventArgs(e));
 		}
 
-		private void objectManager_PropertyValueChange(object sender, ChangePropertyValueSimpleObjectRequesterEventArgs e)
+		private void objectManager_PropertyValueChange(object sender, ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -345,18 +331,14 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnPropertyValueChange(e)));
-			}
 			else
-			{
 				this.OnPropertyValueChange(e);
-			}
 		}
 	
-		protected virtual void OnPropertyValueChange(ChangePropertyValueSimpleObjectRequesterEventArgs e)
+		protected virtual void OnPropertyValueChange(ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs e)
 		{
-			if (this.ContainsGraphElement(e.SimpleObject as SimpleObject))
+			if (this.ContainsGraphElement(e.SimpleObject))
 			{
 				if (e.Requester != this)
 				{
@@ -366,7 +348,7 @@ namespace Simple.Objects.Controls
 						this.UpdateNodeInternal(e.SimpleObject, node);
 				}
 				
-				this.RaiseBindingObjectPropertyValueChange(e.SimpleObject as SimpleObject, e.PropertyModel, e.OldValue, e.Value, e.IsChanged, e.IsSaveable, e.Requester);
+				this.RaiseBindingObjectPropertyValueChange(e.SimpleObject, e.PropertyModel, e.OldPropertyValue, e.PropertyValue, e.IsChanged, e.ChangeContainer, e.Requester);
 			}
 		}
 
@@ -378,13 +360,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnOrderIndexChange(e)));
-			}
 			else
-			{
 				this.OnOrderIndexChange(e);
-			}
 		}
 
 		protected virtual void OnOrderIndexChange(ChangeSortedSimpleObjectRequesterEventArgs e)
@@ -411,13 +389,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_ImageNameChange(e)));
-			}
 			else
-			{
 				this.OnObjectManager_ImageNameChange(e);
-			}
 		}
 
 		private void OnObjectManager_ImageNameChange(ImageNameChangeSimpleObjectEventArgs e)
@@ -433,13 +407,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_MultipleImageNameChange(e)));
-			}
 			else
-			{
 				this.OnObjectManager_MultipleImageNameChange(e);
-			}
 		}
 
 		private void OnObjectManager_MultipleImageNameChange(List<ImageNameChangeSimpleObjectEventArgs> e)
@@ -456,13 +426,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_UpdateStarted(e)));
-			}
 			else
-			{
 				this.OnObjectManager_UpdateStarted(e);
-			}
 		}
 
 		private void OnObjectManager_UpdateStarted(EventArgs e)
@@ -478,13 +444,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_UpdateEnded(e)));
-			}
 			else
-			{
 				this.OnObjectManager_UpdateEnded(e);
-			}
 		}
 
 		private void OnObjectManager_UpdateEnded(EventArgs e)
@@ -500,13 +462,9 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_ValidationInfo(e)));
-			}
 			else
-			{
 				this.OnObjectManager_ValidationInfo(e);
-			}
 		}
 
 		private void OnObjectManager_ValidationInfo(ValidationInfoEventArgs e)
@@ -524,7 +482,7 @@ namespace Simple.Objects.Controls
 			this.SetValidation(graphValidationResult);
 		}
 
-		private void ObjectManager_RequireSavingChange(object sender, RequireSavingChangeSimpleObjectEventArgs e)
+		private void ObjectManager_RequireSavingChange(object sender, RequireSavingSimpleObjectEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -532,27 +490,24 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnObjectManager_RequireSavingChange(e)));
-			}
 			else
-			{
 				this.OnObjectManager_RequireSavingChange(e);
-			}
 		}
 
 
-		private void OnObjectManager_RequireSavingChange(RequireSavingChangeSimpleObjectEventArgs e)
+		private void OnObjectManager_RequireSavingChange(RequireSavingSimpleObjectEventArgs e)
 		{
-			if (this.SaveButonOption == SaveButtonOption.SaveFocusedNode && this.FocusedGraphElement != null &&
-				e.SimpleObject.Equals(this.FocusedGraphElement) || e.SimpleObject.Equals(this.FocusedGraphElement))
-			{
-				this.SetButtonsSaveProperty(e.RequireSaving);
-			}
+			bool enabled = false;
+			
+			if (this.SaveButonOption == SaveButtonOption.SaveFocusedNode && this.FocusedGraphElement != null && e.SimpleObject == this.FocusedGraphElement)
+				enabled = e.RequireSaving;
+			
+			this.SetButtonsSaveProperty(enabled);
 		}
 
 
-		private void DefaultChangeContainer_RequireCommitChange(object sender, RequireCommitChangeEventArgs e)
+		private void DefaultChangeContainer_RequireCommitChange(object sender, RequireCommiChangeContainertEventArgs e)
 		{
 			if (this.IsLoadingInProgress || !this.IsBinded || this.IsDisposed)
 				return;
@@ -560,16 +515,12 @@ namespace Simple.Objects.Controls
 			Form? form = this.FindGraphControlForm();
 
 			if (form != null && form.InvokeRequired)
-			{
 				form.Invoke(new MethodInvoker(() => this.OnDefaultChangeContainer_RequireCommitChange(e)));
-			}
 			else
-			{
 				this.OnDefaultChangeContainer_RequireCommitChange(e);
-			}
 		}
 
-		private void OnDefaultChangeContainer_RequireCommitChange(RequireCommitChangeEventArgs e)
+		private void OnDefaultChangeContainer_RequireCommitChange(RequireCommiChangeContainertEventArgs e)
 		{
 			if (this.SaveButonOption == SaveButtonOption.CommitChanges)
 				this.SetButtonsSaveProperty(e.RequireCommit);

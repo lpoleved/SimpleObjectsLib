@@ -382,7 +382,7 @@ namespace Simple.Objects
             this.SetPropertyValue(propertyModel, value, null);
         }
 
-        public void SetPropertyValue(IPropertyModel propertyModel, object value, object requester)
+        public void SetPropertyValue(IPropertyModel propertyModel, object value, object? requester)
         {
             this.SetPropertyValue(propertyModel.PropertyIndex, value, requester);
         }
@@ -392,9 +392,9 @@ namespace Simple.Objects
             this.SetPropertyValue(propertyIndex, value, null); 
         }
 
-		public virtual void SetPropertyValue(int propertyIndex, object value, object requester)
+		public virtual void SetPropertyValue(int propertyIndex, object value, object? requester)
         {
-			this.SetPropertyValueInternal(propertyIndex, value, false, false, decideActionFromModel: true, enforceAccessModifier: true, requester: requester);
+			this.SetPropertyValueInternal(propertyIndex, value, decideActionFromModel: true, enforceAccessModifier: true, requester: requester);
         }
 
         public void AcceptChanges()
@@ -402,7 +402,7 @@ namespace Simple.Objects
             this.AcceptChanges(null);
         }
 
-        public void AcceptChanges(object requester)
+        public void AcceptChanges(object? requester)
         {
             lock (lockObject)
             {
@@ -582,9 +582,9 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		protected internal void SetPropertyValueInternal(int propertyIndex, object value,  bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, object requester)
+		protected internal void SetPropertyValueInternal(int propertyIndex, object value, object? requester)
 		{
-			this.SetPropertyValueInternal(propertyIndex, value, addOrRemoveInChangedProperties, firePropertyValueChangeEvent, decideActionFromModel: false, enforceAccessModifier: false, requester: requester);
+			this.SetPropertyValueInternal(propertyIndex, value, decideActionFromModel: true,  enforceAccessModifier: true, requester: requester);
 		}
 
         //protected internal void SetPropertyValueInternal(int propertyIndex, object value, bool firePropertyValueChangeEvent, bool addOrRemoveInChangedProperties, object requester)
@@ -1131,7 +1131,7 @@ namespace Simple.Objects
         #region |   Private Methods   |
 
 
-        private void SetPropertyValueInternal<T>(int propertyIndex, T value, ref T propertyValue, ref T oldPropertyValue, bool firePropertyValueChangeEvent, bool addOrRemoveInChangedProperties, bool decideActionFromModel, object requester)
+        private void SetPropertyValueInternal<T>(int propertyIndex, T value, ref T propertyValue, ref T oldPropertyValue, bool firePropertyValueChangeEvent, bool addOrRemoveInChangedProperties, bool decideActionFromModel, object? requester)
 		{
 			if (this.IsReadOnly)
 				throw new NotSupportedException("The property is about to be set and the EasyObject is read-only.");
@@ -1152,37 +1152,32 @@ namespace Simple.Objects
 					return;
 				
 				T previousPropertyValue = propertyValue;
-				bool doFirePropertyValueChangeEvent = (decideActionFromModel && propertyModel != null && propertyModel.FirePropertyValueChangeEvent) || (!decideActionFromModel && firePropertyValueChangeEvent);
-				bool doAddOrRemoveInChangedProperties = (decideActionFromModel && propertyModel != null && propertyModel.AddOrRemoveInChangedProperties) || (!decideActionFromModel && addOrRemoveInChangedProperties);
+				//bool doFirePropertyValueChangeEvent = (decideActionFromModel && propertyModel != null && propertyModel.FirePropertyValueChangeEvent) || (!decideActionFromModel && firePropertyValueChangeEvent);
+				//bool doAddOrRemoveInChangedProperties = (decideActionFromModel && propertyModel != null && propertyModel.AddOrRemoveInChangedProperties) || (!decideActionFromModel && addOrRemoveInChangedProperties);
 				
 				this.BeforePropertyValueIsChanged(this, propertyIndex, propertyValue, value);
 				propertyValue = value;
 
-
 				int oldChangedPropertiesCount = this.changedPropertyIndexes.Count;
 
-				if (doAddOrRemoveInChangedProperties)
-				{
+				//if (doAddOrRemoveInChangedProperties)
+				//{
 					if (!Comparison.IsEqual<T>(value, oldPropertyValue))
-					{
 						this.changedPropertyIndexes.Add(propertyIndex);
-
-					}
 					else
-					{
 						this.changedPropertyIndexes.Remove(propertyIndex);
-					}
-				}
+				//}
 
-				if (doFirePropertyValueChangeEvent)
+				//if (doFirePropertyValueChangeEvent)
 					this.PropertyValueIsChanged(this, propertyIndex, value, previousPropertyValue);
 
-				if (doAddOrRemoveInChangedProperties && oldChangedPropertiesCount != this.changedPropertyIndexes.Count)
+				if (oldChangedPropertiesCount != this.changedPropertyIndexes.Count)
 					this.ChangedPropertiesCountIsChanged(this.changedPropertyIndexes.Count, oldChangedPropertiesCount);
 			}
 		}
 
-		private void SetPropertyValueInternal(int propertyIndex, object value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, bool decideActionFromModel, bool enforceAccessModifier, object requester)
+		//private void SetPropertyValueInternal(int propertyIndex, object value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, bool decideActionFromModel, bool enforceAccessModifier, object? requester)
+		private void SetPropertyValueInternal(int propertyIndex, object value, bool decideActionFromModel, bool enforceAccessModifier, object? requester)
 		{
 			if (this.isDeleteStarted || this.isDeleted)
 				return;
@@ -1198,7 +1193,6 @@ namespace Simple.Objects
 			if (enforceAccessModifier && propertyModel != null && propertyModel.AccessPolicy == PropertyAccessPolicy.ReadOnly)
 				throw new NotSupportedException("The property is about to be set and the property model access policy is read-only: Object Type = " + this.GetType().Name + ", Property Index = " + propertyIndex);
 
-
 			lock (lockObject)
 			{
 				object propertyValue = this.GetFieldValue(propertyIndex);
@@ -1208,30 +1202,26 @@ namespace Simple.Objects
 
 				object oldPropertyValue = this.GetOldFieldValue(propertyIndex);
 				object previousPropertyValue = propertyValue;
-				bool doFirePropertyValueChangeEvent = (decideActionFromModel && propertyModel != null && propertyModel.FirePropertyValueChangeEvent) || (!decideActionFromModel && firePropertyValueChangeEvent);
-				bool doAddOrRemoveInChangedProperties = (decideActionFromModel && propertyModel != null && propertyModel.AddOrRemoveInChangedProperties) || (!decideActionFromModel && addOrRemoveInChangedProperties);
+				//bool doFirePropertyValueChangeEvent = (decideActionFromModel && propertyModel != null && propertyModel.FirePropertyValueChangeEvent) || (!decideActionFromModel && firePropertyValueChangeEvent);
+				//bool doAddOrRemoveInChangedProperties = (decideActionFromModel && propertyModel != null && propertyModel.AddOrRemoveInChangedProperties) || (!decideActionFromModel && addOrRemoveInChangedProperties);
 
 				this.BeforePropertyValueIsChanged(this, propertyIndex, propertyValue, value);
 				this.SetFieldValue(propertyIndex, value);
 
 				int oldChangedPropertiesCount = this.changedPropertyIndexes.Count;
 
-				if (doAddOrRemoveInChangedProperties)
-				{
+				//if (doAddOrRemoveInChangedProperties)
+				//{
 					if (!Comparison.IsEqual(value, oldPropertyValue))
-					{
 						this.changedPropertyIndexes.Add(propertyIndex);
-					}
 					else
-					{
 						this.changedPropertyIndexes.Remove(propertyIndex);
-					}
-				}
+				//}
 
-				if (doFirePropertyValueChangeEvent)
+				//if (doFirePropertyValueChangeEvent)
 					this.PropertyValueIsChanged(requester, propertyIndex, value, previousPropertyValue);
 
-				if (doAddOrRemoveInChangedProperties && oldChangedPropertiesCount != this.ChangedPropertiesCount)
+				if (oldChangedPropertiesCount != this.ChangedPropertiesCount)
 					this.ChangedPropertiesCountIsChanged(this.changedPropertyIndexes.Count, oldChangedPropertiesCount);
 			}
 		}

@@ -29,6 +29,7 @@ namespace Simple.Datastore.Controls
         {
             InitializeComponent();
 
+			this.comboBoxEditSqlServer.Text = ".\\SQLEXPRESS";
 			this.radioButtonWindowsAuthentication.Checked = true;
 			this.sqlServerAuthentication_CheckedChanged(this, EventArgs.Empty);
         }

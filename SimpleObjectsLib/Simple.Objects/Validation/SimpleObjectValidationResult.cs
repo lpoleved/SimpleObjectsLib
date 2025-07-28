@@ -8,20 +8,25 @@ namespace Simple.Objects
 {
     public class SimpleObjectValidationResult : ValidationResult
     {
-		public static new SimpleObjectValidationResult DefaultSuccessResult = new SimpleObjectValidationResult(null, true, null, null, TransactionRequestAction.Save);
+		//public static new SimpleObjectValidationResult DefaultSuccessResult = new SimpleObjectValidationResult(null, true, null, null, TransactionRequestAction.Save);
 
-		public SimpleObjectValidationResult(SimpleObject target, bool passed, string message, ValidationResult failedRuleResult, TransactionRequestAction failedValidationType)
+		public SimpleObjectValidationResult(SimpleObject target, bool passed, TransactionRequestAction validationType)
+            : this(target, passed, message: String.Empty, failedRuleResult: null, validationType)
+        {
+        }
+
+		public SimpleObjectValidationResult(SimpleObject target, bool passed, string message, ValidationResult? failedRuleResult, TransactionRequestAction validationType)
             : base(passed, message)
         {
             this.Target = target;
             this.FailedRuleResult = failedRuleResult;
-            this.FailedValidationType = failedValidationType;
+            this.ValidationType = validationType;
         }
 
         public SimpleObject Target { get; private set; }
-        public ValidationResult FailedRuleResult { get; private set; }
+        public ValidationResult? FailedRuleResult { get; private set; }
 
-        public TransactionRequestAction FailedValidationType { get; private set; }
+        public TransactionRequestAction ValidationType { get; private set; }
         //public IPropertyModel ErrorPropertyModel
         //{
         //    get

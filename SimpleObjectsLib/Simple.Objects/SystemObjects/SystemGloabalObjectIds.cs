@@ -13,7 +13,7 @@ namespace Simple.Objects
     {
 		static SystemGlobalObjectId()
 		{
-			Model.TableInfo = SystemTables.SystemGlobalObjectIds;
+			Model.TableInfo = SystemTablesBase.SystemGlobalObjectIds;
 			Model.AutoGenerateKey = true;
 		}
 

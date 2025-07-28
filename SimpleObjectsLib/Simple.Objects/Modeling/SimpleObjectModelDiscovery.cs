@@ -42,7 +42,7 @@ namespace Simple.Objects
 		private static object lockObject = new object();
 
 		public SimpleObjectModelDiscovery(IList<Assembly> assemblies)
-			: this(assemblies, ReflectionHelper.FindTopInheritedTypeInAssembly<SystemTables>(assemblies))
+			: this(assemblies, ReflectionHelper.FindTopInheritedTypeInAssembly<SystemTablesBase>(assemblies))
 		{
 		}
 
@@ -86,7 +86,7 @@ namespace Simple.Objects
 				if (tablesInfoType == null || tablesInfoType.IsAbstract)
 					return;
 
-				SystemTables? tablesInfoClass = Activator.CreateInstance(tablesInfoType) as SystemTables;
+				SystemTablesBase? tablesInfoClass = Activator.CreateInstance(tablesInfoType) as SystemTablesBase;
 				//TableBase tablesInfoClass = Activator.CreateInstance(tablesInfoType) as TableBase;
 
 				if (tablesInfoClass is null)
@@ -214,26 +214,18 @@ namespace Simple.Objects
 					Type topInheritedType = ReflectionHelper.FindTopInheritedClass(type, objectModelDefinitionTypes);
 
 					if (!reducedObjectModelDefinitionTypes.Contains(topInheritedType))
-					{
 						reducedObjectModelDefinitionTypes.Add(topInheritedType);
-					}
 					else
-					{
 						this.notIncludedObjectModelDefinitionTypes.Add(type);
-					}
 				}
 
 				// Split the models into two groups: system and app
 				foreach (Type type in reducedObjectModelDefinitionTypes)
 				{
 					if (this.IsObjectModelClassSystemAssembly(type))
-					{
 						systemModelDefinitionTypes.Add(type);
-					}
 					else
-					{
 						appModelDefinitionTypes.Add(type);
-					}
 				}
 
 				// Set Base model definition classes first
@@ -436,7 +428,6 @@ namespace Simple.Objects
 							relationModel.SetForegnKeyRelationModelsByPropertyIndex(item);
 					}
 
-
 					//// Set customized Guid object keys serialization methods
 					//foreach (PropertyModel propertyModel in objectModel.PropertyModels)
 					//{
@@ -459,7 +450,7 @@ namespace Simple.Objects
 				{
 					foreach (var propertyModel in objectModel.PropertyModels)
 					{
-						propertyModel.PropertyName = propertyModel.PropertyName;
+						//propertyModel.PropertyName = propertyModel.PropertyName;
 						propertyModel.DatastoreFieldName = propertyModel.PropertyName;
 					}
 				}
@@ -766,7 +757,7 @@ namespace Simple.Objects
 
 		private int GetObjectTableId(Type objectType)
 		{
-			ISimpleObjectModel objectModel = this.GetObjectModel(objectType);
+			ISimpleObjectModel? objectModel = this.GetObjectModel(objectType);
 
 			return (objectModel != null) ? objectModel.TableInfo.TableId : 0;
 		}

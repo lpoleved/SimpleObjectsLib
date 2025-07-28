@@ -15,7 +15,7 @@ namespace Simple.Objects
 
 		static SystemGraph()
 		{
-			Model.TableInfo = SystemTables.SystemGraphs;
+			Model.TableInfo = SystemTablesBase.SystemGraphs;
 			Model.AutoGenerateKey = false;
 		}
 
@@ -36,36 +36,38 @@ namespace Simple.Objects
 		}
 
 		[ObjectKey]
-		[DatastoreType(typeof(short))]
+		//[DatastoreType(typeof(short))]
 		public int GraphKey { get; set; }
 
 		public string? Name { get; set; }
 
-		//[NonStorable]
-
-		public SimpleObjectCollection<GraphElement> GetRootGraphElements()
+		[NonStorable]
+		public SimpleObjectCollection<GraphElement> RootGraphElements
 		{
-			if (this.rootGraphElements == null)
+			get
 			{
-				if (this.ObjectManager is null)
-					throw new Exception("The ObjectManager cannot be null");
-
-				if (this.ObjectManager.WorkingMode == ObjectManagerWorkingMode.Client)
+				if (this.rootGraphElements == null)
 				{
-					this.ObjectManager.CacheGraphElementsWithObjectsFromServer(this.GraphKey, parentGraphElementId: 0, out List<long> graphElementIds); //, out bool[] hasChildrenInfo);
-					this.rootGraphElements = new SimpleObjectCollection<GraphElement>(this.ObjectManager, GraphElementModel.TableId, graphElementIds);
+					if (this.ObjectManager is null)
+						throw new Exception("The ObjectManager cannot be null");
 
-					return this.rootGraphElements;
+					if (this.ObjectManager.WorkingMode == ObjectManagerWorkingMode.Client)
+					{
+						this.ObjectManager.CacheGraphElementsWithObjectsFromServer(this.GraphKey, parentGraphElementId: 0, out List<long> graphElementIds); //, out bool[] hasChildrenInfo);
+						this.rootGraphElements = new SimpleObjectCollection<GraphElement>(this.ObjectManager, GraphElementModel.TableId, graphElementIds);
+
+						return this.rootGraphElements;
+					}
+					else
+					{
+						this.rootGraphElements = (this.ObjectManager.GetObjectCache(GraphElementModel.TableId) as ServerObjectCache)!
+																	.Select<GraphElement>(graphElement => graphElement.GraphKey == this.GraphKey &&
+																										  graphElement.ParentId == 0, sortCollection: true);
+					}
 				}
-				else
-				{
-					this.rootGraphElements = (this.ObjectManager.GetObjectCache(GraphElementModel.TableId) as ServerObjectCache)!
-															    .Select<GraphElement>(graphElement => graphElement.GraphKey == this.GraphKey &&
-																									  graphElement.ParentId == 0, sortCollection: true);
-				}
+
+				return this.rootGraphElements;
 			}
-
-			return this.rootGraphElements;
 		}
 
 		//public SimpleObjectCollection<GraphElement> GetRootGraphElements(out bool[] hasChildrenInfo)

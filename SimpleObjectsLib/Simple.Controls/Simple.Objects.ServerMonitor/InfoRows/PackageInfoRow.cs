@@ -50,7 +50,12 @@ namespace Simple.Objects.ServerMonitor
 			string keyDescription = this.packageInfo.Key.ToString();
 
 			if (this.packageInfo.HeaderInfo.IsSystem)
-				keyDescription = ((SystemRequest)this.packageInfo.Key).ToString();
+			{
+				if (packageInfo.HeaderInfo.PackageType == PackageType.Message)
+					keyDescription = ((SystemMessage)this.packageInfo.Key).ToString();
+				else
+					keyDescription = ((SystemRequest)this.packageInfo.Key).ToString();
+			}
 
 			this.PackageKey += $"  ({keyAppInfo}.{keyDescription})";
 		}

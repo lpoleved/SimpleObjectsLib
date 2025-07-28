@@ -22,6 +22,7 @@ namespace Simple.SocketEngine
 		public CommandDiscovery(Type methodHolderType)
 		{
 			MethodInfo[] methods = methodHolderType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			int count = 0;
 
 			foreach (MethodInfo methodInfo in methods)
 			{
@@ -86,6 +87,8 @@ namespace Simple.SocketEngine
 					if (authorisationNotRequired)
 						this.RequestIdsNotRequireAuthorization.Add(request.RequestId);
 				}
+
+				count++;
 			}
 		}
 	}

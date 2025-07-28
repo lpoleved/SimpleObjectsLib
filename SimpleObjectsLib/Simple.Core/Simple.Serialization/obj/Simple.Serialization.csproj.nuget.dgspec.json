@@ -1,50 +1,53 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj": {}
+    "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj": {}
   },
   "projects": {
-    "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
+    "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj",
+        "projectUniqueName": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj",
         "projectName": "Simple.Collections",
-        "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj",
-        "packagesPath": "C:\\Users\\MisterX\\.nuget\\packages\\",
-        "outputPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\obj\\",
+        "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj",
+        "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
+        "outputPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [
-          "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages"
+          "C:\\Program Files\\DevExpress 25.1\\Components\\Offline Packages",
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\MisterX\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
+          "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 25.1.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net6.0",
+          "net8.0",
           "netstandard2.1"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\DevExpress 25.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net6.0": {
-            "targetAlias": "net6.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           },
           "netstandard2.1": {
             "targetAlias": "netstandard2.1",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           }
@@ -53,11 +56,17 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "imports": [
             "net461",
             "net462",
@@ -74,7 +83,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         },
         "netstandard2.1": {
           "targetAlias": "netstandard2.1",
@@ -94,51 +103,54 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
+    "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj",
+        "projectUniqueName": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj",
         "projectName": "Simple.Security",
-        "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj",
-        "packagesPath": "C:\\Users\\MisterX\\.nuget\\packages\\",
-        "outputPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\obj\\",
+        "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj",
+        "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
+        "outputPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [
-          "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages"
+          "C:\\Program Files\\DevExpress 25.1\\Components\\Offline Packages",
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\MisterX\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
+          "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 25.1.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net6.0",
+          "net8.0",
           "netstandard2.1"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\DevExpress 25.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net6.0": {
-            "targetAlias": "net6.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           },
           "netstandard2.1": {
             "targetAlias": "netstandard2.1",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           }
@@ -147,11 +159,17 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "imports": [
             "net461",
             "net462",
@@ -168,7 +186,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         },
         "netstandard2.1": {
           "targetAlias": "netstandard2.1",
@@ -188,63 +206,66 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj": {
+    "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj",
+        "projectUniqueName": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj",
         "projectName": "Simple.Serialization",
-        "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj",
-        "packagesPath": "C:\\Users\\MisterX\\.nuget\\packages\\",
-        "outputPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\obj\\",
+        "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\Simple.Serialization.csproj",
+        "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
+        "outputPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Serialization\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [
-          "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages"
+          "C:\\Program Files\\DevExpress 25.1\\Components\\Offline Packages",
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\MisterX\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
+          "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 25.1.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net6.0",
+          "net8.0",
           "netstandard2.1"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\DevExpress 25.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net6.0": {
-            "targetAlias": "net6.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj"
               },
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj"
               },
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           },
           "netstandard2.1": {
             "targetAlias": "netstandard2.1",
             "projectReferences": {
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Collections\\Simple.Collections.csproj"
               },
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple.Security\\Simple.Security.csproj"
               },
-              "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
-                "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
+              "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+                "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj"
               }
             }
           }
@@ -253,11 +274,17 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.CSharp": {
               "target": "Package",
@@ -265,7 +292,7 @@
             },
             "System.IO.Pipelines": {
               "target": "Package",
-              "version": "[6.0.2, )"
+              "version": "[8.0.0, )"
             }
           },
           "imports": [
@@ -284,7 +311,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         },
         "netstandard2.1": {
           "targetAlias": "netstandard2.1",
@@ -295,7 +322,7 @@
             },
             "System.IO.Pipelines": {
               "target": "Package",
-              "version": "[6.0.2, )"
+              "version": "[8.0.0, )"
             }
           },
           "imports": [
@@ -314,40 +341,43 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
+    "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj",
+        "projectUniqueName": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj",
         "projectName": "Simple",
-        "projectPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj",
-        "packagesPath": "C:\\Users\\MisterX\\.nuget\\packages\\",
-        "outputPath": "D:\\Wild Wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\obj\\",
+        "projectPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\Simple.csproj",
+        "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
+        "outputPath": "D:\\Git\\wild-wind\\Sources\\SimpleObjectsLib\\Simple.Core\\Simple\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [
-          "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages"
+          "C:\\Program Files\\DevExpress 25.1\\Components\\Offline Packages",
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\MisterX\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
+          "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 25.1.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net6.0",
+          "net8.0",
           "netstandard2.1"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\DevExpress 25.1\\Components\\System\\Components\\Packages": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net6.0": {
-            "targetAlias": "net6.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {}
           },
           "netstandard2.1": {
@@ -359,11 +389,17 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.DotNet.PlatformAbstractions": {
               "target": "Package",
@@ -386,7 +422,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         },
         "netstandard2.1": {
           "targetAlias": "netstandard2.1",
@@ -412,7 +448,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.307\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     }

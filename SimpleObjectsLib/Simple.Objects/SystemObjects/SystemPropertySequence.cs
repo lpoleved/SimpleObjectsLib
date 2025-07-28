@@ -16,7 +16,7 @@ namespace Simple.Objects
 
 		static SystemPropertySequence()
 		{
-			Model.TableInfo = SystemTables.SystemPropertySequences;
+			Model.TableInfo = SystemTablesBase.SystemPropertySequences;
 			Model.AutoGenerateKey = true;
 		}
 
@@ -63,10 +63,7 @@ namespace Simple.Objects
 		public int[]? PropertyTypeIds { get; private set; }
 
 		[NonStorable]
-		public int Length
-		{
-			get { return this.PropertyIndexes.Length; }
-		}
+		public int Length => this.PropertyIndexes?.Length ?? 0;
 
 		protected override void OnLoad()
 		{

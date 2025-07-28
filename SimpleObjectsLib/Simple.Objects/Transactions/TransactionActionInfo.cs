@@ -10,33 +10,37 @@ namespace Simple.Objects
 {
 	public class TransactionActionInfo : ISequenceSerializable
 	{
-		private List<PropertyIndexValuePair>? propertyIndexValueList = null;
-		internal PropertyIndexValuePair[]? propertyIndexValueArray;
+		private IList<PropertyIndexValuePair>? propertyIndexValueList = null;
+		//internal PropertyIndexValuePair[]? propertyIndexValueArray;
 
 		public TransactionActionInfo()
 		{
 		}
 
-		public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, List<PropertyIndexValuePair>? propertyIndexValueList)
-			: this(tableId, objectId, actionType, propertyIndexValues: null)
+		public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, IList<PropertyIndexValuePair>? propertyIndexValueList)
+			//: this(tableId, objectId, actionType, propertyIndexValues: null)
 		{
-			this.propertyIndexValueList = propertyIndexValueList;
-		}
+		//	this.propertyIndexValueList = propertyIndexValueList;
+		//}
 
 
-		public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, PropertyIndexValuePair[]? propertyIndexValues)
-		{
+		//public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, PropertyIndexValuePair[]? propertyIndexValues)
+		//{
 			this.TableId = tableId;
 			this.ObjectId = objectId;
 			this.ActionType = actionType;
-			this.propertyIndexValueArray = propertyIndexValues;
+			this.propertyIndexValueList = propertyIndexValueList;
 		}
 
-		public int TableId { get; private set; }
-		public long ObjectId { get; internal set; }
+		public int TableId { get; protected set; }
+		public long ObjectId { get; protected internal set; }
+
+		public SimpleObject? SimpleObject { get; set; } = null;
+		public RelationListInfo? RelationInfo { get; set; } = null;
+
 		public TransactionActionType ActionType { get; private set; }
 
-		public IEnumerable<PropertyIndexValuePair>? PropertyIndexValues => (this.propertyIndexValueList != null) ? this.propertyIndexValueList as IEnumerable<PropertyIndexValuePair> : this.propertyIndexValueArray;
+		public IList<PropertyIndexValuePair>? PropertyIndexValues => this.propertyIndexValueList; // (this.propertyIndexValueList != null) ? this.propertyIndexValueList : this.propertyIndexValueArray;
 
 		//public IEnumerable<int> PropertyIndexes { get; private set; }
 		//public IEnumerable<object?> PropertyValues { get; private set; }
@@ -57,35 +61,37 @@ namespace Simple.Objects
 				writer.WriteBoolean(this.ActionType == TransactionActionType.Update);
 			}
 
-			if (this.ActionType != TransactionActionType.Delete)
+			IEnumerable<PropertyIndexValuePair>? propertyIndexValues = this.PropertyIndexValues;
+
+			if (propertyIndexValues != null)
 			{
-				IEnumerable<PropertyIndexValuePair>? propertyIndexValues = this.PropertyIndexValues;
+				writer.WriteInt32Optimized(propertyIndexValues.Count());
 
-				if (propertyIndexValues != null)
+				foreach (var item in propertyIndexValues)
 				{
-					writer.WriteInt32Optimized(propertyIndexValues.Count());
+					ServerPropertyInfo propertyModel = objectModel.GetPropertyInfo(item.PropertyIndex);
+					object? propertyValue = this.GetPropertyValue(item.PropertyValue);
+					int propertyTypeId = this.GetPropertyTypeId(propertyModel);
 
-					foreach (var item in propertyIndexValues)
-					{
-						ServerPropertyInfo propertyModel = objectModel.GetPropertyInfo(item.PropertyIndex);
-						int propertyTypeId = this.GetPropertyTypeId(propertyModel);
+					writer.WriteInt32Optimized(item.PropertyIndex);
+					this.WritePropertyTypeId(ref writer, propertyTypeId);
+					this.WriteIsPropertySeriaizationOptimizable(ref writer, propertyModel.IsSerializationOptimizable);
 
-						writer.WriteInt32Optimized(item.PropertyIndex);
-						this.WritePropertyTypeId(ref writer, propertyTypeId);
-						this.WriteIsPropertySeriaizationOptimizable(ref writer, propertyModel.IsSerializationOptimizable);
-
-						if (propertyModel.IsSerializationOptimizable)
-							writer.WriteOptimized(propertyTypeId, item.PropertyValue);
-						else
-							writer.Write(propertyTypeId, item.PropertyValue);
-					}
-				}
-				else
-				{
-					writer.WriteInt32Optimized(0);
+					if (propertyModel.IsSerializationOptimizable)
+						writer.WriteOptimized(propertyTypeId, propertyValue);
+					else
+						writer.Write(propertyTypeId, propertyValue);
 				}
 			}
+			else
+			{
+				writer.WriteInt32Optimized(0);
+			}
 		}
+
+		protected virtual int GetPropertyTypeId(IServerPropertyInfo propertyModel) => propertyModel.PropertyTypeId;
+
+		protected virtual object? GetPropertyValue(object? value) => value;
 
 		protected virtual void WritePropertyTypeId(ref SequenceWriter writer, int propertyTypeId) { }
 
@@ -93,20 +99,22 @@ namespace Simple.Objects
 
 		public virtual void ReadFrom(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel)
 		{
+			IList<PropertyIndexValuePair> propertyValues;
+
 			this.TableId = reader.ReadInt32Optimized();
 			this.ObjectId = reader.ReadInt64Optimized();
 			this.ActionType = TransactionActionType.Delete;
-			PropertyIndexValuePair[] propertyValues;
 
 			if (reader.ReadBoolean())
 				this.ActionType = TransactionActionType.Insert;
 			else if (reader.ReadBoolean())
 				this.ActionType = TransactionActionType.Update;
 
-			if (this.ActionType != TransactionActionType.Delete)
-			{
+			//if (this.ActionType != TransactionActionType.Delete)
+			//{
 				int propertyCount = reader.ReadInt32Optimized();
-				propertyValues = new PropertyIndexValuePair[propertyCount];
+				
+				propertyValues = new List<PropertyIndexValuePair>(propertyCount);
 
 				for (int i = 0; i < propertyCount; i++)
 				{
@@ -123,26 +131,21 @@ namespace Simple.Objects
 					else
 						propertyValue = reader.Read(propertyTypeId);
 
-					propertyValues[i] = new PropertyIndexValuePair(propertyIndex, propertyValue);
+					propertyValues.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
 				}
-			}
-			else
-			{
-				propertyValues = new PropertyIndexValuePair[0];
-			}
+			//}
+			//else
+			//{
+			//	propertyValues = new PropertyIndexValuePair[0];
+			//}
 
-			this.propertyIndexValueArray = propertyValues;
+			this.propertyIndexValueList = propertyValues;
 		}
 
 		protected virtual int ReadPropertyTypeId(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel, int propertyIndex) => getServerObjectModel(this.TableId)![propertyIndex].PropertyTypeId;
 		protected virtual bool ReadIsProperySerializationOptimizable(ref SequenceReader reader, Func<int, ServerObjectModelInfo?> getServerObjectModel, int propertyIndex) => getServerObjectModel(this.TableId)![propertyIndex].IsSerializationOptimizable;
 
 		public virtual int GetBufferCapacity() => this.PropertyIndexValues?.Count() ?? 0 * 30 + 8;
-
-		protected virtual int GetPropertyTypeId(IServerPropertyInfo propertyModel)
-		{
-			return propertyModel.PropertyTypeId;
-		}
 
 		void ISequenceWritable.WriteTo(ref SequenceWriter writer, object? context)
 		{

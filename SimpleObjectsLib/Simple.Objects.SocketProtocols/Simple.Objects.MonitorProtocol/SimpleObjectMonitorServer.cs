@@ -7,7 +7,8 @@ using System.Threading;
 using System.IO;
 using System.Threading.Tasks;
 using SuperSocket.ProtoBase;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
+using SuperSocket.Server.Abstractions.Session;
 using Simple;
 using Simple.Collections;
 using Simple.Modeling;
@@ -34,8 +35,8 @@ namespace Simple.Objects.MonitorProtocol
 
 		//		// The AppServer protocol version
 		private Version protocolVersion = new Version(0, 0);
-		private string clientUsername = "Monitor Admin";
-		private string clientPasswordHash;
+		//private string clientUsername = "Monitor Admin";
+		//private string clientPasswordHash;
 		//		private const int DefaultManagementPort = 2021;
 		private SimpleObjectServer appServer;
 		private HashArray<ServerObjectModelResponseArgs> serverObjectPropertyInfosByTybleId = new HashArray<ServerObjectModelResponseArgs>();
@@ -44,11 +45,11 @@ namespace Simple.Objects.MonitorProtocol
 
 		#region |   Constructors and Initialization   |
 
-		public SimpleObjectMonitorServer(SimpleObjectServer appServer, string clientPassword = "manager")
+		public SimpleObjectMonitorServer(SimpleObjectServer appServer) //, string) clientPassword = "manager")
 		{
             this.AppServer = appServer;
 			this.appServer = appServer;
-			this.clientPasswordHash = PasswordSecurity.HashPassword(clientPassword);
+			//this.clientPasswordHash = PasswordSecurity.HashPassword(clientPassword);
 			this.Port = DefaultMonitorPort;
         }
 
@@ -56,18 +57,22 @@ namespace Simple.Objects.MonitorProtocol
 
 		#region |   Protected Override Methods   |
 
-
 		protected override string GetServerName() => "SimpleObjectMonitorServer";
 
 		protected override object GetCommandOwnerInstance() => this;
 
+		protected override PackageArgsFactory CreatePackageArgsFactory() => new MonitorPackageArgsFactory(Assembly.GetExecutingAssembly());
 
-		protected override PackageArgsFactory CreatePackageArgsFactory() => new MonitorPackageArgsFactory(this.GetPackageArgsAssemblies());
+		protected override SimpleSession CreateSession(object session) => new SimpleObjectSession(this.AppServer.ObjectManager);  // In order to use Simple.Objects.SocketProtocol args SimpleObjectSession is given via contex when serializing
 
-		protected override SimpleSession CreateSession(object session)
-		{
-			return new SimpleObjectSession(this.AppServer.ObjectManager);  // In order to use Simple.Objects.SocketProtocol args SimpleObjectSession is given via contex when serializing
-		}
+		//protected override List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var result = base.GetPackageArgsAssemblies();
+
+		//	//result.Add(Assembly.GetExecutingAssembly());
+
+		//	return result;
+		//}
 
 		#endregion |   Protected Override Methods   |
 
@@ -166,7 +171,7 @@ namespace Simple.Objects.MonitorProtocol
 
         private async ValueTask AppServer_BrotcastMessageSent(byte[] packageData, Encoding packageEncoding)
         {
-			var messageArgs = new MessageMessageArgs(packageData); // TODO: EncodingTypeId needed
+			var messageArgs = new BrodcastMessageMessageArgs(packageData); // TODO: EncodingTypeId needed
 
 			await this.SendBroadcastSystemMessage((int)MonitorSystemMessage.BrodcastMessageSent, messageArgs);
 		}
@@ -201,9 +206,9 @@ namespace Simple.Objects.MonitorProtocol
 
 		private void ObjectManager_TransactionFinished(object sender, TransactionDatastoreActionRequesterEventArgs e)
 		{
-			if (this.IsAnyAuthenticatedClient().GetAwaiter().GetResult())
+			if (this.IsAnyClientAuthenticated().GetAwaiter().GetResult())
 			{
-				var messageArgs = new TransactionMessageArgs(e.Transaction, e.DatastoreActions!);
+				var messageArgs = new TransactionMessageArgs(e.TransactionRequests, e.Transaction, e.DatastoreActions!, this.AppServer.GetServerObjectModel);
 
 				this.SendBroadcastSystemMessage((int)MonitorSystemMessage.TransactionFinished, messageArgs).GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
 			}
@@ -419,9 +424,9 @@ namespace Simple.Objects.MonitorProtocol
 
 		#region |   Request & Responses   |
 
-		[AuthorizationNotRequired]
-		[SystemRequestCommand((int)MonitorSystemRequest.GetProtocolVersion)]
-		public ResponseArgs GetProtocolVersion(SimpleSession session, PackageReader package) => new ProtocolVersionResponseArgs(this.ProtocolVersion);
+		//[AuthorizationNotRequired]
+		//[SystemRequestCommand((int)SystemRequest.GetProtocolVersion)]
+		//public ResponseArgs GetProtocolVersion(ISimpleSession session, PackageReader package) => new ProtocolVersionResponseArgs(this.ProtocolVersion);
 
 
 		[AuthorizationNotRequired]
@@ -434,23 +439,17 @@ namespace Simple.Objects.MonitorProtocol
 			{
 				//username = session.Username;
 
-				return new AuthenticateSessionResponseArgs(true); //, session.UserId, username);
+				return new AuthenticateSessionResponseArgs(isAuthenticated: true, session.UserId); //, username);
 			}
-			
-			AuthenticateSessionRequestArgs requestArgs = (package.PackageArgs as AuthenticateSessionRequestArgs)!;
 
-			bool isAuthenticated = (this.clientUsername == requestArgs.Username && this.clientPasswordHash == requestArgs.PasswordHash);
-			long userId = 0;
+			AuthenticateSessionRequestArgs requestArgs = (package.PackageArgs as AuthenticateSessionRequestArgs)!;
+			bool isAuthenticated = this.AppServer.ObjectManager.AuthenticateMonitorSession(requestArgs.Username, requestArgs.PasswordHash, out long userId);
+			//bool isAuthenticated = (this.clientUsername == requestArgs.Username && this.clientPasswordHash == requestArgs.PasswordHash);
 
 			if (isAuthenticated)
-			{
-				userId = 1;
-				username = requestArgs.Username;
+				base.SessionIsAuthenticated(session as SimpleSession, userId, requestArgs.Username);
 
-				base.SessionIsAuthenticated(session as SimpleSession, userId, username);
-			}
-
-			return new AuthenticateSessionResponseArgs(isAuthenticated); //, userId, username);
+			return new AuthenticateSessionResponseArgs(isAuthenticated, userId);
 		}
 
 

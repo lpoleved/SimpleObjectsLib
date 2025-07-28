@@ -14,7 +14,7 @@ using Simple.Security;
 
 namespace Simple.Objects
 {
-	partial class SimpleObject : IBindingSimpleObject, IPropertyValue, IDisposable
+	partial class SimpleObject : IBindingSimpleObject, IPropertyValue, IEqualityComparer , IDisposable
 	{
 		#region |   Protected Members   |
 
@@ -32,11 +32,12 @@ namespace Simple.Objects
 		private bool isDeleted = false;
 		private bool isReadOnly = false;
 		private bool isStorable = false;
-		private bool isValidationTest = false;
+		////private bool isValidationTest = false;
 		//private HashSet<IPropertyModel> changedPropertyModels = new HashSet<IPropertyModel>();
 		private SortedSet<int> changedPropertyIndexes = new SortedSet<int>();
 		//private HashSet<int> changedSaveablePropertyIndexes = new HashSet<int>();
-		private SortedSet<int> changedSaveablePropertyIndexes = new SortedSet<int>();
+		//private SortedSet<int> changedSaveablePropertyIndexes = new SortedSet<int>();
+		private static Dictionary<long, long> EmptyNewObjectIdsByTempClientObjectIdDictionary = new Dictionary<long, long>();
 
 		private string? imageName = null;
 		private object? tag = null;
@@ -64,23 +65,23 @@ namespace Simple.Objects
 
 		#region |   Events   |
 
-		public event BeforeChangePropertyValueSimpleObjectRequesterEventHandler? BeforePropertyValueChange;
-		public event ChangePropertyValueSimpleObjectRequesterEventHandler? PropertyValueChange;
-		public event ChangePropertyValueSimpleObjectRequesterEventHandler? SaveablePropertyValueChange;
+		public event BeforeChangePropertyValuePropertyModelSimpleObjectChangeContainerContextRequesterEventHandler? BeforePropertyValueChange;
+		public event ChangePropertyValuePropertyModelSimpleObjectChangeContainerRequesterEventHandler? PropertyValueChange;
+		//public event ChangePropertyValueSimpleObjectRequesterEventHandler? SaveablePropertyValueChange;
 		public event CountChangeSimpleObjectEventHandler? ChangedPropertiesCountChange;
-		public event CountChangeSimpleObjectEventHandler? ChangedSaveablePropertiesCountChange;
+		//public event CountChangeSimpleObjectEventHandler? ChangedSaveablePropertiesCountChange;
 
 		#endregion |   Events   |
 
 		#region |   Public Properties   |
 
-		public object this[int propertyIndex]
+		public object? this[int propertyIndex]
 		{
 			get { return this.GetPropertyValue(propertyIndex); }
 			set { this.SetPropertyValue(propertyIndex, value); }
 		}
 
-		public object this[string propertyName]
+		public object? this[string propertyName]
 		{
 			get { return this.GetPropertyValue(propertyName); }
 			set { this.SetPropertyValue(propertyName, value); }
@@ -120,20 +121,20 @@ namespace Simple.Objects
 			get { return this.changedPropertyIndexes.Count; }
 		}
 
-		public int ChangedSaveablePropertiesCount
-		{
-			get { return this.changedSaveablePropertyIndexes.Count; }
-		}
+		//public int ChangedSaveablePropertiesCount
+		//{
+		//	get { return this.changedSaveablePropertyIndexes.Count; }
+		//}
 
 		public int[] GetChangedPropertyIndexes()
 		{
 			return (!this.IsDeleted) ? this.changedPropertyIndexes.ToArray() : new int[] { };
 		}
 
-		public int[] GetChangedSaveablePropertyIndexes()
-		{
-			return (!this.IsDeleted) ? this.changedSaveablePropertyIndexes.ToArray() : new int[] { };
-		}
+		//public int[] GetChangedSaveablePropertyIndexes()
+		//{
+		//	return (!this.IsDeleted) ? this.changedSaveablePropertyIndexes.ToArray() : new int[] { };
+		//}
 
 		public List<int> GetChangedPrimaryObjectRelationKeys()
 		{
@@ -181,10 +182,8 @@ namespace Simple.Objects
 		//}
 
 
-		public bool IsChanged
-		{
-			get { return this.changedSaveablePropertyIndexes.Count > 0; }
-		}
+		//public bool IsChanged => this.changedSaveablePropertyIndexes.Count > 0;
+		public bool IsChanged => this.changedPropertyIndexes.Count > 0;
 
 		public object? Tag
 		{
@@ -192,11 +191,11 @@ namespace Simple.Objects
 			set { this.tag = value; }
 		}
 
-		public bool IsValidationTest
-		{
-			get { return this.isValidationTest; }
-			set { this.isValidationTest = value; }
-		}
+		////public bool IsValidationTest
+		////{
+		////	get { return this.isValidationTest; }
+		////	set { this.isValidationTest = value; }
+		////}
 
 		#endregion |   Public Properties   |
 
@@ -206,7 +205,7 @@ namespace Simple.Objects
 
 		#region |   Public Methods   |
 
-		public string? GetImageName()
+		public virtual string? GetImageName()
 		{
 			if (this.imageName == null)
 			{
@@ -214,10 +213,21 @@ namespace Simple.Objects
 				this.RecalcImageName();
 			}
 
+			//if (imageName == "Vlan")
+			//	imageName = imageName;
+
+			//if (this.GetName() == "VlanX (GE)")
+			//	imageName = imageName;
+
 			return this.imageName;
 		}
 
-		public void SetImageName(string imageName) => this.imageName = imageName;
+		public void SetImageName(string imageName)
+		{ 
+			
+			this.imageName = imageName;
+			this.RecalcImageName();
+		}
 
 		public virtual string? GetDescription()
 		{
@@ -239,9 +249,9 @@ namespace Simple.Objects
 				this.SetPropertyValue(this.GetModel().DescriptionPropertyModel, description);
 		}
 
-		public GraphElement CreateGraphElement(int graphKey, GraphElement parent, ChangeContainer changeContainer, object? requester)
+		public GraphElement CreateGraphElement(int graphKey, GraphElement? parent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			return this.GetOrCreateGraphElement(graphKey, simpleObject: this, parent: parent, changeContainer, requester);
+			return this.GetOrCreateGraphElement(graphKey, simpleObject: this, parent, changeContainer, context, requester);
 		}
 
 		public T GetPropertyValue<T>(IPropertyModel propertyModel)
@@ -269,17 +279,11 @@ namespace Simple.Objects
 			object? value = this.GetPropertyValue(propertyIndex);
 
 			if (value == null)
-			{
 				return defaultValue;
-			}
 			else if (value.GetType() != typeof(T))
-			{
 				return Conversion.TryChangeType<T>(value, defaultValue);
-			}
 			else
-			{
 				return (T)value;
-			}
 		}
 
 		public object? GetPropertyValue(IPropertyModel propertyModel)
@@ -292,6 +296,7 @@ namespace Simple.Objects
 		//	int propertyIndex = this.GetModel().PropertyModels[propertyName].Index;
 		//	return (normalizeValue) ? this.GetPropertyValue(propertyIndex) : this.GetFieldValue(propertyIndex);
 		//}
+
 
 		public virtual object? GetPropertyValue(string propertyName)
 		{
@@ -314,26 +319,37 @@ namespace Simple.Objects
 			return this.GetOldFieldValue(propertyIndex);
 		}
 
+
 		public void SetPropertyValue(string propertyName, object? value)
 		{
-			this.SetPropertyValue(propertyName, value, this.Requester);
+			this.SetPropertyValue(propertyName, value, context: ObjectActionContext.Unspecified);
 		}
 
-		public void SetPropertyValue(string propertyName, object? value, ChangeContainer changeContainer)
+		public void SetPropertyValue(string propertyName, object? value, ObjectActionContext context)
 		{
-			this.SetPropertyValue(propertyName, value, changeContainer, this.Requester);
+			this.SetPropertyValue(propertyName, value, context, this.Requester);
 		}
 
 		public void SetPropertyValue(string propertyName, object? value, object? requester)
 		{
-			this.SetPropertyValue(propertyName, value, this.GetChangeContainer(), requester);
+			this.SetPropertyValue(propertyName, value, context: ObjectActionContext.Unspecified, requester);
 		}
 
-		public void SetPropertyValue(string propertyName, object? value, ChangeContainer changeContainer, object? requester)
+		public void SetPropertyValue(string propertyName, object? value, ObjectActionContext context, object? requester)
+		{
+			this.SetPropertyValue(propertyName, value, this.ChangeContainer, context, requester);
+		}
+
+		public void SetPropertyValue(string propertyName, object? value, ChangeContainer? changeContainer, ObjectActionContext context)
+		{
+			this.SetPropertyValue(propertyName, value, changeContainer, context, this.Requester);
+		}
+
+		public void SetPropertyValue(string propertyName, object? value, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyName];
 
-			this.SetPropertyValue(propertyModel, value, changeContainer, requester);
+			this.SetPropertyValue(propertyModel, value, changeContainer, context, requester);
 		}
 
 		public void SetPropertyValue(int propertyIndex, object? value)
@@ -341,36 +357,69 @@ namespace Simple.Objects
 			this.SetPropertyValue(propertyIndex, value, this.Requester);
 		}
 
-		public void SetPropertyValue(int propertyIndex, object? value, object requester)
+		public void SetPropertyValue(int propertyIndex, object? value, object? requester)
 		{
-			this.SetPropertyValue(propertyIndex, value, this.GetChangeContainer(), requester);
+			this.SetPropertyValue(propertyIndex, value, ObjectActionContext.Unspecified, requester);
 		}
 
-		public void SetPropertyValue(int propertyIndex, object? value, ChangeContainer changeContainer, object requester)
+		public void SetPropertyValue(int propertyIndex, object? value, ObjectActionContext context)
+		{
+			this.SetPropertyValue(propertyIndex, value,  context, this.Requester);
+		}
+
+		public void SetPropertyValue(int propertyIndex, object? value, ObjectActionContext context, object? requester)
+		{
+			this.SetPropertyValue(propertyIndex, value, this.ChangeContainer, context, requester);
+		}
+
+		public void SetPropertyValue(int propertyIndex, object? value, ChangeContainer? changeContainer, ObjectActionContext context)
+		{
+			this.SetPropertyValue(propertyIndex, value, changeContainer, context, this.Requester);
+		}
+
+		public void SetPropertyValue(int propertyIndex, object? value, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
 
-			this.SetPropertyValue(propertyModel, value, changeContainer, requester);
+			this.SetPropertyValue(propertyModel, value, changeContainer, context, requester);
 		}
 
 		public void SetPropertyValue(IPropertyModel propertyModel, object? value)
 		{
-			this.SetPropertyValue(propertyModel, value, this.GetChangeContainer(), this.Requester);
+			this.SetPropertyValue(propertyModel, value, this.Requester);
 		}
 
-		public void SetPropertyValue(IPropertyModel propertyModel, object? value, object requester)
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, object? requester)
 		{
-			this.SetPropertyValue(propertyModel, value, this.GetChangeContainer(), requester);
+			this.SetPropertyValue(propertyModel, value, this.Context, requester);
 		}
 
-		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ChangeContainer changeContainer)
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ObjectActionContext context)
 		{
-			this.SetPropertyValue(propertyModel, value, changeContainer, this.Requester);
+			this.SetPropertyValue(propertyModel, value, context, this.Requester);
 		}
 
-		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ChangeContainer? changeContainer, object? requester)
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ObjectActionContext context, object? requester)
 		{
-			this.SetPropertyValueInternal(propertyModel, value, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent, enforceAccessModifier: true, changeContainer, requester);
+			this.SetPropertyValue(propertyModel, value, this.ChangeContainer, context, requester);
+		}
+
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ChangeContainer? changeContainer, ObjectActionContext context)
+		{
+			this.SetPropertyValue(propertyModel, value, changeContainer, context, this.Requester);
+		}
+
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.SetPropertyValue(propertyModel, value, propertyModel.TrimStringBeforeComparison, changeContainer, context, requester);
+		}
+
+		public void SetPropertyValue(IPropertyModel propertyModel, object? value, bool trimStringBeforeComparison, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			if (propertyModel.AccessPolicy == PropertyAccessPolicy.ReadOnly && (!this.IsNew)) // && !propertyModel.CanSetOnClientUpdate))
+				throw new NotSupportedException("The property is about to be set and the property model access policy is read-only: Object Type = " + this.GetType().Name + ", PropertyIndex=" + propertyModel.PropertyIndex + " (" + propertyModel.PropertyName + ")");
+
+			this.SetPropertyValuePrivate(propertyModel, value, trimStringBeforeComparison, changeContainer, context, requester);
 		}
 
 		public void AcceptChanges()
@@ -380,7 +429,7 @@ namespace Simple.Objects
 
 		public void AcceptChanges(object? requester)
 		{
-			this.AcceptChanges(this.GetChangeContainer(), requester);
+			this.AcceptChanges(this.ChangeContainer, requester);
 		}
 
 		public void AcceptChanges(ChangeContainer? changeContainer)
@@ -389,6 +438,11 @@ namespace Simple.Objects
 		}
 
 		public void AcceptChanges(ChangeContainer? changeContainer, object? requester)
+		{
+			this.AcceptChangesInternal(changeContainer, requester);
+		}
+
+		internal void AcceptChangesInternal(ChangeContainer? changeContainer, object? requester)
 		{
 			lock (this.lockObject)
 			{
@@ -401,13 +455,13 @@ namespace Simple.Objects
 					this.SetOldFieldValue(propertyModel.PropertyIndex, value!);
 				}
 
-				this.RunChangedPropertyNamesAction(() => { this.changedPropertyIndexes.Clear(); this.changedSaveablePropertyIndexes.Clear(); }, changeContainer, requester);
+				this.RunChangedPropertyCountAction(() => this.changedPropertyIndexes.Clear(), changeContainer, requester); //this.changedSaveablePropertyIndexes.Clear();
 
-				if (changeContainer != null)
-					changeContainer.Unset(this, TransactionRequestAction.Save, requester);
+				changeContainer?.Unset(this, TransactionRequestAction.Save, requester);
 
-				this.ChangeContainer = null;
-				this.Requester = null;
+				this.changeContainer = this.defaultChangeContainer;
+				this.context = this.defaultContext;
+				this.requester = this.defaultRequester;
 				this.OnAcceptChanges();
 			}
 		}
@@ -419,17 +473,30 @@ namespace Simple.Objects
 
 		public void RejectChanges(object? requester)
 		{
-			this.RejectChanges(this.GetChangeContainer(), requester);
+			this.RejectChanges(this.ChangeContainer, requester);
+		}
+
+		public void RejectChanges(ChangeContainer? changeContainer, object? requester)
+		{
+			this.RejectChanges(changeContainer, ObjectActionContext.Unspecified, requester);
+		}
+
+		public void RejectChanges(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.RejectChangesIntrenal(changeContainer, context, requester);
 		}
 
 		/// <summary>
 		/// Reject object property changes. Properties with IsSystem = true specified by object property model definition are not changed.
 		/// </summary>
 		/// <param name="requester">The initial action caller.</param>
-		public void RejectChanges(ChangeContainer changeContainer, object? requester)
+		internal void RejectChangesIntrenal(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (this.IsNew) // Rejecting changes on new object is not allowed
 				return;
+
+			if (context == ObjectActionContext.Unspecified)
+				context = (this.Manager.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
 
 			lock (this.lockObject)
 			{
@@ -439,9 +506,9 @@ namespace Simple.Objects
 
 				foreach (var relationModel in this.GetModel().RelationModel.AsForeignObjectInRelarions.ToArray())
 				{
-					SimpleObject oldForeignObject = this.GetRelationOldPrimaryObject(relationModel);
+					SimpleObject? oldForeignObject = this.GetRelationOldPrimaryObject(relationModel);
 
-					this.SetRelationPrimaryObject(oldForeignObject, relationModel, changeContainer, requester);
+					this.SetRelationPrimaryObject(oldForeignObject, relationModel, changeContainer, context, requester);
 				}
 
 				//// OneToOne relations
@@ -479,28 +546,28 @@ namespace Simple.Objects
 				// First set SerializationSequence memebers properties e.g. OrderIndex insted of PreviousId 
 				foreach (int index in this.GetChangedPropertyIndexes())
 				{
-					IPropertyModel propertyModel = this.GetModel().PropertyModels[index];
+					//IPropertyModel propertyModel = this.GetModel().PropertyModels[index];
 
-					if (propertyModel.IsClientSeriazable)
-					{
+					//if (propertyModel.IsClientSeriazable)
+					//{
 						object? oldValue = this.GetOldPropertyValue(index);
-						this.SetPropertyValue(index, oldValue);
-					}
+						this.SetPropertyValue(index, oldValue, changeContainer, context, requester);
+					//}
 				}
 
-				// than reject saveable property changes
-				foreach (int index in this.GetChangedSaveablePropertyIndexes())
-				{
-					object? oldValue = this.GetOldPropertyValue(index);
-					this.SetPropertyValue(index, oldValue);
-				}
+				//// than reject saveable property changes
+				//foreach (int index in this.GetChangedSaveablePropertyIndexes())
+				//{
+				//	object? oldValue = this.GetOldPropertyValue(index);
+				//	this.SetPropertyValue(index, oldValue);
+				//}
 
-				// Do the rest, if any
-				foreach (int index in this.GetChangedPropertyIndexes())
-				{
-					object? oldValue = this.GetOldPropertyValue(index);
-					this.SetPropertyValue(index, oldValue);
-				}
+				//// Do the rest, if any
+				//foreach (int index in this.GetChangedPropertyIndexes())
+				//{
+				//	object? oldValue = this.GetOldPropertyValue(index);
+				//	this.SetPropertyValue(index, oldValue);
+				//}
 
 				//// Reject changes in rest properties
 				//foreach (IPropertyModel propertyModel in this.GetModel().PropertyModels)
@@ -514,7 +581,7 @@ namespace Simple.Objects
 				if (this.changedPropertyIndexes.Count > 0)
 				{
 					//int TODO = 0; // this.changedPropertyIndexes should be empty and the following line will only clear changedPropertyIndexes list but the difference between value and oldValue will remain.
-					this.RunChangedPropertyNamesAction(() => { this.changedPropertyIndexes.Clear(); this.changedSaveablePropertyIndexes.Clear(); }, changeContainer, requester);
+					this.RunChangedPropertyCountAction(() => this.changedPropertyIndexes.Clear(), changeContainer, requester);
 				}
 			}
 
@@ -530,7 +597,7 @@ namespace Simple.Objects
 		/// <param name="propertyModel">The property model</param>
 		/// <param name="callOnPropertyValueChange">If True and if property value is changed, OnPropertyValueChange method will be invoked</param>
 		/// <returns>Returns True if any value change was made; otherwise False.</returns>
-		protected virtual bool RejectPropertyValueChange(IPropertyModel propertyModel, bool callOnPropertyValueChange, ChangeContainer changeContainer, object requester)
+		protected virtual bool RejectPropertyValueChange(IPropertyModel propertyModel, bool callOnPropertyValueChange, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			bool result = false;
 			//object value = null;
@@ -541,7 +608,7 @@ namespace Simple.Objects
 
 			if (!Comparison.IsEqual(value, oldValue))
 			{
-				this.SetPropertyValue(propertyModel, oldValue, changeContainer, requester);
+				this.SetPropertyValue(propertyModel, oldValue, changeContainer, context, requester);
 				result = true;
 			}
 
@@ -723,7 +790,7 @@ namespace Simple.Objects
 						
 						propertyValue = writeNormalizer(propertyModel, propertyValue);
 
-						if ((propertyModel.IsKey || propertyModel.IsRelationObjectId) && this.Manager.WorkingMode == ObjectManagerWorkingMode.Client && (propertyModel.PropertyTypeId == (int)PropertyTypeId.Int64))
+						if ((propertyModel.IsId || propertyModel.IsRelationObjectId) && this.Manager.WorkingMode == ObjectManagerWorkingMode.Client && (propertyModel.PropertyTypeId == (int)PropertyTypeId.Int64))
 						{
 							writer.WriteBoolean((long)propertyValue! < 0); // IsNegative
 							propertyValue = Math.Abs((long)propertyValue);
@@ -765,7 +832,7 @@ namespace Simple.Objects
 
 						writer.WriteInt32Optimized(propertyModel.PropertyIndex);
 
-						if ((propertyModel.IsKey || propertyModel.IsRelationObjectId) && this.Manager.WorkingMode == ObjectManagerWorkingMode.Client && (propertyModel.PropertyTypeId == (int)PropertyTypeId.Int64))
+						if ((propertyModel.IsId || propertyModel.IsRelationObjectId) && this.Manager.WorkingMode == ObjectManagerWorkingMode.Client && (propertyModel.PropertyTypeId == (int)PropertyTypeId.Int64))
 						{
 							writer.WriteBoolean((long)propertyValue! < 0); // IsNegative
 							propertyValue = Math.Abs((long)propertyValue);
@@ -871,403 +938,6 @@ namespace Simple.Objects
 			}
 		}
 
-		/// <summary>
-		/// Load property values from the server serialization stream. It is intended to be used from the client.
-		/// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
-		/// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
-		/// </summary>
-		/// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
-		/// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
-		/// <param name="readNormalizer">The property value reading normalizer.</param>
-		/// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
-		/// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
-		public void LoadFrom(ref SequenceReader reader, ServerObjectModelInfo serverObjectPropertyInfo, bool setOldValuesAlso, Func<IServerPropertyInfo, object?, object?>? readNormalizer = null)
-		{
-			lock (this.lockObject)
-			{
-				int propertyCount = reader.ReadInt32Optimized();
-
-				for (int i = 0; i < propertyCount; i++)
-				{
-					int propertyIndex = reader.ReadInt32Optimized();
-					ServerPropertyInfo serverPropertyModelInfo = serverObjectPropertyInfo[propertyIndex];
-					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, serverPropertyModelInfo);
-					IPropertyModel localPropertyModel = this.GetModel().PropertyModels.GetPropertyModel(propertyIndex);
-
-					if (localPropertyModel == null)
-						continue; // local property does not exists => it is not implemented (different client and server version/model => skip loading propery value
-
-					if (readNormalizer != null)
-					{
-						propertyValue = readNormalizer(serverPropertyModelInfo, propertyValue); // normalizer will also change value type if different from server property def 
-					}
-					else if (serverPropertyModelInfo.PropertyTypeId != localPropertyModel.PropertyTypeId) // if client property type is different from server property type -> change type
-					{
-						propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-					}
-
-					this.SetFieldValue(propertyIndex, propertyValue!);
-
-					if (setOldValuesAlso)
-					{
-						this.SetOldFieldValue(propertyIndex, propertyValue!);
-						this.changedPropertyIndexes.Remove(propertyIndex);
-						this.changedSaveablePropertyIndexes.Remove(propertyIndex);
-					}
-				}
-			}
-
-			this.AfterLoad();
-		}
-
-		/// <summary>
-		/// Load property values from the server serialization stream. It is intended to be used from the client.
-		/// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
-		/// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
-		/// </summary>
-		/// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
-		/// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
-		/// <param name="readNormalizer">The property value reading normalizer.</param>
-		/// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
-		/// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
-		public void LoadFrom(ref SequenceReader reader, ServerObjectModelInfo serverObjectPropertyInfo)
-		{
-			lock (this.lockObject)
-			{
-				int propertyCount = reader.ReadInt32Optimized();
-
-				for (int i = 0; i < propertyCount; i++)
-				{
-					int propertyIndex = reader.ReadInt32Optimized();
-					ServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[propertyIndex];
-					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, serverPropertyModel);
-					IPropertyModel localPropertyModel = this.GetModel().PropertyModels.GetPropertyModel(propertyIndex);
-
-					if (localPropertyModel == null)
-						continue; // local property does not exists => property is not implemented (different client and server version/model) => skip loading propery value
-
-					if (serverPropertyModel.IsEncrypted)
-					{
-						propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
-
-						if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
-							propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-					}
-					else
-					{
-						if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
-							propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-					}
-
-					this.SetFieldValue(propertyIndex, propertyValue!);
-					this.SetOldFieldValue(propertyIndex, propertyValue!);
-					this.changedPropertyIndexes.Remove(propertyIndex);
-					this.changedSaveablePropertyIndexes.Remove(propertyIndex);
-				}
-			}
-
-			this.AfterLoad();
-		}
-
-
-		public void LoadFromServer(IEnumerable<PropertyIndexValuePair> propertyIndexValuePairs)
-		{
-			lock (this.lockObject)
-			{
-				ServerObjectModelInfo serverObjectPropertyInfo = this.Manager.GetServerObjectModel(this.GetModel().TableInfo.TableId)!;
-
-				foreach (PropertyIndexValuePair item in propertyIndexValuePairs)
-				{
-					IPropertyModel localPropertyModel = this.GetModel().GetPropertyModel(item.PropertyIndex);
-
-					if (localPropertyModel != null)
-					{
-						IServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[item.PropertyIndex];
-						object? propertyValue = item.PropertyValue;
-
-						if (serverPropertyModel.IsEncrypted)
-						{
-							propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
-
-							if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
-								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-						}
-						else
-						{
-							if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
-								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-						}
-						
-						this.SetFieldValue(item.PropertyIndex, propertyValue!);
-						this.SetOldFieldValue(item.PropertyIndex, propertyValue!);
-						this.changedPropertyIndexes.Remove(item.PropertyIndex);
-						this.changedSaveablePropertyIndexes.Remove(item.PropertyIndex);
-					}
-				}
-			}
-		}
-
-		public void LoadFromServer(int[] propertyIndexes, object[] propertyValues, ServerObjectModelInfo serverObjectPropertyInfo)
-		{
-			lock (this.lockObject)
-			{
-				for (int i = 0; i < propertyIndexes.Length; i++)
-				{
-					int propertyIndex = propertyIndexes[i];
-					IPropertyModel localPropertyModel = this.GetModel().GetPropertyModel(propertyIndex);
-
-					if (localPropertyModel != null)
-					{
-						IServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[propertyIndex];
-						object? propertyValue = propertyValues[i];
-
-						if (serverPropertyModel.IsEncrypted)
-						{
-							propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
-
-							if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
-								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-						}
-						else
-						{
-							if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
-								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
-						}
-						
-						this.SetFieldValue(propertyIndex, propertyValue!);
-						this.SetOldFieldValue(propertyIndex, propertyValue!);
-						this.changedPropertyIndexes.Remove(propertyIndex);
-						this.changedSaveablePropertyIndexes.Remove(propertyIndex);
-					}
-				}
-			}
-		}
-
-		internal void LoadPropertyValuesWithoutRelations(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer changeContainer, ref List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet, out string infoMessage, object? requester = null)
-		{
-			int foreignTableId = 0;
-
-			infoMessage = string.Empty;
-
-			//lock (this.lockObject)
-			//{
-				for (int i = 0; i < propertyIndexValues.Count(); i++)
-				{
-					var item = propertyIndexValues.ElementAt(i);
-					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
-
-					if (propertyModel != null)
-					{
-						if (propertyModel.IsRelationTableId)
-						{
-							foreignTableId = (int)item.PropertyValue!;
-							this.SetPropertyValue(propertyModel, item.PropertyValue, changeContainer, requester);
-						}
-						else if (propertyModel.IsRelationObjectId)
-						{
-							long foreignObjectId = (long)item.PropertyValue!;
-							IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
-
-							if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
-							{
-								if (foreignTableId == 0)
-									foreignTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
-
-								objectRelationPropertiesToSet.Add(new SimpleObjectPropertyRelationArgs(this, foreignTableId, foreignObjectId, oneToOneOrManyRelationModel));
-							}
-							else
-							{
-								// for exampele, GroupMembershipElement has no specific RelationKey for Object2Id/Object2Id, only value need to be set
-								this.SetPropertyValue(propertyModel, item.PropertyValue, changeContainer, requester);
-							}
-
-							if (foreignObjectId < 0)
-
-							foreignTableId = 0;
-						}
-						else //if (propertyModel.PropertyIndex != SimpleObject.IndexPropertyId)
-						{
-							//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
-							object? propertyValue = item.PropertyValue;
-
-							if (propertyModel.IsEncrypted && propertyValue != null)
-								propertyValue = this.Manager.DecryptProperty(propertyValue);
-
-							this.SetPropertyValue(propertyModel, propertyValue, changeContainer, requester);
-						}
-					}
-					else
-					{
-						infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
-
-						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
-					}
-				}
-			//}
-		}
-
-		internal void LoadFieldValuesWithoutRelations(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer changeContainer, ref List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet, out string infoMessage, object? requester = null)
-		{
-			int foreignTableId = 0;
-
-			infoMessage = string.Empty;
-
-			lock (this.lockObject)
-			{
-				for (int i = 0; i < propertyIndexValues.Count(); i++)
-				{
-					var item = propertyIndexValues.ElementAt(i);
-					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
-
-					if (propertyModel != null)
-					{
-						if (propertyModel.IsRelationTableId)
-						{
-							foreignTableId = (int)item.PropertyValue!;
-							this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
-							this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
-						}
-						else if (propertyModel.IsRelationObjectId)
-						{
-							long foreignObjectId = (long)item.PropertyValue!;
-							IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
-
-							if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
-							{
-								if (foreignTableId == 0)
-									foreignTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
-
-								objectRelationPropertiesToSet.Add(new SimpleObjectPropertyRelationArgs(this, foreignTableId, foreignObjectId, oneToOneOrManyRelationModel));
-							}
-							else
-							{
-								// for exampele, GroupMembershipElement has no specific RelationKey for Object2Id/Object2Id, only value need to be set
-								this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
-								this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
-							}
-
-							if (foreignObjectId < 0)
-
-								foreignTableId = 0;
-						}
-						else //if (propertyModel.PropertyIndex != SimpleObject.IndexPropertyId)
-						{
-							//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
-							object? propertyValue = item.PropertyValue;
-
-							if (propertyModel.IsEncrypted && propertyValue != null)
-								propertyValue = this.Manager.DecryptProperty(propertyValue);
-
-							this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue!);
-							this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue!);
-						}
-					}
-					else
-					{
-						infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
-
-						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
-					}
-				}
-			}
-		}
-
-		//public PropertyValueSequence GetPropertyValueSequence(IPropertySequence propertySequence)
-		//{
-		//	return this.GetPropertyValueSequence(propertySequence, normalizer: (propertyModel, propertyValue) => propertyValue);
-		//}
-
-		//public PropertyValueSequence GetPropertyValueSequence(IPropertySequence propertySequence, Func<IPropertyModel, object, object> normalizer)
-		//{
-		//	return this.GetPropertyValues(propertySequence, (propertyIndex) => this.GetFieldValue(propertyIndex), normalizer);
-		//}
-
-		//public PropertyValueSequence GetOldPropertyValueSequence(IPropertySequence propertySequence)
-		//{
-		//	return this.GetOldPropertyValueSequence(propertySequence, normalizer: (propertyModel, propertyValue) => propertyValue);
-		//}
-
-		//public PropertyValueSequence GetOldPropertyValueSequence(IPropertySequence propertySequence, Func<IPropertyModel, object, object> normalizer, SetPropertiesOption setPropertiesOption = SetPropertiesOption.SetAll)
-		//{
-		//	return this.GetPropertyValues(propertySequence, (propertyIndex) => this.GetOldFieldValue(propertyIndex), normalizer);
-		//}
-
-		//public void SetPropertyValues(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, ChangeContainer changeContainer, object requester)
-		//{
-		//	this.SetPropertyValues(propertyIndexeValues, writeNormalizer: this.Manager.NormalizeForWritingByPropertyType, changeContainer, requester);
-		//}
-
-		public void SetPropertyValues(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, ChangeContainer changeContainer, object? requester = null)
-		{
-			this.SetPropertyValues(propertyIndexeValues, writeNormalizer: this.Manager.NormalizeForWritingByPropertyType, changeContainer, requester);
-		}
-
-		public void SetPropertyValues(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, Func<IPropertyModel, object?, object?> writeNormalizer, ChangeContainer changeContainer, object? requester = null)
-		{
-			int primaryTableId = 0;
-
-			//lock (this.lockObject)
-			//{
-				// Sets non relation properties, first
-				for (int i = 0; i < propertyIndexeValues.Count(); i++)
-				{
-					var item = propertyIndexeValues.ElementAt(i);
-					IPropertyModel propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
-
-					//if (propertyModel != null)
-					//{
-					if (propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId)
-						continue;
-
-					object? propertyValue = item.PropertyValue;
-					
-					propertyValue = (propertyModel.IsEncrypted && propertyValue != null) ? this.Manager.DecryptProperty(propertyValue) : 
-																						   writeNormalizer(propertyModel, propertyValue);
-					
-					this.SetPropertyValue(propertyModel, propertyValue, changeContainer, requester: this);
-
-					//else
-					//{
-					//	string info = String.Format("Server has no property model, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", foreignTableId, propertyIndex, propertyModel.PropertyName);
-
-					//	Debug.WriteLine("ProcessTransactionRequestArgs: " + info);
-					//}
-				}
-
-				// Sets relation properties, second
-				for (int i = 0; i < propertyIndexeValues.Count(); i++)
-				{
-					var item = propertyIndexeValues.ElementAt(i);
-					IPropertyModel propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
-
-					//if (setPropertiesOption == SetPropertiesOption.AvoidSetsRelations && (propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId))
-					//	continue;
-
-					//if (setPropertiesOption == SetPropertiesOption.SetOnlyRelations && (!propertyModel.IsRelationTableId || !propertyModel.IsRelationObjectId))
-					//	continue;
-
-					if (propertyModel.IsRelationTableId)
-					{
-						primaryTableId = (int)item.PropertyValue!;
-					}
-					else if (propertyModel.IsRelationObjectId)
-					{
-						long primaryObjectId = (long)item.PropertyValue!;
-						IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
-
-						if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
-						{
-							if (primaryTableId == 0)
-								primaryTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
-
-							this.SetRelationPrimaryObject(primaryTableId, primaryObjectId, oneToOneOrManyRelationModel, changeContainer, requester);
-						}
-
-						primaryTableId = 0;
-					}
-				}
-			//}
-		}
 
 		//public enum SetPropertiesOption
 		//{
@@ -1382,8 +1052,8 @@ namespace Simple.Objects
 		{
 			List<PropertyIndexValuePair> result = new List<PropertyIndexValuePair>(this.GetModel().PropertyModels.Count);
 
-			lock (this.lockObject)
-			{
+			//lock (this.lockObject)
+			//{
 				foreach (IPropertyModel propertyModel in this.GetModel().PropertyModels)
 				{
 					if (propertySelector != null && !propertySelector(propertyModel))
@@ -1399,7 +1069,7 @@ namespace Simple.Objects
 
 						result.Add(new PropertyIndexValuePair(propertyModel.PropertyIndex, propertyValue));
 					}
-				}
+				//}
 			}
 
 			//string test = "Ovo je test string. X";
@@ -1412,23 +1082,66 @@ namespace Simple.Objects
 
 		// TODO: Add normalizer instead of directly encripting
 
-		internal List<PropertyIndexValuePair> GetChangedSaveableOldPropertyIndexValues(Predicate<IPropertyModel> propertySelector)
+		//internal List<PropertyIndexValuePair> GetChangedSaveableOldPropertyIndexValues(Predicate<IPropertyModel> propertySelector)
+		//{
+		//	List<PropertyIndexValuePair> result;
+		//	//Dictionary<int, object> result = new Dictionary<int, object>();
+
+		//	lock (this.lockObject)
+		//	{
+		//		result = new List<PropertyIndexValuePair>(this.changedSaveablePropertyIndexes.Count);
+
+		//		for (int i = 0; i < this.changedSaveablePropertyIndexes.Count; i++)
+		//		{
+		//			int propertyIndex = this.changedSaveablePropertyIndexes.ElementAt(i);
+		//			IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
+
+		//			if (propertySelector(propertyModel))
+		//			{
+		//				object? propertyValue = this.GetOldPropertyValue(propertyIndex);
+
+		//				if (propertyValue != null && propertyModel.IsEncrypted)
+		//					propertyValue = PasswordSecurity.Encrypt(propertyValue.ToString(), this.Manager.Encryptor);
+
+
+		//				result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
+		//			}
+		//		}
+				
+		//		//this.OnGetChangedSaveableOldPropertyValuesByPropertyIndex(propertySelector, ref result);
+		//	}
+
+		//	return result;
+		//}
+
+		internal List<PropertyIndexValuePair> GetChangedPropertyIndexValues() => this.GetChangedPropertyIndexValues(propertySelector: propertyModel => true); //  propertyModel => propertyModel.PropertyIndex != SimpleObject.IndexPropertyId);
+
+		internal List<PropertyIndexValuePair> GetChangedPropertyIndexValues(Predicate<IPropertyModel> propertySelector) => this.GetChangedPropertyIndexValues(propertySelector, getPropertyValue: index => this.GetPropertyValue(index));
+
+
+		internal List<PropertyIndexValuePair> GetChangedOldPropertyIndexValues() => this.GetChangedOldPropertyIndexValues(propertySelector: propertyModel => true); //  propertyModel => propertyModel.PropertyIndex != SimpleObject.IndexPropertyId);
+
+		internal List<PropertyIndexValuePair> GetChangedOldPropertyIndexValues(Predicate<IPropertyModel> propertySelector) => this.GetChangedPropertyIndexValues(propertySelector, getPropertyValue: index => this.GetOldPropertyValue(index));
+
+		
+		internal List<PropertyIndexValuePair>  GetChangedPropertyIndexValues(Predicate<IPropertyModel> propertySelector, Func<int, object?> getPropertyValue)
 		{
 			List<PropertyIndexValuePair> result;
+			int[] changedPropertyIndexes = this.GetChangedPropertyIndexes();
 			//Dictionary<int, object> result = new Dictionary<int, object>();
 
-			lock (this.lockObject)
-			{
-				result = new List<PropertyIndexValuePair>(this.changedSaveablePropertyIndexes.Count);
+			//lock (this.lockObject)
+			//{
+				result = new List<PropertyIndexValuePair>(changedPropertyIndexes.Length);
 
-				for (int i = 0; i < this.changedSaveablePropertyIndexes.Count; i++)
+				for (int i = 0; i < changedPropertyIndexes.Length; i++)
 				{
-					int propertyIndex = this.changedSaveablePropertyIndexes.ElementAt(i);
+					int propertyIndex = changedPropertyIndexes.ElementAt(i);
 					IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
 
 					if (propertySelector(propertyModel))
 					{
-						object? propertyValue = this.GetOldPropertyValue(propertyIndex);
+						object? propertyValue = getPropertyValue(propertyIndex);
 
 						if (propertyValue != null && propertyModel.IsEncrypted)
 							propertyValue = PasswordSecurity.Encrypt(propertyValue.ToString(), this.Manager.Encryptor);
@@ -1437,12 +1150,14 @@ namespace Simple.Objects
 						result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
 					}
 				}
-				
+
 				//this.OnGetChangedSaveableOldPropertyValuesByPropertyIndex(propertySelector, ref result);
-			}
+			//}
 
 			return result;
 		}
+
+
 
 		//protected virtual void OnGetChangedSaveableOldPropertyValuesByPropertyIndex(Predicate<IPropertyModel>? propertySelector, ref List<PropertyIndexValuePair> propertyIndexValues) { }
 
@@ -1460,8 +1175,8 @@ namespace Simple.Objects
 		{
 			List<PropertyIndexValuePair> result;
 
-			lock (this.lockObject)
-			{
+			//lock (this.lockObject)
+			//{
 				result = new List<PropertyIndexValuePair>(this.GetModel().PropertyModels.Count);
 
 				foreach (IPropertyModel propertyModel in this.GetModel().PropertyModels)
@@ -1486,7 +1201,7 @@ namespace Simple.Objects
 				}
 
 				//this.OnGetDefaultChangedOldPropertyValuesByPropertyIndex(propertySelector, ref result);
-			}
+			//}
 
 			return result;
 		}
@@ -1498,57 +1213,89 @@ namespace Simple.Objects
 		//	return this.GetChangedSaveablePropertyIndexValues(normalizer: (propertyModel, propertyValue) => propertyValue);
 		//}
 
-		internal PropertyIndexValues GetChangedSaveablePropertyIndexValues(Func<IPropertyModel, object?, object?> normalizer)
-		{
-			lock (this.lockObject)
-			{
-				IEnumerable<int> propertyIndexes = this.GetChangedSaveablePropertyIndexes();
-				object?[] propertyValues = this.GetPropertyValues(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
+		//internal PropertyIndexValues GetChangedSaveablePropertyIndexValues(Func<IPropertyModel, object?, object?> normalizer)
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		IEnumerable<int> propertyIndexes = this.GetChangedSaveablePropertyIndexes();
+		//		object?[] propertyValues = this.GetPropertyValues(propertyIndexes, normalizer);
 
-				return new PropertyIndexValues(propertyIndexes, propertyValues);
-			}
-		}
+		//		return new PropertyIndexValues(propertyIndexes, propertyValues);
+		//	}
+		//}
 
-		internal PropertyIndexValuePair[] GetChangedSaveablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
-		{
-			lock (this.lockObject)
-			{
-				var propertyIndexes = this.changedSaveablePropertyIndexes;
-				PropertyIndexValuePair[] result = this.GetPropertyIndexValuePairs(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
+		//internal PropertyIndexValuePair[] GetChangedSaveablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		var propertyIndexes = this.changedSaveablePropertyIndexes;
+		//		PropertyIndexValuePair[] result = this.GetPropertyIndexValuePairs(propertyIndexes, normalizer);
 
-				return result;
-			}
-		}
+		//		return result;
+		//	}
+		//}
 
-		internal List<PropertyIndexValuePair> GetChangedClientSeriazablePropertyIndexValuePairs()
-		{
-			lock (this.lockObject)
-			{
-				List<PropertyIndexValuePair> result = new List<PropertyIndexValuePair>(this.changedPropertyIndexes.Count);
-				var propertyModels = this.GetModel().PropertyModels;
+		internal List<PropertyIndexValuePair> GetChangedClientSeriazablePropertyIndexValuePairs() => this.GetChangedPropertyIndexValues(propertySelector: propertyModel => propertyModel.IsClientToServerSeriazable, // propertyModel.PropertyIndex != SimpleObject.IndexPropertyId &&
+																																		getPropertyValue: propertyIndex => this.GetPropertyValue(propertyIndex));
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		List<PropertyIndexValuePair> result = new List<PropertyIndexValuePair>(this.changedPropertyIndexes.Count);
+		//		var propertyModels = this.GetModel().PropertyModels;
 
-				foreach (int propertyIndex in this.changedPropertyIndexes)
-				{
-					if (propertyIndex == SimpleObject.IndexPropertyId)
-						continue;
+		//		foreach (int propertyIndex in this.changedPropertyIndexes)
+		//		{
+		//			if (propertyIndex == SimpleObject.IndexPropertyId)
+		//				continue;
 
-					var propertyModel = propertyModels[propertyIndex];
+		//			var propertyModel = propertyModels[propertyIndex];
 
-					if (propertyModel.IsClientSeriazable)
-					{
-						object? propertyValue = this.GetFieldValue(propertyIndex);
+		//			if (propertyModel.IsClientSeriazable)
+		//			{
+		//				object? propertyValue = this.GetFieldValue(propertyIndex);
 
-						if (propertyModel.IsEncrypted)
-							propertyValue = PasswordSecurity.Encrypt(propertyValue?.ToString(), this.Manager.Encryptor);
+		//				if (propertyModel.IsEncrypted)
+		//					propertyValue = PasswordSecurity.Encrypt(propertyValue?.ToString(), this.Manager.Encryptor);
 
 
-						result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
-					}
-				}
-				
-				return result;
-			}
-		}
+		//				result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
+		//			}
+		//		}
+
+		//		return result;
+		//	}
+		//}
+
+		internal List<PropertyIndexValuePair> GetChangedServerSeriazablePropertyIndexValuePairs() => this.GetChangedPropertyIndexValues(propertySelector: propertyModel => propertyModel.PropertyIndex != SimpleObject.IndexPropertyId && propertyModel.IsServerToClientSeriazable);
+
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		List<PropertyIndexValuePair> result = new List<PropertyIndexValuePair>(this.changedPropertyIndexes.Count);
+		//		var propertyModels = this.GetModel().PropertyModels;
+
+		//		foreach (int propertyIndex in this.changedPropertyIndexes)
+		//		{
+		//			if (propertyIndex == SimpleObject.IndexPropertyId)
+		//				continue;
+
+		//			var propertyModel = propertyModels[propertyIndex];
+
+		//			if (propertyModel.IsServerSeriazable)
+		//			{
+		//				object? propertyValue = this.GetFieldValue(propertyIndex);
+
+		//				if (propertyModel.IsEncrypted)
+		//					propertyValue = PasswordSecurity.Encrypt(propertyValue?.ToString(), this.Manager.Encryptor);
+
+
+		//				result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
+		//			}
+		//		}
+
+		//		return result;
+		//	}
+		//}
 
 		//public PropertyIndexValues GetStorablePropertyIndexValues(Func<IPropertyModel, object, object> normalizer)
 		//{
@@ -1558,50 +1305,47 @@ namespace Simple.Objects
 		//	return new PropertyIndexValues(propertyIndexes, propertyValues);
 		//}
 
-		internal PropertyIndexValues GetChangedStorablePropertyIndexValues(Func<IPropertyModel, object?, object?> normalizer)
-		{
-			lock (this.lockObject)
-			{
-				IEnumerable<int> propertyIndexes = this.GetChangedSaveablePropertyIndexes();
-				object?[] propertyValues = this.GetPropertyValues(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
+		//internal PropertyIndexValues GetChangedSaveablePropertyIndexValues(Func<IPropertyModel, object?, object?> normalizer)
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		IEnumerable<int> propertyIndexes = this.GetChangedSaveablePropertyIndexes();
+		//		object?[] propertyValues = this.GetPropertyValues(propertyIndexes, normalizer);
 
-				return new PropertyIndexValues(propertyIndexes, propertyValues);
-			}
-		}
+		//		return new PropertyIndexValues(propertyIndexes, propertyValues);
+		//	}
+		//}
 
-		internal PropertyIndexValuePair[] GetChangedStorablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
-		{
-			lock (this.lockObject)
-			{
-				var propertyIndexes = this.changedSaveablePropertyIndexes;
-				PropertyIndexValuePair[] result = this.GetPropertyIndexValuePairs(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
-
-				return result;
-			}
+		internal List<PropertyIndexValuePair> GetChangedStorablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
+		{ 
+			return this.GetPropertyIndexValuePairs(this.changedPropertyIndexes.ToArray(), propertySelector: propertyModel => propertyModel.IsStorable, normalizer);
 		}
 
 
 		internal PropertyIndexValues GetStorablePropertyIndexValues(Func<IPropertyModel, object?, object?> normalizer)
 		{
-			lock (this.lockObject)
-			{
+			//lock (this.lockObject)
+			//{
 				int[] propertyIndexes = this.GetModel().StorablePropertyIndexes;
-				object?[] propertyValues = this.GetPropertyValues(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
+				var propertyValues = this.GetPropertyValues(propertyIndexes, normalizer);
 
 				return new PropertyIndexValues(propertyIndexes, propertyValues);
-			}
+			//}
 		}
-
-		internal PropertyIndexValuePair[] GetStorablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
+		internal List<PropertyIndexValuePair> GetStorablePropertyIndexValuePairs(Func<IPropertyModel, object?, object?> normalizer)
 		{
-			lock (this.lockObject)
-			{
-				var propertyIndexes = this.GetModel().StorablePropertyIndexes;
-				PropertyIndexValuePair[] result = this.GetPropertyIndexValuePairs(propertyIndexes, propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
-
-				return result;
-			}
+			return this.GetStorablePropertyIndexValuePairs(propertySelector: propertyModel => true, normalizer); // Id is included (!propertyModel.IsId - i f you want to not include Id
 		}
+
+		internal List<PropertyIndexValuePair> GetStorablePropertyIndexValuePairs(Predicate<IPropertyModel> propertySelector, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			//lock (this.lockObject)
+			//{
+			var propertyIndexes = this.GetModel().StorablePropertyIndexes;
+
+			return this.GetPropertyIndexValuePairs(propertyIndexes, propertySelector, normalizer); // Id is not included
+		}
+
 
 
 		//private PropertyIndexFieldNameValues GetPropertyIndexFieldNameValues(IEnumerable<int> propertyIndexes, Func<int, object> getFieldValue, Func<IPropertyModel, object, object> normalizer)
@@ -1650,55 +1394,87 @@ namespace Simple.Objects
 
 		//		return new PropertyIndexValues(propertyIndexes, propertyValues);
 		//	}
-		public object[] GetPropertyValues(IEnumerable<int> propertyIndexes)
-		{
-			object[] propertyValues = new object[propertyIndexes.Count()];
-			//_ = this.Id; // Enforce Id creation, if needed
 
-			lock (this.lockObject)
-			{
-				for (int i = 0; i < propertyIndexes.Count(); i++)
-				{
-					int propertyIndex = propertyIndexes.ElementAt(i);
 
-					propertyValues[i] = this.GetFieldValue(propertyIndex);
-				}
-			}
+		//public object[] GetPropertyValues(IEnumerable<int> propertyIndexes)
+		//{
+		//	object[] propertyValues = new object[propertyIndexes.Count()];
+		//	//_ = this.Id; // Enforce Id creation, if needed
 
-			return propertyValues;
-		}
+		//	lock (this.lockObject)
+		//	{
+		//		for (int i = 0; i < propertyIndexes.Count(); i++)
+		//		{
+		//			int propertyIndex = propertyIndexes.ElementAt(i);
+
+		//			propertyValues[i] = this.GetFieldValue(propertyIndex);
+		//		}
+		//	}
+
+		//	return propertyValues;
 		//}
-		public object?[] GetPropertyValues(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
-		{
-			return this.GetPropertyValues(propertyIndexes, getFieldValue: propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
-		}
 
-		public object?[] GetOldPropertyValues(IEnumerable<int> propertyIndexes)
-		{
-			object?[] oldPropertyValues = new object?[propertyIndexes.Count()];
-			_ = this.Id; // Enforce Id creation, if needed
 
-			lock (this.lockObject)
-			{
-				for (int i = 0; i < propertyIndexes.Count(); i++)
-				{
-					int propertyIndex = propertyIndexes.ElementAt(i);
 
-					oldPropertyValues[i] = this.GetOldFieldValue(propertyIndex);
-				}
-			}
-
-			return oldPropertyValues;
-		}
 		//}
-		public object?[] GetOldPropertyValues(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
+		//public object?[] GetPropertyValues(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
+		//{
+		//	return this.GetPropertyValues(propertyIndexes, normalizer);
+		//}
+
+		//public object?[] GetOldPropertyValues(IEnumerable<int> propertyIndexes)
+		//{
+		//	object?[] oldPropertyValues = new object?[propertyIndexes.Count()];
+		//	_ = this.Id; // Enforce Id creation, if needed
+
+		//	lock (this.lockObject)
+		//	{
+		//		for (int i = 0; i < propertyIndexes.Count(); i++)
+		//		{
+		//			int propertyIndex = propertyIndexes.ElementAt(i);
+
+		//			oldPropertyValues[i] = this.GetOldFieldValue(propertyIndex);
+		//		}
+		//	}
+
+		//	return oldPropertyValues;
+		//}
+		//}
+
+		public List<object?> GetPropertyValues(IEnumerable<int> propertyIndexes)
 		{
-			return this.GetPropertyValues(propertyIndexes, getFieldValue: propertyIndex => this.GetOldFieldValue(propertyIndex), normalizer);
+			return this.GetPropertyValues(propertyIndexes, normalizer: (propertyModel, propertyValue) => propertyValue);
 		}
 
-		private object?[] GetPropertyValues(IEnumerable<int> propertyIndexes, Func<int, object?> getFieldValue, Func<IPropertyModel, object?, object?> normalizer)
+		public List<object?> GetPropertyValues(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
 		{
-			object?[] propertyValues = new object?[propertyIndexes.Count()];
+			return this.GetPropertyValues(propertyIndexes, propertySelector: propertyModel => true, normalizer);
+		}
+
+		public List<object?> GetPropertyValues(IEnumerable<int> propertyIndexes, Predicate<IPropertyModel> propertySelector, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			return this.GetPropertyValues(propertyIndexes, propertySelector, getFieldValue: propertyIndex => this.GetFieldValue(propertyIndex), normalizer);
+		}
+
+
+		public List<object?> GetOldPropertyValues(IEnumerable<int> propertyIndexes)
+		{
+			return this.GetOldPropertyValues(propertyIndexes, normalizer: (propertyModel, propertyValue) => propertyValue);
+		}
+
+		public List<object?> GetOldPropertyValues(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			return this.GetOldPropertyValues(propertyIndexes, propertySelector: propertyModel => true, normalizer);
+		}
+
+		public List<object?> GetOldPropertyValues(IEnumerable<int> propertyIndexes, Predicate<IPropertyModel> propertySelector, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			return this.GetPropertyValues(propertyIndexes, propertySelector, getFieldValue: propertyIndex => this.GetOldFieldValue(propertyIndex), normalizer);
+		}
+
+		private List<object?> GetPropertyValues(IEnumerable<int> propertyIndexes, Predicate<IPropertyModel> propertySelector, Func<int, object?> getFieldValue, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			List<object?> propertyValues = new List<object?>(propertyIndexes.Count());
 			var propertyModels = this.GetModel().PropertyModels;
 			_ = this.Id; // Enforce Id creation, if needed
 
@@ -1706,35 +1482,53 @@ namespace Simple.Objects
 			{
 				int propertyIndex = propertyIndexes.ElementAt(i);
 				IPropertyModel propertyModel = propertyModels[propertyIndex];
-				object? propertyValue = getFieldValue(propertyIndex); // (propertyIndex == SimpleObject.IndexPropertyId) ? this.Id : getFieldValue(propertyIndex); // Enforce Id creation, if needed
 
-				propertyValue = normalizer(propertyModel, propertyValue);
-				propertyValues[i] = propertyValue;
+				if (propertySelector(propertyModel))
+				{
+					object? propertyValue = getFieldValue(propertyIndex); // (propertyIndex == SimpleObject.IndexPropertyId) ? this.Id : getFieldValue(propertyIndex); // Enforce Id creation, if needed
+
+					propertyValue = normalizer(propertyModel, propertyValue);
+					propertyValues.Add(propertyValue);
+				}
 			}
 
 			return propertyValues;
 		}
 
-		internal PropertyIndexValuePair[] GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes, Func<int, object?> getFieldValue, Func<IPropertyModel, object?, object?> normalizer)
+		internal List<PropertyIndexValuePair> GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes, Func<IPropertyModel, object?, object?> normalizer)
 		{
-			lock (this.lockObject)
-			{
-				PropertyIndexValuePair[] result = new PropertyIndexValuePair[propertyIndexes.Count()];
+			return this.GetPropertyIndexValuePairs(propertyIndexes, propertySelector: propertyModel => true, normalizer);
+		}
+
+		internal List<PropertyIndexValuePair> GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes, Predicate<IPropertyModel> propertySelector, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			return this.GetPropertyIndexValuePairs(propertyIndexes, propertySelector, (propertyIndex) => this.GetPropertyValue(propertyIndex), normalizer);
+		}
+
+		internal List<PropertyIndexValuePair> GetPropertyIndexValuePairs(IEnumerable<int> propertyIndexes, Predicate<IPropertyModel> propertySelector, Func<int, object?> getFieldValue, Func<IPropertyModel, object?, object?> normalizer)
+		{
+			//lock (this.lockObject)
+			//{
+				List<PropertyIndexValuePair> result = new List<PropertyIndexValuePair>(propertyIndexes.Count());
 				var propertyModels = this.GetModel().PropertyModels;
 				_ = this.Id; // Enforce Id creation, if needed
 
-				for (int i = 0; i < result.Length; i++)
+				for (int i = 0; i < propertyIndexes.Count(); i++)
 				{
 					int propertyIndex = propertyIndexes.ElementAt(i);
 					IPropertyModel propertyModel = propertyModels[propertyIndex];
-					object? propertyValue = getFieldValue(propertyIndex); // (propertyIndex == SimpleObject.IndexPropertyId) ? this.Id : getFieldValue(propertyIndex); // Enforce Id creation, if needed
 
-					propertyValue = normalizer(propertyModel, propertyValue);
-					result[i] = new PropertyIndexValuePair(propertyIndex, propertyValue);
+					if (propertySelector(propertyModel))
+					{
+						object? propertyValue = getFieldValue(propertyIndex); // (propertyIndex == SimpleObject.IndexPropertyId) ? this.Id : getFieldValue(propertyIndex); // Enforce Id creation, if needed
+
+						propertyValue = normalizer(propertyModel, propertyValue);
+						result.Add(new PropertyIndexValuePair(propertyIndex, propertyValue));
+					}
 				}
 
 				return result;
-			}
+			//}
 		}
 
 
@@ -1919,13 +1713,13 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		public GraphElement GetOrCreateGraphElement(int graphKey, SimpleObject simpleObject, GraphElement parent, ChangeContainer changeContainer, object? requester)
+		public GraphElement GetOrCreateGraphElement(int graphKey, SimpleObject simpleObject, GraphElement? parent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			GraphElement? graphElement = simpleObject.GetGraphElement(graphKey);
 
 			if (graphElement == null)
 			{
-				graphElement = new GraphElement(this.Manager, graphKey, simpleObject, parent, changeContainer, requester);
+				graphElement = new GraphElement(this.Manager, graphKey, simpleObject, parent, changeContainer, context, requester);
 				//graphElement.ChangeContainer = changeContainer;
 				//graphElement.Requester = requester;
 				//graphElement.GraphKey = graphKey;
@@ -1940,7 +1734,7 @@ namespace Simple.Objects
 			return graphElement;
 		}
 
-		public ChangeContainer GetChangeContainer() => this.ChangeContainer ?? this.Manager.DefaultChangeContainer;
+		//public ChangeContainer GetChangeContainer() => this.ChangeContainer ?? this.Manager.DefaultChangeContainer;
 
 		#endregion |   Public Methods   |
 
@@ -1980,9 +1774,9 @@ namespace Simple.Objects
 		//	this.OnAfterLoad(requester);
 		//}
 
-		internal void BeforeSave(ChangeContainer changeContainer, object? requester)
+		internal void BeforeSave(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnBeforeSave(changeContainer, requester);
+			this.OnBeforeSave(changeContainer, context, requester);
 		}
 
 		//internal void Saving(object requester)
@@ -1995,62 +1789,75 @@ namespace Simple.Objects
 			this.OnAfterLoad();
 		}
 
-		internal void AfterSave(bool isNewBeforeSaving, object? requester)
+		internal void AfterSave(bool isNewBeforeSaving, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnAfterSave(isNewBeforeSaving, requester);
+			this.OnAfterSave(isNewBeforeSaving, changeContainer, context, requester);
 		}
 
-		internal void DeleteIsRequested(ChangeContainer changeContainer, object? requester)
+		internal void DeleteIsRequested(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (!this.IsNew)
 			//	this.RejectChanges();
 			
 			this.deleteRequested = true;
-			this.OnRequestDelete(changeContainer, requester);
+			this.OnRequestDelete(changeContainer, context, requester);
 		}
 
-		internal void GraphElementDeleteIsRequested(GraphElement graphElement, ChangeContainer changeContainer, object? requester)
+		//internal void ClientDeleteIsRequested(ChangeContainer? changeContainer, object? requester)
+		//{
+		//	this.OnClientRequestDelete(changeContainer, requester);
+		//}
+
+		internal void GraphElementDeleteIsRequested(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnGraphElementDeleteRequest(graphElement, changeContainer, requester);
+			this.OnGraphElementDeleteRequest(graphElement, changeContainer, context, requester);
 		}
 
-		internal void DeleteRequestIsCancelled(ChangeContainer changeContainer, object? requester)
+		internal void DeleteRequestIsCancelled(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			this.deleteRequested = false;
 
 			if (!this.IsNew)
 				this.RejectChanges();
 
-			this.OnDeleteRequestCancel(changeContainer, requester);
+			this.OnDeleteRequestCancel(changeContainer, context, requester);
 		}
 
-		internal void BeforeDelete(ChangeContainer changeContainer, object? requester)
+		internal void BeforeDelete(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnBeforeDelete(changeContainer, requester);
+			this.OnBeforeDelete(changeContainer, context, requester);
 		}
 
-		internal void NewObjectIsCreated(object? requester)
+		private bool isNewClientObjectIsCreatedRaised = false;
+
+		internal void NewObjectIsCreated(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (!(this is GraphElement))
 			//	this.AddToNullCollections(this);
-			
+
+#if DEBUG
+			if (this.isNewClientObjectIsCreatedRaised)
+				throw new Exception("Second call of NewClientIsCreated. Fix this");
+#endif
+
 			this.InternalState = SimpleObjectInternalState.Normal; // Track changes from now
-			this.OnNewObjectCreated(requester);
+			this.OnNewObjectCreated(changeContainer, context, requester);
+			this.isNewClientObjectIsCreatedRaised = true;
 		}
 
-		internal void NewGraphElementIsCreated(GraphElement graphElement, ChangeContainer changeContainer, object? requester)
+		internal void NewGraphElementIsCreated(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnNewGraphElementCreated(graphElement, changeContainer, requester);
+			this.OnNewGraphElementCreated(graphElement, changeContainer, context, requester);
 		}
 
-		internal void GraphElementParentIsChanged(GraphElement graphElement, GraphElement? oldParent, ChangeContainer changeContainer, object? requester)
+		internal void GraphElementParentIsChanged(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnGraphElementParentChange(graphElement, oldParent, changeContainer, requester);
+			this.OnGraphElementParentChange(graphElement, oldParent, changeContainer, context, requester);
 		}
 
-		internal void GraphElementOrderIndexIsChanged(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer changeContainer, object? requester)
+		internal void GraphElementOrderIndexIsChanged(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnGraphElementOrderIndexChange(graphElement, orderIndex, oldOrderIndex, changeContainer, requester);
+			this.OnGraphElementOrderIndexChange(graphElement, orderIndex, oldOrderIndex, changeContainer, context, requester);
 		}
 
 		//internal void AfterGraphElementIsSaved(GraphElement graphElement, object requester)
@@ -2058,42 +1865,38 @@ namespace Simple.Objects
 		//	this.OnAfterGraphElementSave(graphElement, requester);
 		//}
 
-		internal void BeforeGraphElementIsDeleted(GraphElement graphElement, ChangeContainer changeContainer, object? requester)
+		internal void BeforeGraphElementIsDeleted(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.OnBeforeGraphElementDelete(graphElement, changeContainer, requester);
+			this.OnBeforeGraphElementDelete(graphElement, changeContainer, context, requester);
 		}
 
-		internal virtual void RelationForeignObjectIsSet(SimpleObject foreignSimpleObject, SimpleObject oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationModel, ChangeContainer changeContainer, object? requester)
-		{
-			this.OnRelationForeignObjectSet(foreignSimpleObject, oldForeignSimpleObject, objectRelationModel, changeContainer, requester);
-		}
+		//internal virtual void RelationForeignObjectIsSet(SimpleObject foreignSimpleObject, SimpleObject oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationModel, ChangeContainer changeContainer, object? requester)
+		//{
+			//this.OnRelationForeignObjectSet(foreignSimpleObject, oldForeignSimpleObject, objectRelationModel, changeContainer, requester);
+		//}
 
-		internal void ObjectIdIsChanged(long oldTempId, long newId)
+		internal void ObjectIdIsChanged(long oldTempId, long newId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			// TODO: Propagate Id change for cached one to one foreign object caches, one to many foreign collections any group membership
 			// Find all object references in one-to-one relation, one-to-many collection any group membership collections
 			// Similar to RemoveAllRelatedObjectsFromAllRelatedObjectCaches we need ChangeAllRelatedObjectTempKeysFromAllRelatedObjectCaches
 
-			lock (this.lockObject)
-			{
-				// one-to-one foreign object cache
-				foreach (IOneToOneRelationModel oneToOneRelationModel in this.GetModel().RelationModel.AsForeignObjectInOneToOneRelations) //    ObjectRelationModel.OneToOneRelationKeyHolderObjectDictionary)
-				{
-					int primaryTableId = (oneToOneRelationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(oneToOneRelationModel.PrimaryTableIdPropertyModel.PropertyIndex) : oneToOneRelationModel.PrimaryObjectTableId;
-					long primaryObjectId = this.GetPropertyValue<long>(oneToOneRelationModel.PrimaryObjectIdPropertyModel);
+			//lock (this.lockObject)
+			//{
+			//	// one-to-one foreign object cache
+			//	foreach (IOneToOneRelationModel oneToOneRelationModel in this.GetModel().RelationModel.AsForeignObjectInOneToOneRelations) //    ObjectRelationModel.OneToOneRelationKeyHolderObjectDictionary)
+			//	{
+			//		int primaryTableId = (oneToOneRelationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(oneToOneRelationModel.PrimaryTableIdPropertyModel.PropertyIndex) : oneToOneRelationModel.PrimaryObjectTableId;
+			//		long primaryObjectId = this.GetPropertyValue<long>(oneToOneRelationModel.PrimaryObjectIdPropertyModel);
 
-					if (this.Manager.IsObjectInCache(primaryTableId, primaryObjectId))
-					{
-						SimpleObject? primaryObject = this.Manager.GetObject(primaryTableId, primaryObjectId);
-
-						primaryObject?.ChangeOneToOneRelationForeignObjectTempIdIfInCache(this.GetModel().TableInfo.TableId, oldTempId, newId);
-					}
-				}
+			//		if (this.Manager.IsObjectInCache(primaryTableId, primaryObjectId, out SimpleObject? primaryObject))
+			//			primaryObject?.ChangeOneToOneForeignObjectTempIdIfInCache(this.GetModel().TableInfo.TableId, oldTempId, newId);
+			//	}
 
 				// All others related objects are in SimpleObjectCollection and its container change temp Id by catching ObjectManager_ObjectIdChange event in SimpleObjectCollectionContaier class
-			}
+			//}
 
-			this.OnObjectIdChange(oldTempId, newId);
+			this.OnObjectIdChange(oldTempId, newId, changeContainer, context, requester);
 		}
 
 		internal SimpleObjectCollection? GetOneToManyForeignNullCollectionInternal(int relationKey) => this.GetOneToManyForeignNullCollection(relationKey);
@@ -2118,10 +1921,20 @@ namespace Simple.Objects
 		//	return this.GetOldFieldValue(propertyIndex);
 		//}
 
-		//protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object value, ChangeContainer changeContainer, object requester)
-		//{
-		//	this.SetPropertyValueInternal(propertyModel, value, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent, changeContainer, requester);
-		//}
+		protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object? propertyValue, ChangeContainer? changeContainer, object? requester)
+		{
+			this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, this.Context, requester);
+		}
+
+		protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object? propertyValue, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.SetPropertyValueInternal(propertyModel, propertyValue, propertyModel.TrimStringBeforeComparison, changeContainer, context, requester);
+		}
+
+		protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object? propertyValue, bool trimStringBeforeComparison, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.SetPropertyValuePrivate(propertyModel, propertyValue, trimStringBeforeComparison, changeContainer, context, requester);
+		}
 
 		//TODO: REMOVE THIS
 
@@ -2143,7 +1956,7 @@ namespace Simple.Objects
 				this.SetFieldValue(propertyIndex, value);
 				this.SetOldFieldValue(propertyIndex, value);
 				this.changedPropertyIndexes.Remove(propertyIndex);
-				this.changedSaveablePropertyIndexes.Remove(propertyIndex);
+				//this.changedSaveablePropertyIndexes.Remove(propertyIndex);
 			}
 		}
 
@@ -2426,122 +2239,122 @@ namespace Simple.Objects
 			}
 		}
 
-		/// <summary>
-		/// Load property values from the server serialization stream. It is intended to be used from the client.
-		/// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
-		/// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
-		/// </summary>
-		/// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
-		/// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
-		/// <param name="readNormalizer">The property value reading normalizer.</param>
-		/// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
-		/// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
-		public void LoadFrom(SequenceReader reader, Func<IPropertyModel, object?, object?> readNormalizer,
-													SerializationModel serializationModel, bool skipReadingKey, bool loadOldValuesAlso, bool defaultValueOptimization)
-		{
-			lock (this.lockObject)
-			{
-				int propertyCount;
-				bool checkIfPropertyValueIsDefault = false; // if the SerializationModel.SequenceValuesOnly sequence reader reads only reads values
+		///// <summary>
+		///// Load property values from the server serialization stream. It is intended to be used from the client.
+		///// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
+		///// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
+		///// </summary>
+		///// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
+		///// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
+		///// <param name="readNormalizer">The property value reading normalizer.</param>
+		///// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
+		///// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
+		//public void LoadFrom(SequenceReader reader, Func<IPropertyModel, object?, object?> readNormalizer,
+		//											SerializationModel serializationModel, bool skipReadingKey, bool loadOldValuesAlso, bool defaultValueOptimization)
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		int propertyCount;
+		//		bool checkIfPropertyValueIsDefault = false; // if the SerializationModel.SequenceValuesOnly sequence reader reads only reads values
 
-				if (serializationModel == SerializationModel.IndexValuePairs)
-				{
-					propertyCount = reader.ReadInt32Optimized();
-					checkIfPropertyValueIsDefault = false; // prevent reading single property value default optimized in index/value pairs serialization mode.
-				}
-				else
-				{
-					propertyCount = this.GetModel().SerializablePropertyIndexes.Length;
-					checkIfPropertyValueIsDefault = defaultValueOptimization;
-				}
+		//		if (serializationModel == SerializationModel.IndexValuePairs)
+		//		{
+		//			propertyCount = reader.ReadInt32Optimized();
+		//			checkIfPropertyValueIsDefault = false; // prevent reading single property value default optimized in index/value pairs serialization mode.
+		//		}
+		//		else
+		//		{
+		//			propertyCount = this.GetModel().SerializablePropertyIndexes.Length;
+		//			checkIfPropertyValueIsDefault = defaultValueOptimization;
+		//		}
 
-				for (int i = 0; i < propertyCount; i++)
-				{
-					int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ?
-												   reader.ReadInt32Optimized() :
-												   this.GetModel().SerializablePropertyIndexes[i];
-					IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
+		//		for (int i = 0; i < propertyCount; i++)
+		//		{
+		//			int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ?
+		//										   reader.ReadInt32Optimized() :
+		//										   this.GetModel().SerializablePropertyIndexes[i];
+		//			IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
 
-					if (skipReadingKey && propertyModel.PropertyIndex == SimpleObject.IndexPropertyId && serializationModel == SerializationModel.SequenceValuesOnly)
-						continue;
+		//			if (skipReadingKey && propertyModel.PropertyIndex == SimpleObject.IndexPropertyId && serializationModel == SerializationModel.SequenceValuesOnly)
+		//				continue;
 
-					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, propertyModel, checkIfPropertyValueIsDefault);
+		//			object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, propertyModel, checkIfPropertyValueIsDefault);
 
-					this.LoadPropertyValue(propertyModel, propertyValue, readNormalizer, loadOldValuesAlso);
-				}
-			}
-		}
+		//			this.LoadPropertyValue(propertyModel, propertyValue, readNormalizer, loadOldValuesAlso);
+		//		}
+		//	}
+		//}
 
-		public void SetFrom(ref SequenceReader reader, Func<IPropertyModel, object?, object?> readNormalizer, SerializationModel serializationModel, bool skipReadingKey, bool defaultValueOptimization, object requester)
-		{
-			lock (this.lockObject)
-			{
-				int propertyCount;
-				bool checkIfPropertyValueIsDefault = false; // if the SerializationModel.SequenceValuesOnly sequence reader reads only reads values
+		//public void SetFrom(ref SequenceReader reader, Func<IPropertyModel, object?, object?> readNormalizer, SerializationModel serializationModel, bool skipReadingKey, bool defaultValueOptimization, object requester)
+		//{
+		//	lock (this.lockObject)
+		//	{
+		//		int propertyCount;
+		//		bool checkIfPropertyValueIsDefault = false; // if the SerializationModel.SequenceValuesOnly sequence reader reads only reads values
 
-				if (serializationModel == SerializationModel.IndexValuePairs)
-				{
-					propertyCount = reader.ReadInt32Optimized();
-					checkIfPropertyValueIsDefault = false; // prevent reading single property value optimized in index/value pairs serialization mode.
-				}
-				else
-				{
-					propertyCount = this.GetModel().SerializablePropertyIndexes.Length;
-					checkIfPropertyValueIsDefault = defaultValueOptimization;
-				}
+		//		if (serializationModel == SerializationModel.IndexValuePairs)
+		//		{
+		//			propertyCount = reader.ReadInt32Optimized();
+		//			checkIfPropertyValueIsDefault = false; // prevent reading single property value optimized in index/value pairs serialization mode.
+		//		}
+		//		else
+		//		{
+		//			propertyCount = this.GetModel().SerializablePropertyIndexes.Length;
+		//			checkIfPropertyValueIsDefault = defaultValueOptimization;
+		//		}
 
-				for (int i = 0; i < propertyCount; i++)
-				{
-					int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ?
-												   reader.ReadInt32Optimized() :
-												   this.GetModel().SerializablePropertyIndexes[i];
-					IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
+		//		for (int i = 0; i < propertyCount; i++)
+		//		{
+		//			int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ?
+		//										   reader.ReadInt32Optimized() :
+		//										   this.GetModel().SerializablePropertyIndexes[i];
+		//			IPropertyModel propertyModel = this.GetModel().PropertyModels[propertyIndex];
 
-					if (skipReadingKey && propertyModel.PropertyIndex == SimpleObject.IndexPropertyId && serializationModel == SerializationModel.SequenceValuesOnly)
-						continue;
+		//			if (skipReadingKey && propertyModel.PropertyIndex == SimpleObject.IndexPropertyId && serializationModel == SerializationModel.SequenceValuesOnly)
+		//				continue;
 
-					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, propertyModel, checkIfPropertyValueIsDefault);
-					propertyValue = readNormalizer(propertyModel, propertyValue);
+		//			object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, propertyModel, checkIfPropertyValueIsDefault);
+		//			propertyValue = readNormalizer(propertyModel, propertyValue);
 
-					//this.SetPropertyValueInternal(propertyModel, propertyValue, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent,
-					//							  decideActionFromModel: true, enforceAccessModifier: false, requester);
-
-
-					if (propertyModel.IsRelationObjectId) // && propertyModel.Index != SimpleObject.IndexPropertyGuid) // SimpleObject.Key (propertyModel.Index == SimpleObject.IndexPropertyKey) maybe noo need for check since key will 
-					{
-						// -> TODO: Find relation type and manualy set relation
-
-						// Temporary
-						this.SetPropertyValue(propertyModel, propertyValue, changeContainer: null, requester);
-
-						//this.GetModel().RelationModel.
+		//			//this.SetPropertyValueInternal(propertyModel, propertyValue, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent,
+		//			//							  decideActionFromModel: true, enforceAccessModifier: false, requester);
 
 
-						//this.SetOneToManyRelationForeignObject
+		//			if (propertyModel.IsRelationObjectId) // && propertyModel.Index != SimpleObject.IndexPropertyGuid) // SimpleObject.Key (propertyModel.Index == SimpleObject.IndexPropertyKey) maybe noo need for check since key will 
+		//			{
+		//				// -> TODO: Find relation type and manualy set relation
 
-					}
-					else
-					{
-						this.SetPropertyValue(propertyModel, propertyValue, requester);
-					}
+		//				// Temporary
+		//				this.SetPropertyValue(propertyModel, propertyValue, changeContainer: null, context, requester);
 
-					//if (propertyModel.Index == SimpleObject.IndexPropertyOrderIndex) // Left OrderIndex to be set at last
-					//{
-					//	orderIndexPropertyModel = propertyModel;
-					//	orderIndex = (int)propertyValue;
-					//}
-					//else
-					//{
-					//	this.SetFromPropertyValue(propertyModel, propertyValue, requester);
-					//}
-				}
+		//				//this.GetModel().RelationModel.
 
-				//if (orderIndexPropertyModel != null) // Set OrderIndex at last
-				//	this.SetPropertyValue(orderIndexPropertyModel, orderIndex, requester);
 
-				//this.OnAfterLoad();
-			}
-		}
+		//				//this.SetOneToManyRelationForeignObject
+
+		//			}
+		//			else
+		//			{
+		//				this.SetPropertyValue(propertyModel, propertyValue, requester);
+		//			}
+
+		//			//if (propertyModel.Index == SimpleObject.IndexPropertyOrderIndex) // Left OrderIndex to be set at last
+		//			//{
+		//			//	orderIndexPropertyModel = propertyModel;
+		//			//	orderIndex = (int)propertyValue;
+		//			//}
+		//			//else
+		//			//{
+		//			//	this.SetFromPropertyValue(propertyModel, propertyValue, requester);
+		//			//}
+		//		}
+
+		//		//if (orderIndexPropertyModel != null) // Set OrderIndex at last
+		//		//	this.SetPropertyValue(orderIndexPropertyModel, orderIndex, requester);
+		//	}
+
+		//	this.AfterLoad();
+		//}
 
 		/// <summary>
 		/// Load property values from the server serialization stream. It is intended to be used from the client.
@@ -2568,13 +2381,13 @@ namespace Simple.Objects
 				}
 				else
 				{
-					propertyCount = serverObjectPropertyInfo.SerializablePropertyIndexes.Length; // This should be the same value with this.GetModel().SerializablePropertySequence.Length;
+					propertyCount = serverObjectPropertyInfo.ClientSerializablePropertyIndexes.Length; // This should be the same value with this.GetModel().SerializablePropertySequence.Length;
 					checkIfPropertyValueIsDefault = defaultValueOptimization;
 				}
 
 				for (int i = 0; i < propertyCount; i++)
 				{
-					int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ? reader.ReadInt32Optimized() : serverObjectPropertyInfo.SerializablePropertyIndexes[i];
+					int propertyIndex = (serializationModel == SerializationModel.IndexValuePairs) ? reader.ReadInt32Optimized() : serverObjectPropertyInfo.ClientSerializablePropertyIndexes[i];
 					ServerPropertyInfo serverPropertyModelInfo = serverObjectPropertyInfo.GetPropertyInfo(propertyIndex);
 
 					if (skipReadingKey && propertyIndex == SimpleObject.IndexPropertyId && serializationModel == SerializationModel.SequenceValuesOnly)
@@ -2613,9 +2426,9 @@ namespace Simple.Objects
 			{
 				for (int i = 0; i < propertyModelSequence.Length; i++)
 					this.LoadPropertyValue(propertyModelSequence[i], propertyValues[i], readNormalizer, loadOldValuesAlso);
-
-				this.OnAfterLoad();
 			}
+
+			this.AfterLoad();
 		}
 
 		protected internal void Load(int[] propertyIndexSequence, object[] propertyValues, Func<IPropertyModel, object?, object?> readNormalizer, bool loadOldValuesAlso)
@@ -2627,6 +2440,8 @@ namespace Simple.Objects
 
 				this.OnAfterLoad();
 			}
+
+			this.AfterLoad();
 		}
 
 		//protected internal void Load(KeyValuePair<IPropertyModel, object>[] propertyModelValueProperties, Func<IPropertyModel, object, object> readNormalizer, bool loadOldValuesAlso)
@@ -2660,9 +2475,9 @@ namespace Simple.Objects
 			{
 				foreach (var item in propertyDataByIndex)
 					this.LoadPropertyValue(item.Key, item.Value, readNormalizer, loadOldValuesAlso);
-
-				this.OnAfterLoad();
 			}
+
+			this.AfterLoad();
 		}
 
 		protected internal void Load(IDictionary<string, object> propertyDataByName, Func<IPropertyModel, object?, object?> readNormalizer, bool loadOldValuesAlso)
@@ -2671,14 +2486,803 @@ namespace Simple.Objects
 			{
 				foreach (var item in propertyDataByName)
 					this.LoadPropertyValue(item.Key, item.Value, readNormalizer, loadOldValuesAlso);
-
-				this.OnAfterLoad();
 			}
+
+			this.AfterLoad();
+		}
+
+		/// <summary>
+		/// Load property values from the server serialization stream. It is intended to be used from the client.
+		/// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
+		/// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
+		/// </summary>
+		/// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
+		/// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
+		/// <param name="readNormalizer">The property value reading normalizer.</param>
+		/// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
+		/// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
+		public void LoadFrom(ref SequenceReader reader, ServerObjectModelInfo serverObjectPropertyInfo, bool setOldValuesAlso, Func<IServerPropertyInfo, object?, object?>? readNormalizer = null)
+		{
+			lock (this.lockObject)
+			{
+				int propertyCount = reader.ReadInt32Optimized();
+
+				for (int i = 0; i < propertyCount; i++)
+				{
+					int propertyIndex = reader.ReadInt32Optimized();
+					ServerPropertyInfo serverPropertyModelInfo = serverObjectPropertyInfo[propertyIndex];
+					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, serverPropertyModelInfo);
+					IPropertyModel? localPropertyModel = this.GetModel().PropertyModels.GetPropertyModel(propertyIndex);
+
+					if (localPropertyModel == null)
+						continue; // local property does not exists => it is not implemented (different client and server version/model => skip loading propery value
+
+					if (readNormalizer != null)
+					{
+						propertyValue = readNormalizer(serverPropertyModelInfo, propertyValue); // normalizer will also change value type if different from server property def 
+					}
+					else if (serverPropertyModelInfo.PropertyTypeId != localPropertyModel.PropertyTypeId) // if client property type is different from server property type -> change type
+					{
+						propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+					}
+
+					this.SetFieldValue(propertyIndex, propertyValue!);
+
+					if (setOldValuesAlso)
+					{
+						this.SetOldFieldValue(propertyIndex, propertyValue!);
+						this.changedPropertyIndexes.Remove(propertyIndex);
+						//this.changedSaveablePropertyIndexes.Remove(propertyIndex);
+					}
+				}
+			}
+
+			this.AfterLoad();
+		}
+
+		/// <summary>
+		/// Load property values from the server serialization stream. It is intended to be used from the client.
+		/// If SerializationModel.SequenceValuesOnly and if defaultValueOptimization is first we read boolean to see if value is default.
+		/// If SerializationModel.IndexValuePairs only property Index/Pairs are read. Others has its defaultValues
+		/// </summary>
+		/// <param name="reader">The <see cref="SequenceReader"></see> to read from.</param>
+		/// <param name="propertyIndexSequence">The property indexes array that specify order of the property values.</param>
+		/// <param name="readNormalizer">The property value reading normalizer.</param>
+		/// <param name="loadOldValuesAlso">If true, old field values are loaded also, otherwise not.</param>
+		/// <param name="skipReadingKey">If true, key is not read, otherwise it is.</param>
+		public void LoadFrom(ref SequenceReader reader, ServerObjectModelInfo serverObjectPropertyInfo)
+		{
+			lock (this.lockObject)
+			{
+				int propertyCount = reader.ReadInt32Optimized();
+
+				for (int i = 0; i < propertyCount; i++)
+				{
+					int propertyIndex = reader.ReadInt32Optimized();
+					ServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[propertyIndex];
+					object? propertyValue = SimpleObjectManager.ReadObjectPropertyValue(ref reader, serverPropertyModel);
+					IPropertyModel localPropertyModel = this.GetModel().PropertyModels.GetPropertyModel(propertyIndex);
+
+					if (localPropertyModel == null)
+						continue; // local property does not exists => property is not implemented (different client and server version/model) => skip loading propery value
+
+					if (serverPropertyModel.IsEncrypted)
+					{
+						propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
+
+						if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
+							propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+					}
+					else
+					{
+						if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
+							propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+					}
+
+					this.SetFieldValue(propertyIndex, propertyValue!);
+					this.SetOldFieldValue(propertyIndex, propertyValue!);
+					this.changedPropertyIndexes.Remove(propertyIndex);
+					//this.changedSaveablePropertyIndexes.Remove(propertyIndex);
+				}
+			}
+
+			this.AfterLoad();
+		}
+
+
+		public void LoadFromServer(IEnumerable<PropertyIndexValuePair> propertyIndexValuePairs)
+		{
+			lock (this.lockObject)
+			{
+				ServerObjectModelInfo serverObjectPropertyInfo = this.Manager.GetServerObjectModel(this.GetModel().TableInfo.TableId)!;
+
+				foreach (PropertyIndexValuePair item in propertyIndexValuePairs)
+				{
+					IPropertyModel localPropertyModel = this.GetModel().GetPropertyModel(item.PropertyIndex);
+
+					if (localPropertyModel != null)
+					{
+						IServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[item.PropertyIndex];
+						object? propertyValue = item.PropertyValue;
+
+						if (serverPropertyModel.IsEncrypted)
+						{
+							propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
+
+							if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
+								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+						}
+						else
+						{
+							if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
+								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+						}
+
+						this.SetFieldValue(item.PropertyIndex, propertyValue!);
+						this.SetOldFieldValue(item.PropertyIndex, propertyValue!);
+						this.changedPropertyIndexes.Remove(item.PropertyIndex);
+						//this.changedSaveablePropertyIndexes.Remove(item.PropertyIndex);
+					}
+				}
+			}
+
+			this.AfterLoad();
+		}
+
+		public void LoadFromServer(int[] propertyIndexes, object[] propertyValues, ServerObjectModelInfo serverObjectPropertyInfo)
+		{
+			lock (this.lockObject)
+			{
+				for (int i = 0; i < propertyIndexes.Length; i++)
+				{
+					int propertyIndex = propertyIndexes[i];
+					IPropertyModel localPropertyModel = this.GetModel().GetPropertyModel(propertyIndex);
+
+					if (localPropertyModel != null)
+					{
+						IServerPropertyInfo serverPropertyModel = serverObjectPropertyInfo[propertyIndex];
+						object? propertyValue = propertyValues[i];
+
+						if (serverPropertyModel.IsEncrypted)
+						{
+							propertyValue = PasswordSecurity.Decrypt((string)propertyValue!, this.Manager.Decryptor);
+
+							if (localPropertyModel.PropertyTypeId != (int)PropertyTypeId.String)
+								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+						}
+						else
+						{
+							if (serverPropertyModel.PropertyTypeId != localPropertyModel.PropertyTypeId)
+								propertyValue = Conversion.TryChangeType(propertyValue, localPropertyModel.PropertyType);
+						}
+
+						this.SetFieldValue(propertyIndex, propertyValue!);
+						this.SetOldFieldValue(propertyIndex, propertyValue!);
+						this.changedPropertyIndexes.Remove(propertyIndex);
+						//this.changedSaveablePropertyIndexes.Remove(propertyIndex);
+					}
+				}
+			}
+
+			this.AfterLoad();
+		}
+
+
+		internal void SetRelationPropertyValuesOnlyAndRemoveFromCachesInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, IDictionary<long, long> newObjectIdsByTempClientObjectId, out string infoMessage, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			int primaryTableId = 0, oldPrimaryTableId = 0;
+
+			infoMessage = string.Empty;
+
+			lock (this.lockObject)
+			{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						if (propertyModel.IsRelationTableId)
+						{
+							primaryTableId = (int)item.PropertyValue!;
+							oldPrimaryTableId = (int)this.GetPropertyValue(propertyModel.PropertyIndex)!;
+							this.SetPropertyValueInternal(propertyModel, item.PropertyValue, changeContainer, context, requester);
+						}
+						else if (propertyModel.IsRelationObjectId)
+						{
+							if ((long)item.PropertyValue! < 0)
+								item.PropertyValue = newObjectIdsByTempClientObjectId[(long)item.PropertyValue];
+
+							long primaryObjectId = (long)item.PropertyValue!;
+							long oldPrimaryObjectId = (long)this.GetPropertyValue(propertyModel.PropertyIndex)!;
+							IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
+
+							if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
+							{
+								if (primaryTableId == 0)
+								{
+									primaryTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
+									oldPrimaryTableId = primaryTableId;
+								}
+
+								this.RemoveRelationPrimaryObjectFromCache(oldPrimaryTableId, oldPrimaryObjectId, oneToOneOrManyRelationModel);
+
+								if (oldPrimaryObjectId == 0)
+									this.GetOneToManyForeignNullCollection(relationModel.RelationKey)?.Remove(this, changeContainer, requester);
+
+								if (primaryObjectId == 0)
+									this.GetOneToManyForeignNullCollection(relationModel.RelationKey)?.Add(this, changeContainer, requester);
+							}
+							//else
+							//{
+							// for exampele, GroupMembershipElement has no specific RelationKey for Object2Id/Object2Id, only value need to be set
+
+							//}
+
+							//if (foreignObjectId < 0)
+							this.SetPropertyValueInternal(propertyModel, item.PropertyValue, changeContainer, context, requester);
+
+							primaryTableId = 0;
+							oldPrimaryTableId = 0;
+						}
+						//else if (propertyModel.IsOrderIndex)
+						//{
+						//	postponedPropertiesToSet.Add(new SimpleObjectPropertyIndexValuePair(this, item));
+
+						//	continue;
+						//}
+
+
+						//else
+						//{
+						//	//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+						//	object? propertyValue = item.PropertyValue;
+
+						//	if (propertyModel.IsEncrypted && propertyValue != null)
+						//		propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+						//	this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, requester);
+						//}
+					}
+					else
+					{
+						infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+
+						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+					}
+				}
+			}
+
+			//this.AfterLoad();
+		}
+
+		internal void SetAllPropertyValuesInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, IDictionary<long, long> newObjectIdsByTempClientObjectId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			lock (this.lockObject)
+			{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						if (propertyModel.IsRelationObjectId && (long)item.PropertyValue! < 0)
+							item.PropertyValue = newObjectIdsByTempClientObjectId[(long)item.PropertyValue];
+
+						////propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+						object? propertyValue = item.PropertyValue;
+
+						if (propertyModel.IsEncrypted && propertyValue != null)
+							propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+						this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, context, requester);
+					}
+					else
+					{
+						string infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+					}
+				}
+			}
+		}
+
+
+		internal void SetRelationPrimaryObjectsInternal(RelationListInfo relationsToSet, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			for (int i = 0; i < relationsToSet.Count; i++)
+			{
+				var item = relationsToSet[i];
+
+				this.SetRelationPrimaryObject(item.TableId, item.ObjectId, item.RelationKey, changeContainer, context, requester);
+			}
+		}
+
+		/// <summary>
+		/// Sets all relations in a relationsToSet acoording to data within and sets all other relations that exists in relation model with default values stored in object.
+		/// </summary>
+		/// <param name="relationsToSet">Relation infos to sets</param>
+		/// <param name="changeContainer">The underlying ChangeContainer</param>
+		/// <param name="context">The underlying context</param>
+		/// <param name="requester">The requester of the event</param>
+		internal void SetAllRelationPrimaryObjectsInternal(RelationListInfo relationsToSet, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			foreach (IOneToOneOrManyRelationModel relationModel in this.GetModel().RelationModel.AsForeignObjectInRelarions)
+			{
+				if (relationsToSet.TryGetRelationInfo(relationModel.RelationKey, out RelationKeyTableIdObjectIdPair? relationInfo))
+				{
+					this.SetRelationPrimaryObject(relationInfo!.TableId,  relationInfo.ObjectId, relationModel.RelationKey, changeContainer, context, requester); // 
+				}
+				else // Sets the relation with default values stored in object
+				{
+					int primaryTableId = (relationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(relationModel.PrimaryTableIdPropertyModel.PropertyIndex) : relationModel.PrimaryObjectTableId;
+					long primaryObjectId = this.GetPropertyValue<long>(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+
+					this.SetRelationPrimaryObject(primaryTableId, primaryObjectId, relationModel.RelationKey, changeContainer, context, requester);
+				}
+			}
+		}
+
+		internal void SetNonRelationPropertyValuesAndCollectRelationsInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, out RelationListInfo relationsToSet, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			this.SetNonRelationPropertyValuesAndCollectRelationsInternal(propertyIndexValues, EmptyNewObjectIdsByTempClientObjectIdDictionary, out relationsToSet, changeContainer, context, requester);
+		}
+
+		internal void SetNonRelationPropertyValuesAndCollectRelationsInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, IDictionary<long, long> newObjectIdsByTempClientObjectId, out RelationListInfo relationsToSet, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			relationsToSet = new RelationListInfo();
+			
+			//lock (this.lockObject)
+			//{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						if (propertyModel.IsRelationTableId)
+						{
+							relationsToSet.Set(propertyModel.RelationKey, tableId: (int)item.PropertyValue!);
+
+							continue;
+						}
+						else if (propertyModel.IsRelationObjectId)
+						{
+							long objectId = (long)item.PropertyValue!;
+
+							if (objectId < 0)
+								objectId = newObjectIdsByTempClientObjectId[objectId];
+
+							item.PropertyValue = objectId;
+							relationsToSet.Set(propertyModel.RelationKey, objectId);
+
+							continue;
+						}
+
+						//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+						object? propertyValue = item.PropertyValue;
+
+						if (propertyModel.IsEncrypted && propertyValue != null)
+							propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+						this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, context, requester);
+					}
+					else
+					{
+						string infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+					}
+				}
+
+				for (int i = 0; i < relationsToSet.Count; i++)
+				{
+					var item = relationsToSet[i];
+
+					if (item.TableId == 0)
+					{
+						var relationModel = this.GetModel().RelationModel.AsForeignObjectInRelarions.GetRelationModel(item.RelationKey);
+
+						if (relationModel != null)
+							item.TableId = relationModel.PrimaryObjectTableId;
+					}
+					else if (item.ObjectId == 0)
+					{
+						var relationModel = this.GetModel().RelationModel.AsForeignObjectInRelarions.GetRelationModel(item.RelationKey);
+
+						if (relationModel != null)
+							item.ObjectId = this.GetPropertyValue<long>(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+					}
+				}
+			//}
+		}
+
+
+		internal void SetAllPropertyValuesInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			//lock (this.lockObject)
+			//{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						object? propertyValue = item.PropertyValue;
+
+						if (propertyModel.IsEncrypted && propertyValue != null)
+							propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+						this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, context, requester);
+					}
+					else
+					{
+						string infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+					}
+				}
+			//}
+		}
+
+
+		// TODO: Fix bug if only TableId and ObjectId remain the same is changed for related object is changed and need to be set!!!!!
+		//internal void SetRelationPrimaryObjectsInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, IDictionary<long, long> newObjectIdsByTempClientObjectId, out string infoMessage, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		//{
+		//	int primaryTableId = 0;
+		//	//IPropertyModel? primaryTableIdPropertyModel = null;
+
+		//	infoMessage = string.Empty;
+
+		//	lock (this.lockObject)
+		//	{
+		//		for (int i = 0; i < propertyIndexValues.Count(); i++)
+		//		{
+		//			var item = propertyIndexValues.ElementAt(i);
+		//			IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+		//			if (propertyModel != null)
+		//			{
+		//				if (propertyModel.IsRelationTableId)
+		//				{
+		//					primaryTableId = (int)item.PropertyValue!;
+		//					this.SetPropertyValueInternal(propertyModel, item.PropertyValue, changeContainer, context, requester); // For many to many relations
+		//				}
+		//				else if (propertyModel.IsRelationObjectId)
+		//				{
+		//					if ((long)item.PropertyValue! < 0)
+		//						item.PropertyValue = newObjectIdsByTempClientObjectId[(long)item.PropertyValue];
+
+		//					long primaryObjectId = (long)item.PropertyValue!;
+		//					IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
+
+		//					if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
+		//					{
+		//						if (primaryTableId == 0)
+		//							primaryTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
+
+		//						this.SetRelationPrimaryObject(primaryTableId, primaryObjectId, relationModel.RelationKey, changeContainer, context, requester);
+		//					}
+		//					else // IManyToManyRelation
+		//					{
+		//						// for exampele, GroupMembershipElement has no specific RelationKey for Object2Id/Object2Id, only value need to be set
+		//						this.SetPropertyValueInternal(propertyModel, item.PropertyValue, changeContainer, context, requester);
+		//					}
+
+		//					primaryTableId = 0;
+		//				}
+		//				else
+		//				{
+		//					////propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+		//					//object? propertyValue = item.PropertyValue;
+
+		//					//if (propertyModel.IsEncrypted && propertyValue != null)
+		//					//	propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+		//					//this.SetPropertyValueInternal(propertyModel, propertyValue, changeContainer, context, requester);
+		//				}
+		//			}
+		//			else
+		//			{
+		//				infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+
+		//				Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+		//			}
+		//		}
+		//	}
+		//}
+
+		internal void SetAllRelationPrimaryObjectsInternal_OLD(IEnumerable<PropertyIndexValuePair> newPropertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			foreach (IOneToOneOrManyRelationModel relationModel in this.GetModel().RelationModel.AsForeignObjectInRelarions)
+			{
+				if (!this.SetRelationPrimaryObjectInternal_OLD(relationModel, newPropertyIndexValues, changeContainer, context, requester))
+				{
+					int primaryTableId = (relationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(relationModel.PrimaryTableIdPropertyModel.PropertyIndex) : relationModel.PrimaryObjectTableId;
+					long primaryObjectId = this.GetPropertyValue<long>(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+
+					this.SetRelationPrimaryObject(primaryTableId, primaryObjectId, relationModel.RelationKey, changeContainer, context, requester);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Sets the new relation property objects if ObjectzId or TableId exists in newPropertyIndexValues. 
+		/// It is assumed that relation property values are already set. Only needs to set primary relation object
+		/// </summary>
+		/// <param name="propertyIndexValues"></param>
+		/// <param name="changeContainer"></param>
+		/// <param name="context"></param>
+		/// <param name="requester"></param>
+		internal void SetRelationPrimaryObjectsInternal_OLD(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			foreach (IOneToOneOrManyRelationModel relationModel in this.GetModel().RelationModel.AsForeignObjectInRelarions)
+				this.SetRelationPrimaryObjectInternal_OLD(relationModel, propertyIndexValues, changeContainer, context, requester);
+		}
+
+		private bool SetRelationPrimaryObjectInternal_OLD(IOneToOneOrManyRelationModel relationModel, IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			if (propertyIndexValues.TryGetPropertyValue(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex, out object? primaryObjectId))
+			{
+				int primaryTableId = (relationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(relationModel.PrimaryTableIdPropertyModel.PropertyIndex) : relationModel.PrimaryObjectTableId;
+
+				this.SetRelationPrimaryObject(primaryTableId, (long)primaryObjectId!, relationModel.RelationKey, changeContainer, context, requester);
+
+				return true;
+			}
+			else if (relationModel.PrimaryTableIdPropertyModel != null && propertyIndexValues.TryGetPropertyValue(relationModel.PrimaryTableIdPropertyModel.PropertyIndex, out object? primaryTableId))
+			{
+				primaryObjectId = this.GetPropertyValue<long>(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+
+				this.SetRelationPrimaryObject((int)primaryTableId!, (long)primaryObjectId, relationModel.RelationKey, changeContainer, context, requester);
+
+				return true;
+			}
+
+			return false;
+		}
+
+		internal void SetAllRelationPrimaryObjects(IEnumerable<PropertyIndexValuePair>? excludedPropertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			foreach (IOneToOneOrManyRelationModel relationModel in this.GetModel().RelationModel.AsForeignObjectInRelarions.ToArray())
+			{
+				//bool isRelationAlreadySet = false;
+
+				//if (excludedPropertyIndexValues != null)
+				//{
+				//	foreach (var i in excludedPropertyIndexValues)
+				//	{
+				//		if (i.PropertyIndex == relationModel.PrimaryObjectIdPropertyModel.PropertyIndex)
+				//		{
+				//			isRelationAlreadySet = true;
+
+				//			break;
+				//		}
+				//	}
+				//}
+				
+				bool isRelationAlreadySet = excludedPropertyIndexValues?.FindFirst(item => item.PropertyIndex == relationModel.PrimaryObjectIdPropertyModel.PropertyIndex) != null;
+				//var excluded = excludedPropertyIndexValues.Where(item => item.PropertyIndex == relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+
+				if (!isRelationAlreadySet) // excluded is null
+				{
+					int primaryTableId = (relationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(relationModel.PrimaryTableIdPropertyModel.PropertyIndex) : relationModel.PrimaryObjectTableId;
+					long primaryObjectId = this.GetPropertyValue<long>(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex);
+
+					this.SetRelationPrimaryObject(primaryTableId, primaryObjectId, relationModel.RelationKey, changeContainer, context, requester);
+				}
+			}
+		}
+
+		internal void SetPropertyValuesWithoutRelationsInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			this.SetPropertyValues2Internal(propertyIndexValues, modelCriteria: propertyModel => !(propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId), changeContainer, context, requester);
+		}
+
+		internal void SetPropertyValues2Internal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, Func<IPropertyModel, bool> modelCriteria, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			//lock (this.lockObject)
+			//{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						if (!modelCriteria(propertyModel))
+							continue;
+
+						object? propertyValue = item.PropertyValue;
+
+						if (propertyModel.IsEncrypted && propertyValue != null)
+							propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+						this.SetPropertyValueInternal(propertyModel, item.PropertyValue, changeContainer, context, requester);
+					}
+				}
+			//}
+		}
+
+		internal void LoadFieldValuesWithoutRelationsInternal(IEnumerable<PropertyIndexValuePair> propertyIndexValues, ref List<SimpleObjectPropertyRelationArgs> objectRelationPropertiesToSet, out string infoMessage, object? requester = null)
+		{
+			int foreignTableId = 0;
+
+			infoMessage = string.Empty;
+
+			lock (this.lockObject)
+			{
+				for (int i = 0; i < propertyIndexValues.Count(); i++)
+				{
+					var item = propertyIndexValues.ElementAt(i);
+					IPropertyModel? propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					if (propertyModel != null)
+					{
+						if (propertyModel.IsRelationTableId)
+						{
+							foreignTableId = (int)item.PropertyValue!;
+							this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
+							this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
+						}
+						else if (propertyModel.IsRelationObjectId)
+						{
+							long foreignObjectId = (long)item.PropertyValue!;
+							IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
+
+							if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
+							{
+								if (foreignTableId == 0)
+									foreignTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
+
+								objectRelationPropertiesToSet.Add(new SimpleObjectPropertyRelationArgs(this, foreignTableId, foreignObjectId, oneToOneOrManyRelationModel));
+							}
+							else
+							{
+								// for exampele, GroupMembershipElement has no specific RelationKey for Object2Id/Object2Id, only value need to be set
+								this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
+								this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue);
+							}
+
+							//if (foreignObjectId < 0)
+							foreignTableId = 0;
+						}
+						//else if (propertyModel.IsOrderIndex)
+						//{
+						//	postonedPropertiesToSet.Add(item);
+						//}
+						else //if (propertyModel.PropertyIndex != SimpleObject.IndexPropertyId)
+						{
+							//propertyValue = this.NormalizeWhenReadingByPropertyType(propertyModel, propertyValue);
+							object? propertyValue = item.PropertyValue;
+
+							if (propertyModel.IsEncrypted && propertyValue != null)
+								propertyValue = this.Manager.DecryptProperty(propertyValue);
+
+							this.SetFieldValue(propertyModel.PropertyIndex, item.PropertyValue!);
+							this.SetOldFieldValue(propertyModel.PropertyIndex, item.PropertyValue!);
+						}
+					}
+					else
+					{
+						infoMessage = String.Format("There is no property model defined, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", this.GetModel().TableInfo.TableId, item.PropertyIndex); //, propertyModel.PropertyName);
+
+						Debug.WriteLine("ProcessTransactionRequestArgs: " + infoMessage);
+					}
+				}
+			}
+
+			this.AfterLoad();
+		}
+
+		//public PropertyValueSequence GetPropertyValueSequence(IPropertySequence propertySequence)
+		//{
+		//	return this.GetPropertyValueSequence(propertySequence, normalizer: (propertyModel, propertyValue) => propertyValue);
+		//}
+
+		//public PropertyValueSequence GetPropertyValueSequence(IPropertySequence propertySequence, Func<IPropertyModel, object, object> normalizer)
+		//{
+		//	return this.GetPropertyValues(propertySequence, (propertyIndex) => this.GetFieldValue(propertyIndex), normalizer);
+		//}
+
+		//public PropertyValueSequence GetOldPropertyValueSequence(IPropertySequence propertySequence)
+		//{
+		//	return this.GetOldPropertyValueSequence(propertySequence, normalizer: (propertyModel, propertyValue) => propertyValue);
+		//}
+
+		//public PropertyValueSequence GetOldPropertyValueSequence(IPropertySequence propertySequence, Func<IPropertyModel, object, object> normalizer, SetPropertiesOption setPropertiesOption = SetPropertiesOption.SetAll)
+		//{
+		//	return this.GetPropertyValues(propertySequence, (propertyIndex) => this.GetOldFieldValue(propertyIndex), normalizer);
+		//}
+
+		//public void SetPropertyValues(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, ChangeContainer changeContainer, object requester)
+		//{
+		//	this.SetPropertyValues(propertyIndexeValues, writeNormalizer: this.Manager.NormalizeForWritingByPropertyType, changeContainer, requester);
+		//}
+
+		public void SetPropertyValues(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			this.SetPropertyValuesInternal(propertyIndexeValues, writeNormalizer: this.Manager.NormalizeForWritingByPropertyType, changeContainer, context, requester);
+		}
+
+		internal void SetPropertyValuesInternal(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			this.SetPropertyValuesInternal(propertyIndexeValues, writeNormalizer: this.Manager.NormalizeForWritingByPropertyType, changeContainer, context, requester);
+		}
+
+		internal void SetPropertyValuesInternal(IEnumerable<PropertyIndexValuePair> propertyIndexeValues, Func<IPropertyModel, object?, object?> writeNormalizer, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+		{
+			int primaryTableId = 0;
+
+			//lock (this.lockObject)
+			//{
+				// Sets non relation properties, first
+				for (int i = 0; i < propertyIndexeValues.Count(); i++)
+				{
+					var item = propertyIndexeValues.ElementAt(i);
+					IPropertyModel propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					//if (propertyModel != null)
+					//{
+					if (propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId)
+						continue;
+
+					object? propertyValue = writeNormalizer(propertyModel, item.PropertyValue);
+
+					//propertyValue = (propertyModel.IsEncrypted && propertyValue != null) ? this.Manager.DecryptProperty(propertyValue) : 
+					//																	   writeNormalizer(propertyModel, propertyValue);
+
+					this.SetPropertyValue(propertyModel, propertyValue, changeContainer, context, requester: this);
+
+					//else
+					//{
+					//	string info = String.Format("Server has no property model, TableId:{0}, PropertyIndex:{2}, PropertyName:{3}", foreignTableId, propertyIndex, propertyModel.PropertyName);
+
+					//	Debug.WriteLine("ProcessTransactionRequestArgs: " + info);
+					//}
+				}
+
+				//this.AfterLoad();
+
+				// Sets relation properties, second
+				for (int i = 0; i < propertyIndexeValues.Count(); i++)
+				{
+					var item = propertyIndexeValues.ElementAt(i);
+					IPropertyModel propertyModel = this.GetModel().PropertyModels[item.PropertyIndex];
+
+					//if (setPropertiesOption == SetPropertiesOption.AvoidSetsRelations && (propertyModel.IsRelationTableId || propertyModel.IsRelationObjectId))
+					//	continue;
+
+					//if (setPropertiesOption == SetPropertiesOption.SetOnlyRelations && (!propertyModel.IsRelationTableId || !propertyModel.IsRelationObjectId))
+					//	continue;
+
+					if (propertyModel.IsRelationTableId)
+					{
+						primaryTableId = (int)item.PropertyValue!;
+					}
+					else if (propertyModel.IsRelationObjectId)
+					{
+						long primaryObjectId = (long)item.PropertyValue!;
+						IRelationModel? relationModel = this.Manager.GetRelationModel(propertyModel.RelationKey);
+
+						if (relationModel is IOneToOneOrManyRelationModel oneToOneOrManyRelationModel)
+						{
+							if (primaryTableId == 0)
+								primaryTableId = oneToOneOrManyRelationModel.PrimaryObjectTableId; // If foreign TableId is not specified it is fixed and is determined by the relation model definition
+
+							this.SetRelationPrimaryObjectInternal(primaryTableId, primaryObjectId, oneToOneOrManyRelationModel, changeContainer, context, requester);
+						}
+
+						primaryTableId = 0;
+					}
+				}
+			//}
 		}
 
 		private void LoadPropertyValue(string propertyName, object? propertyValue, Func<IPropertyModel, object?, object?> readNormalizer, bool loadOldValueAlso)
 		{
-			this.LoadPropertyValue(this.GetModel().PropertyModels[propertyName], propertyValue, readNormalizer, loadOldValueAlso);
+			this.LoadPropertyValue(this.GetModel().PropertyModels[propertyName]!, propertyValue, readNormalizer, loadOldValueAlso);
 		}
 
 		private void LoadPropertyValue(int propertyIndex, object? propertyValue, Func<IPropertyModel, object?, object?> readNormalizer, bool loadOldValueAlso)
@@ -2690,10 +3294,10 @@ namespace Simple.Objects
 		{
 			propertyValue = readNormalizer(propertyModel, propertyValue);
 
-			this.SetFieldValue(propertyModel.PropertyIndex, propertyValue);
+			this.SetFieldValue(propertyModel.PropertyIndex, propertyValue!);
 
 			if (loadOldValueAlso)
-				this.SetOldFieldValue(propertyModel.PropertyIndex, propertyValue);
+				this.SetOldFieldValue(propertyModel.PropertyIndex, propertyValue!);
 		}
 
 		#endregion |   Property Loads   |
@@ -2766,7 +3370,7 @@ namespace Simple.Objects
 		/// Fires whe the new object is created and is not loaded from database.
 		/// </summary>
 		/// <param name="requester"></param>
-		protected virtual void OnNewObjectCreated(object? requester) { }
+		protected virtual void OnNewObjectCreated(ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 		
 		/// <summary>
 		/// Set the default values of the properties or do what ever you wants when initializing the object.
@@ -2818,76 +3422,78 @@ namespace Simple.Objects
 		/// Do action before object is saved. This method is invoked only in non server working mode.
 		/// </summary>
 		/// <param name="requester"></param>
-		protected virtual void OnBeforeSave(ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnBeforeSave(ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 		//protected virtual void OnSaving(object requester)
 		//{
 		//}
 
-		protected virtual void OnAfterSave(bool isNewBeforeSaving, object? requester) { }
+		protected virtual void OnAfterSave(bool isNewBeforeSaving, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnRequestDelete(ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnRequestDelete(ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnGraphElementDeleteRequest(GraphElement graphElement, ChangeContainer changeContainer, object? requester) { }
+		//protected virtual void OnClientRequestDelete(ChangeContainer? changeContainer, object? requester) { }
 
-		protected virtual void OnDeleteRequestCancel(ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnGraphElementDeleteRequest(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
+
+		protected virtual void OnDeleteRequestCancel(ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 		/// <summary>
 		/// Do action before object is deleted. This method is invoked only in non server working mode.
 		/// </summary>
 		/// <param name="changeContainer"></param>
 		/// <param name="requester"></param>
-		protected virtual void OnBeforeDelete(ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnBeforeDelete(ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnBeforePropertyValueChange(IPropertyModel propertyModel, object? value, object? newValue, bool willBeChanged, object? requester) { }
+		protected virtual void OnBeforePropertyValueChange(IPropertyModel propertyModel, object? value, object? newValue, bool willBeChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnPropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, bool isSaveable, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnPropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnSaveablePropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer changeContainer, object? requester) { }
+		//protected virtual void OnSaveablePropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer changeContainer, object? requester) { }
 
 		protected virtual void OnChangedPropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount) { }
 
-		protected virtual void OnChangedSaveablePropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount) { }
+		//protected virtual void OnChangedSaveablePropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount) { }
 
-		protected virtual void OnNewGraphElementCreated(GraphElement graphElement, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnNewGraphElementCreated(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnGraphElementParentChange(GraphElement graphElement, GraphElement? oldParent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnGraphElementOrderIndexChange(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnGraphElementOrderIndexChange(GraphElement graphElement, int orderIndex, int oldOrderIndex, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnBeforeGraphElementDelete(GraphElement graphElement, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnBeforeGraphElementDelete(GraphElement graphElement, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnObjectIdChange(long oldTempId, long newId) { }
+		protected virtual void OnObjectIdChange(long oldTempId, long newId, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 
 		#endregion |   Protected Methods   |
 
 		#region |   Private Raise Event Methods   |
 
-		private void RaiseBeforePropertyValueChange(IPropertyModel propertyModel, object value, object newValue, bool willBeChanged, object requester)
+		private void RaiseBeforePropertyValueChange(IPropertyModel propertyModel, object? value, object? newValue, bool willBeChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.BeforePropertyValueChange?.Invoke(this, new BeforeChangePropertyValueSimpleObjectRequesterEventArgs(this, propertyModel, value, newValue, willBeChanged, requester));
+			this.BeforePropertyValueChange?.Invoke(this, new BeforeChangePropertyValuePropertyModelSimpleObjectChangeContainerContextRequesterEventArgs(this, propertyModel, value, newValue, willBeChanged, changeContainer, context, requester));
 		}
 
-		private void RaisePropertyValueChange(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, bool isSaveable, object requester)
+		private void RaisePropertyValueChange(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.PropertyValueChange?.Invoke(this, new ChangePropertyValueSimpleObjectRequesterEventArgs(this, propertyModel, value, oldValue, isChanged, isSaveable, requester));
+			this.PropertyValueChange?.Invoke(this, new ChangePropertyValuePertyModelSimpleObjectChangeContainerContextRequesterEventArgs(this, propertyModel, value, oldValue, isChanged, changeContainer, context, requester));
 		}
 
-		private void RaiseSaveablePropertyValueChange(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, object requester)
-		{
-			this.SaveablePropertyValueChange?.Invoke(this, new ChangePropertyValueSimpleObjectRequesterEventArgs(this, propertyModel, value, oldValue, isChanged, isSaveable: true, requester));
-		}
+		//private void RaiseSaveablePropertyValueChange(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, object requester)
+		//{
+		//	this.SaveablePropertyValueChange?.Invoke(this, new ChangePropertyValueSimpleObjectRequesterEventArgs(this, propertyModel, value, oldValue, isChanged, isSaveable: true, requester));
+		//}
 
 		private void RaiseChangedPropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount)
 		{
 			this.ChangedPropertiesCountChange?.Invoke(this, new CountChangeSimpleObjectEventArgs(this, changedPropertiesCount, oldChangedPropertiesCount));
 		}
 
-		private void RaiseChangedSaveablePropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount)
-		{
-			this.ChangedSaveablePropertiesCountChange?.Invoke(this, new CountChangeSimpleObjectEventArgs(this, changedPropertiesCount, oldChangedPropertiesCount));
-		}
+		//private void RaiseChangedSaveablePropertiesCountChange(int changedPropertiesCount, int oldChangedPropertiesCount)
+		//{
+		//	this.ChangedSaveablePropertiesCountChange?.Invoke(this, new CountChangeSimpleObjectEventArgs(this, changedPropertiesCount, oldChangedPropertiesCount));
+		//}
 
 		#endregion |   Private Raise Event Methods   |
 
@@ -2946,10 +3552,19 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		private void SetPropertyValueInternal(IPropertyModel propertyModel, object? value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, bool enforceAccessModifier, ChangeContainer? changeContainer, object? requester)
+
+		//private void SetPropertyValueInternal(IPropertyModel propertyModel, object? value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, bool enforceAccessModifier, ChangeContainer? changeContainer, object? requester)
+		//{
+		//	this.SetPropertyValueInternal(propertyModel, value, addOrRemoveInChangedProperties, firePropertyValueChangeEvent, enforceAccessModifier, changeContainer, trimBeforeStringComparison: true, requester);
+		//}
+
+		private void SetPropertyValuePrivate(IPropertyModel propertyModel, object? newValue, bool trimStringBeforeComparison, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (this.deleteStarted || this.isDeleted || this.deleteRequested)
 			//	return;
+
+			//if (!addOrRemoveInChangedProperties)
+			//	throw new NotSupportedException("Property is changed without counting it!");
 
 			if (this.IsReadOnly)
 				throw new NotSupportedException("The property is about to be set and the SimpleObject is read-only.");
@@ -2960,10 +3575,13 @@ namespace Simple.Objects
 			if (propertyModel.PropertyIndex == SimpleObject.IndexPropertyId)
 				throw new NotSupportedException("You cannot change object Id.");
 
+			if (context == ObjectActionContext.Unspecified)
+				context = (this.Manager.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
+
 			if (this.isPropertyInitialization)
 			{
-				this.SetFieldValue(propertyModel.PropertyIndex, value!);
-				this.SetOldFieldValue(propertyModel.PropertyIndex, value!);
+				this.SetFieldValue(propertyModel.PropertyIndex, newValue!);
+				this.SetOldFieldValue(propertyModel.PropertyIndex, newValue!);
 			}
 			else
 			{
@@ -2971,16 +3589,15 @@ namespace Simple.Objects
 
 				//if ((propertyModel == null && this.ObjectManager.EnforcePropertyExistanceInModel) || (decideActionFromModel && propertyModel == null))
 				//	throw new NotSupportedException("The property is about to be set and the property name does not exist in the model property definition: Object Type = " + this.GetType().Name + ", Property Index = " + propertyModel.Index + " (" + propertyModel.Name + ")");
+				
+				// enforceAccessModifier &&
 
-				if (enforceAccessModifier && propertyModel != null && propertyModel.AccessPolicy == PropertyAccessPolicy.ReadOnly && (!this.IsNew)) // && !propertyModel.CanSetOnClientUpdate))
-					throw new NotSupportedException("The property is about to be set and the property model access policy is read-only: Object Type = " + this.GetType().Name + ", PropertyIndex=" + propertyModel.PropertyIndex + " (" + propertyModel.PropertyName + ")");
-
-				object? propertyValue = this.GetFieldValue(propertyModel!.PropertyIndex);
-				object? oldPropertyValue = this.GetOldFieldValue(propertyModel.PropertyIndex);
+				object? currentValue = this.GetFieldValue(propertyModel!.PropertyIndex);
+				object? oldValue = this.GetOldFieldValue(propertyModel.PropertyIndex);
 				bool isChanged;
-				int oldChangedPropertiesCount, newChangedPropertiesCount = 0;
-				int oldChangedSaveablePropertiesCount, newChangedSaveablePropertiesCount = 0;
-				bool isSaveable;
+				int oldChangedPropertiesCount = 0, newChangedPropertiesCount = 0;
+				//int oldChangedSaveablePropertiesCount = 0, newChangedSaveablePropertiesCount = 0;
+				//bool isSaveable;
 
 				//if (this.isDeleteStarted || this.isDeleted)
 				//	return;
@@ -2998,10 +3615,9 @@ namespace Simple.Objects
 				////	throw new NotSupportedException("The property is about to be set and the property model access policy is read-only: Property Name = " + propertyIndex);
 
 
-				lock (this.lockObject)
-				{
-					
-					if (Comparison.IsEqual(value, propertyValue, trimBeforeStringComparison: true)) 
+				//lock (this.lockObject)
+				//{
+					if (Comparison.IsEqual(newValue, currentValue, trimStringBeforeComparison)) 
 						return; // Nothing to do
 
 					//bool doFirePropertyValueChangeEvent = firePropertyValueChangeEvent;
@@ -3019,21 +3635,20 @@ namespace Simple.Objects
 
 					//bool doFirePropertyValueChangeEvent = (decideActionFromModel && propertyModel != null && propertyModel.FirePropertyValueChangeEvent) || (!decideActionFromModel && firePropertyValueChangeEvent);
 					//bool doAddOrRemoveInChangedProperties = (decideActionFromModel && propertyModel != null && propertyModel.AddOrRemoveInChangedProperties) || (!decideActionFromModel && addOrRemoveInChangedProperties);
-					isChanged = !Comparison.IsEqual(value, oldPropertyValue);
+					isChanged = !Comparison.IsEqual(newValue, oldValue, trimStringBeforeComparison);
 
-					this.BeforePropertyValueIsChanged(propertyModel, propertyValue, value, willBeChanged: isChanged, requester);
-
-					this.SetFieldValue(propertyModel.PropertyIndex, value); // propertyValue = value;
+					this.BeforePropertyValueIsChanged(propertyModel, currentValue, newValue: newValue, willBeChanged: isChanged, changeContainer, context, requester);
+					this.SetFieldValue(propertyModel.PropertyIndex, newValue!); // propertyValue = value;
 					//setPropertyValueAlternative?.Invoke(); // setPropertyValueAlternative();
 
 					//object previousPropertyValue = propertyValue;
 					oldChangedPropertiesCount = this.changedPropertyIndexes.Count;
-					oldChangedSaveablePropertiesCount = this.changedSaveablePropertyIndexes.Count;
-					newChangedSaveablePropertiesCount = oldChangedSaveablePropertiesCount;
-					isSaveable = this.IsPropertySaveable(propertyModel);
+					//oldChangedSaveablePropertiesCount = this.changedSaveablePropertyIndexes.Count;
+					//newChangedSaveablePropertiesCount = oldChangedSaveablePropertiesCount;
+					//isSaveable = this.IsPropertySaveable(propertyModel);
 
-					if (addOrRemoveInChangedProperties)
-					{
+					//if (addOrRemoveInChangedProperties)
+					//{
 						if (isChanged)
 							this.changedPropertyIndexes.Add(propertyModel.PropertyIndex);
 						else
@@ -3041,44 +3656,46 @@ namespace Simple.Objects
 
 						newChangedPropertiesCount = this.changedPropertyIndexes.Count;
 
-						if (isSaveable)
-						{
-							if (isChanged)
-								this.changedSaveablePropertyIndexes.Add(propertyModel.PropertyIndex);
-							else
-								this.changedSaveablePropertyIndexes.Remove(propertyModel.PropertyIndex);
+						//if (isSaveable)
+						//{
+						//	if (isChanged)
+						//		this.changedSaveablePropertyIndexes.Add(propertyModel.PropertyIndex);
+						//	else
+						//		this.changedSaveablePropertyIndexes.Remove(propertyModel.PropertyIndex);
 
-							newChangedSaveablePropertiesCount = this.changedSaveablePropertyIndexes.Count;
-						}
-					}
-				}
+						//	newChangedSaveablePropertiesCount = this.changedSaveablePropertyIndexes.Count;
+						//}
+					//}
+				//}
 
-				if (addOrRemoveInChangedProperties)
-				{
+				//if (addOrRemoveInChangedProperties)
+				//{
 					if (oldChangedPropertiesCount != newChangedPropertiesCount)
-						this.ChangedPropertiesCountIsChanged(this.changedPropertyIndexes.Count, oldChangedPropertiesCount, changeContainer, requester);
+						this.ChangedPropertiesCountIsChanged(newChangedPropertiesCount, oldChangedPropertiesCount, changeContainer, requester);
 
-					if (oldChangedSaveablePropertiesCount != newChangedSaveablePropertiesCount)
-						this.ChangedSaveablePropertiesCountIsChanged(this.changedSaveablePropertyIndexes.Count, oldChangedSaveablePropertiesCount, changeContainer, requester);
-				}
+					//if (oldChangedSaveablePropertiesCount != newChangedSaveablePropertiesCount)
+					//	this.ChangedSaveablePropertiesCountIsChanged(this.changedSaveablePropertyIndexes.Count, oldChangedSaveablePropertiesCount, changeContainer, requester);
+				//}
 
-				if (firePropertyValueChangeEvent)
-				{
-					if (isSaveable)
-						this.SaveablePropertyValueIsChanged(propertyModel, value, propertyValue, isChanged, changeContainer, requester);
+				//if (firePropertyValueChangeEvent)
+				//{
+					//if (isSaveable)
+					//	this.SaveablePropertyValueIsChanged(propertyModel, value, propertyValue, isChanged, changeContainer, requester);
 
-					this.PropertyValueIsChanged(propertyModel, value, propertyValue, isChanged, isSaveable, changeContainer, requester);
-				}
+					this.PropertyValueIsChanged(propertyModel, newValue, currentValue, isChanged, changeContainer, context, requester);
+				//}
 			}
 		}
 
-		private bool IsPropertySaveable(IPropertyModel propertyModel)
-		{
-			if (this.Manager.WorkingMode == ObjectManagerWorkingMode.Client)
-				return propertyModel.IsClientSeriazable;
-			else
-				return propertyModel.IsStorable;
-		}
+		//private bool IsPropertySaveable(IPropertyModel propertyModel)
+		//{
+		//	//if (this.Manager.WorkingMode == ObjectManagerWorkingMode.Client)
+		//	//	return propertyModel.IsClientSeriazable || propertyModel.IsStorable;
+		//	//else
+		//	//	return propertyModel.IsStorable;
+
+		//	return propertyModel.IsClientSeriazable || propertyModel.IsStorable;
+		//}
 
 		//private void SetPropertyValueInternal(IPropertyModel propertyModel, object value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, bool decideActionFromModel, bool enforceAccessModifier, object requester)
 		//{
@@ -3166,7 +3783,7 @@ namespace Simple.Objects
 		//{
 		//	this.SetPropertyValue(propertyModel, propertyValue, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent, ref primaryTableId, changeContainer, requester);
 		//}
-		
+
 		//private void SetPropertyValue(IPropertyModel propertyModel, object propertyValue, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, ref int primaryTableId, ChangeContainer changeContainer, object requester)
 		//{
 		//	if (propertyModel.IsKey)
@@ -3190,27 +3807,28 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		private void RunChangedPropertyNamesAction(Action changedPropertyNamesAction, ChangeContainer? changeContainer, object? requester)
+		private void RunChangedPropertyCountAction(Action changedPropertysAction, ChangeContainer? changeContainer, object? requester)
         {
             int oldChangedPropertiesCount = this.ChangedPropertiesCount;
-            changedPropertyNamesAction();
+            
+			changedPropertysAction();
 
 			if (this.ChangedPropertiesCount != oldChangedPropertiesCount)
 				this.ChangedPropertiesCountIsChanged(this.ChangedPropertiesCount, oldChangedPropertiesCount, changeContainer, requester);
         }
 
-        private void BeforePropertyValueIsChanged(IPropertyModel propertyModel, object value, object newValue, bool willBeChanged, object? requester)
+        private void BeforePropertyValueIsChanged(IPropertyModel propertyModel, object? value, object? newValue, bool willBeChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
-            this.RaiseBeforePropertyValueChange(propertyModel, value, newValue, willBeChanged, requester);
-            this.OnBeforePropertyValueChange(propertyModel, value, newValue, willBeChanged, requester);
-            this.Manager.BeforePropertyValueIsChanged(this, propertyModel, value, newValue, willBeChanged, requester);
+            this.RaiseBeforePropertyValueChange(propertyModel, value, newValue, willBeChanged, changeContainer, context, requester);
+            this.OnBeforePropertyValueChange(propertyModel, value, newValue, willBeChanged, changeContainer, context, requester);
+            this.Manager.BeforePropertyValueIsChanged(this, propertyModel, value, newValue, willBeChanged, changeContainer, context, requester);
        }
 
-        private void PropertyValueIsChanged(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, bool isSaveable, ChangeContainer? changeContainer, object? requester)
+        private void PropertyValueIsChanged(IPropertyModel propertyModel, object? value, object? oldValue, bool isChanged, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
         {
-			this.RaisePropertyValueChange(propertyModel, value, oldValue, isChanged, isSaveable, requester);
-			this.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, isSaveable, changeContainer, requester);
-			this.Manager.PropertyValueIsChanged(this, propertyModel, value, oldValue, isChanged, isSaveable, changeContainer, requester);
+			this.RaisePropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
+			this.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
+			this.Manager.PropertyValueIsChanged(this, propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
 
 			IPropertyModel objectSubTypePropertyModel = this.GetModel().ObjectSubTypePropertyModel;
 
@@ -3218,12 +3836,12 @@ namespace Simple.Objects
 				this.RecalcImageName();
 		}
 
-		private void SaveablePropertyValueIsChanged(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, ChangeContainer? changeContainer, object? requester)
-		{
-			this.RaiseSaveablePropertyValueChange(propertyModel, value, oldValue, isChanged, requester);
-			this.OnSaveablePropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, requester);
-			this.Manager.SaveablePropertyValueIsChanged(this, propertyModel, value, oldValue, isChanged, changeContainer, requester);
-		}
+		//private void SaveablePropertyValueIsChanged(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, ChangeContainer? changeContainer, object? requester)
+		//{
+		//	this.RaiseSaveablePropertyValueChange(propertyModel, value, oldValue, isChanged, requester);
+		//	this.OnSaveablePropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, requester);
+		//	this.Manager.SaveablePropertyValueIsChanged(this, propertyModel, value, oldValue, isChanged, changeContainer, requester);
+		//}
 
 		private void ChangedPropertiesCountIsChanged(int changedPropertiesCount, int oldChangedPropertiesCount, ChangeContainer? changeContainer, object? requester)
         {
@@ -3232,12 +3850,12 @@ namespace Simple.Objects
             this.Manager.ChangedPropertiesCountIsChanged(this, changedPropertiesCount, oldChangedPropertiesCount, changeContainer, requester);
         }
 
-		private void ChangedSaveablePropertiesCountIsChanged(int changedPropertiesCount, int oldChangedPropertiesCount, ChangeContainer? changeContainer, object? requester)
-		{
-			this.RaiseChangedSaveablePropertiesCountChange(changedPropertiesCount, oldChangedPropertiesCount);
-			this.OnChangedSaveablePropertiesCountChange(changedPropertiesCount, oldChangedPropertiesCount);
-			this.Manager.ChangedSaveablePropertiesCountIsChanged(this, changedPropertiesCount, oldChangedPropertiesCount, changeContainer, requester);
-		}
+		//private void ChangedSaveablePropertiesCountIsChanged(int changedPropertiesCount, int oldChangedPropertiesCount, ChangeContainer? changeContainer, object? requester)
+		//{
+		//	this.RaiseChangedSaveablePropertiesCountChange(changedPropertiesCount, oldChangedPropertiesCount);
+		//	this.OnChangedSaveablePropertiesCountChange(changedPropertiesCount, oldChangedPropertiesCount);
+		//	this.Manager.ChangedSaveablePropertiesCountIsChanged(this, changedPropertiesCount, oldChangedPropertiesCount, changeContainer, requester);
+		//}
 
 		//private object[] GetPropertyValues(int[] propertyIndexSequence, Func<int, object> getPropertyValue)
 		//{

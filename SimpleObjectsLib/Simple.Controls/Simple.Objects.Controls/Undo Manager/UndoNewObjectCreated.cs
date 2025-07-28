@@ -51,7 +51,7 @@ namespace Simple.Objects.Controls
 				//if (setPropertiesOption == SetPropertiesOption.SetOnlyRelations && (!propertyModel.IsRelationTableId || !propertyModel.IsRelationObjectId))
 				//	continue;
 
-				newSimpleObject.SetPropertyValue(propertyModel, item.PropertyValue, this.SimpleObject.Manager.DefaultChangeContainer, requester: this);
+				newSimpleObject.SetPropertyValue(propertyModel, item.PropertyValue, requester: this);
 			}
 
 			this.SimpleObject = newSimpleObject;

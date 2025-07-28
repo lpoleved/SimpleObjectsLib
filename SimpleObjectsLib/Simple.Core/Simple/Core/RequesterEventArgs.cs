@@ -7,11 +7,11 @@ namespace Simple
 {
     public class RequesterEventArgs : EventArgs
     {
-        public RequesterEventArgs(object requester)
+        public RequesterEventArgs(object? requester)
         {
             this.Requester = requester;
         }
 
-        public object Requester { get; private set; }
+        public object? Requester { get; private set; }
     }
 }

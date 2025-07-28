@@ -16,6 +16,7 @@ using System.Runtime.CompilerServices;
 //#if !NETSTANDARD
 using System.Threading.Tasks.Dataflow;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions.Session;
 using System.Reflection;
 using System.Data;
 //using Simple.Objects.MonitorProtocol;
@@ -24,17 +25,16 @@ using System.Transactions;
 
 namespace Simple.Objects.SocketProtocol
 {
-	public class SimpleObjectServer : ServerBase
-    {
-        
+	public abstract class SimpleObjectServer : ServerBase, ISimpleObjectServerContext, IServerContext
+	{
 		#region |   Private Fields   |
 
-        // The AppServer protocol version
-        private Version protocolVersion = new Version(0, 0);
+		// The AppServer protocol version
+		private Version protocolVersion = new Version(0, 0);
 		//private const int DefaultManagementPort = 2021;
 		private LocalDatastore localDatastore;
 		private SimpleObjectManager objectManager;
-		private AllServerObjectModelsResponseArgs allServerObjectModelsInfoResponseArgs;
+		//private AllServerObjectModelsResponseArgs_OLD allServerObjectModelsInfoResponseArgs;
 		//private SimpleObjectMonitorServer? monitorServer = null;
 		//private int monitorPort = DefaultMonitorPort;
 		//private bool monitorEnabled = false;
@@ -42,8 +42,9 @@ namespace Simple.Objects.SocketProtocol
 		//#if !NETSTANDARD
 		private ActionBlock<SessionPackageInfo> processTransactionRequest;
 		private ActionBlock<SessionPackageInfo> processAllOtherPackageReceive;
+		private ActionBlock<SendBroadcastSystemMessageArgs> sendBroadcastSystemMessageActionBlock;
 		//private ActionBlock<SimpleSession> sessionAuthenticatedInformer;
-//#endif
+		//#endif
 
 		private HashArray<ServerObjectModelResponseArgs> serverObjectPropertyInfosByTybleId = new HashArray<ServerObjectModelResponseArgs>();
 
@@ -57,23 +58,23 @@ namespace Simple.Objects.SocketProtocol
 			this.objectManager = objectManager; // Just to suppress CS8618
 			this.localDatastore = new LocalDatastore();
 			this.ObjectManager.SetServerWorkingMode(this.LocalDatastore);
-			this.allServerObjectModelsInfoResponseArgs = new AllServerObjectModelsResponseArgs(this.ObjectManager.AllServerObjectModels);
+			//this.allServerObjectModelsInfoResponseArgs = new AllServerObjectModelsResponseArgs_OLD(this.ObjectManager.AllServerObjectModels);
 
 			//#if !NETSTANDARD
 			// Put transaction request to be single thread handled - one transaction at the time.
-			this.processTransactionRequest     = new ActionBlock<SessionPackageInfo>(args => base.OnPackageReceived(this.GetCommandOwnerInstance(), args.Session, args.PackageInfo, this.CommandDiscovery).DoNotAwait(),
-																													new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, MaxMessagesPerTask = 1 });
-			this.processAllOtherPackageReceive = new ActionBlock<SessionPackageInfo>(args => base.OnPackageReceived(this.GetCommandOwnerInstance(), args.Session, args.PackageInfo, this.CommandDiscovery).DoNotAwait(),
-													  																new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, MaxMessagesPerTask = 1 }); // MaxDegreeOfParallelism = Environment.ProcessorCount
-//#endif
-//this.sessionAuthenticatedInformer = new ActionBlock<SimpleSession>((session, userid, username) => this.SessionAuthenticated?.Invoke(session, userId, username)); 
+			this.processTransactionRequest			   = new ActionBlock<SessionPackageInfo>(args => base.OnPackageReceived(this.GetCommandOwnerInstance(), args.Session, args.PackageInfo, this.CommandDiscovery).DoNotAwait(),
+																							 new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, MaxMessagesPerTask = 1 });
+			this.processAllOtherPackageReceive		   = new ActionBlock<SessionPackageInfo>(args => base.OnPackageReceived(this.GetCommandOwnerInstance(), args.Session, args.PackageInfo, this.CommandDiscovery).DoNotAwait(),
+													  										 new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, MaxMessagesPerTask = 1 }); // MaxDegreeOfParallelism = Environment.ProcessorCount
+																																																				   //#endif
+			this.sendBroadcastSystemMessageActionBlock = new ActionBlock<SendBroadcastSystemMessageArgs>(args => this.SendBroadcastSystemMessage(args.MessageCode, args.MessageArgs, args.ExceptionSessionKey).DoNotAwait(),
+																																				 new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount });
 		}
 
 		~SimpleObjectServer()
 		{
 			//this.MonitorServer?.StopAsync().GetAwaiter().GetResult();
 		}
-
 
 		#endregion |   Constructors and Initialization   |
 
@@ -86,6 +87,11 @@ namespace Simple.Objects.SocketProtocol
 		#region |   Public Properties   |
 
 		public Version ProtocolVersion => this.protocolVersion;
+
+		public Version SystemServerVersion => SystemServerContext.SystemServerVersion;
+
+		public abstract Version AppServerVersion { get; }
+
 		public LocalDatastore LocalDatastore => this.localDatastore;
 
 		//public SimpleObjectMonitorServer MonitorServer => this.monitorServer;
@@ -105,7 +111,7 @@ namespace Simple.Objects.SocketProtocol
 			//		//	this.objectManager.GraphElementParentChange -= this.ObjectManager_GraphElementParentChange;
 			//		//	this.objectManager.OrderIndexChange -= this.ObjectManager_OrderIndexChange;
 			//		//  this.objectManager.TransactionFinished -= ObjectManager_TransactionFinished;
-			//		//this.objectManager.TransactionSucceeded += ObjectManager_TransactionSucceeded;
+			//		this.objectManager.TransactionFinished -= ObjectManager_TransactionFinished1;
 			//	}
 
 			//	this.objectManager = value;
@@ -119,20 +125,10 @@ namespace Simple.Objects.SocketProtocol
 			//		//	this.objectManager.GraphElementParentChange += this.ObjectManager_GraphElementParentChange;
 			//		//	this.objectManager.OrderIndexChange += this.ObjectManager_OrderIndexChange;
 			//		//  this.objectManager.TransactionFinished += ObjectManager_TransactionFinished;
-			//		//this.objectManager.TransactionSucceeded += ObjectManager_TransactionSucceeded;
+			//		this.objectManager.TransactionFinished += ObjectManager_TransactionFinished1;
 			//	}
 			//}
 		}
-
-		//private void ObjectManager_TransactionFinished(object sender, TransactionDatastoreActionRequesterEventArgs e)
-		//{
-		//	if (e.Transaction.Status == TransactionStatus.Completed && this.IsAnyAuthenticatedClient().GetAwaiter().GetResult())
-		//	{
-		//		var messageArgs = new TransactionSucceededMessageArgs(e.Transaction, e.DatastoreActions);
-
-		//		this.SendBroadcastSystemMessage((int)SystemMessage.TransactionSucceeded, messageArgs).GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
-		//	}
-		//}
 
 		//public int MonitorPort { get => this.monitorPort; set => this.monitorPort = value; }
 
@@ -140,16 +136,22 @@ namespace Simple.Objects.SocketProtocol
 
 		#region |   Protected Override Methods   |
 
-		protected override PackageArgsFactory CreatePackageArgsFactory()
-		{
-			return base.CreatePackageArgsFactory();
-		}
+		//protected override PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory(this.GetPackageArgsAssemblies());
+
+		//protected override List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var assemblies = base.GetPackageArgsAssemblies();
+
+		//	assemblies.Add(Assembly.GetExecutingAssembly());
+
+		//	return assemblies;
+		//}
 
 		protected override ValueTask OnPackageReceive(IAppSession session, PackageReader packageInfo)
 		{
 			return base.OnPackageReceive(session, packageInfo);
 
-#if NETSTANDARD
+#if NETSTANDARD2
 			return base.OnPackageReceived(this.GetCommandOwnerInstance(), session as ISimpleSession, packageInfo, this.CommandDiscovery);
 #else
 			SessionPackageInfo sessionPackageInfo = new SessionPackageInfo((session as ISimpleSession)!, packageInfo);
@@ -213,16 +215,21 @@ namespace Simple.Objects.SocketProtocol
 
 		public string GetRelationName(int relationKey) => this.ObjectManager.GetRelationModel(relationKey)?.Name ?? String.Empty;
 
-		public string GetObjectName(int tableId, long objectId) => this.ObjectManager.GetObject(tableId, objectId)?.GetName() ?? String.Empty;
+		public string GetObjectName(int tableId, long objectId) => this.ObjectManager.GetObject(tableId, objectId)?.GetName() ?? "null";
 
 
 		#endregion |   Public Methods   |
 
 		#region |   System Request Responses   |
 
+		//[AuthorizationNotRequired]
+		//[SystemRequestCommand((int)SystemRequest.GetProtocolVersion)]
+		//public ResponseArgs GetProtocolVersion(ISimpleSession session, PackageReader package) => new ProtocolVersionResponseArgs(this.ProtocolVersion);
+
+
 		[AuthorizationNotRequired]
-		[SystemRequestCommand((int)SystemRequest.GetProtocolVersion)]
-		public ResponseArgs GetProtocolVersion(ISimpleSession session, PackageReader package) => new ProtocolVersionResponseArgs(this.ProtocolVersion);
+		[SystemRequestCommand((int)SystemRequest.GetServerVersionInfo)]
+		public ResponseArgs GetServerVersionInfo(ISimpleSession session, PackageReader package) => new ServerVersionInfoResponseArgs(this.SystemServerVersion, this.AppServerVersion);
 
 
 		[AuthorizationNotRequired]
@@ -230,7 +237,7 @@ namespace Simple.Objects.SocketProtocol
 		public ResponseArgs AuthenticateSession(SimpleSession session, PackageReader package)
 		{
 			if (session.IsAuthenticated)
-				return new AuthenticateSessionResponseArgs(true); //, session.UserId, session.Username);
+				return new AuthenticateSessionResponseArgs(isAuthenticated: true, session.UserId); //, session.Username);
 
 			AuthenticateSessionRequestArgs requestArgs = (package.PackageArgs as AuthenticateSessionRequestArgs)!;
 			bool isAuthenticated = this.ObjectManager.AuthenticateSession(requestArgs.Username, requestArgs.PasswordHash, out long userId);
@@ -239,7 +246,7 @@ namespace Simple.Objects.SocketProtocol
 			if (isAuthenticated)
 				base.SessionIsAuthenticated(session as SimpleSession, userId, username);
 
-			return new AuthenticateSessionResponseArgs(isAuthenticated);
+			return new AuthenticateSessionResponseArgs(isAuthenticated, userId);
 		}
 
 		protected override void OnSessionAuthenticated(SimpleSession session)
@@ -247,9 +254,9 @@ namespace Simple.Objects.SocketProtocol
 			base.OnSessionAuthenticated(session);
 
 			int maxTableId = this.ObjectManager.AllServerObjectModels.Max(item => item.TableId);
-			
-			this.SetIsObjectModelFetchedByTableIdArray(session, new bool[maxTableId + 1]); 
-			
+
+			this.SetIsObjectModelFetchedByTableIdArray(session, new bool[maxTableId + 1]);
+
 			var sessionAuthenticatedEventHandler = this.SessionAuthenticated;
 
 			sessionAuthenticatedEventHandler?.Invoke(session);
@@ -280,22 +287,87 @@ namespace Simple.Objects.SocketProtocol
 		}
 
 
-		[SystemRequestCommand((int)SystemRequest.GetAllServerObjectModels)]
-		public ResponseArgs GetAllServerObjectModels(SimpleSession session, PackageReader package)
+		//[SystemRequestCommand((int)SystemRequest.GetAllServerObjectModels_OLD)]
+		//public ResponseArgs GetAllServerObjectModels(SimpleSession session, PackageReader package)
+		//{
+		//	return this.allServerObjectModelsInfoResponseArgs;
+		//}
+
+
+
+		[SystemRequestCommand((int)SystemRequest.TransactionRequest)]
+		public ResponseArgs ProcessTransactionRequest(SimpleSession session, PackageReader package)
 		{
-			return this.allServerObjectModelsInfoResponseArgs;
+			ProcessTransactionRequestArgs requestArgs = (package.PackageArgs as ProcessTransactionRequestArgs)!;
+			ProcessTransactionRequestResult transactionInfo = this.ObjectManager.ProcessTransactionRequestFromClient(requestArgs.TransactionActionInfoList!);
+			ProcessTransactionResponseArgs responseArgs;
+
+			if (transactionInfo.TransactionResult.TransactionSucceeded)
+			{
+				responseArgs = new ProcessTransactionResponseArgs(transactionInfo.TransactionResult.TransactionId, transactionInfo.NewObjectIds, transactionInfo.InfoMessage);
+			}
+			else
+			{
+				responseArgs = new ProcessTransactionResponseArgs(transactionId: 0, newObjectIds: null, transactionInfo.InfoMessage);
+				//responseArgs.TransactionSucceeded = false;
+				//responseArgs.Status = PackageStatus.Error;
+				//responseArgs.InfoMessage = transactionInfo.InfoMessage;
+			}
+
+			if (transactionInfo.TransactionResult.TransactionSucceeded && transactionInfo.TransactionResult.TransactionId > 0 
+																	   && transactionInfo.TransactionResult.TransactionServerActionInfos.Count() > 0
+																	   && this.IsAnyClientAuthenticated(exceptionSessionKey: session.SessionKey).GetAwaiter().GetResult())
+			{
+				// Leave only property values with IsServerSeriazable to send to other clients
+				int itemCount = 0;
+
+				while (itemCount < transactionInfo.TransactionResult.TransactionServerActionInfos.Count)
+				{
+					var item = transactionInfo.TransactionResult.TransactionServerActionInfos[itemCount];
+					int propertyCount = 0;
+					var itemModel = this.ObjectManager.GetObjectModel(item.TableId);
+
+					while (propertyCount < item.PropertyIndexValues?.Count)
+					{
+						var propertyItem = item.PropertyIndexValues[propertyCount];
+						var propertyModel = itemModel!.PropertyModels[propertyItem.PropertyIndex];
+
+						if (!propertyModel.IsServerToClientTransactionInfoSeriazable)
+							item.PropertyIndexValues.RemoveAt(propertyCount);
+						else
+							propertyCount++;
+					}
+
+					if (item.PropertyIndexValues?.Count == 0)
+						transactionInfo.TransactionResult.TransactionServerActionInfos.RemoveAt(itemCount);
+					else
+						itemCount++;
+				}
+
+				if (transactionInfo.TransactionResult.TransactionServerActionInfos.Count > 0)
+				{
+					//var transactionActions = this.ObjectManager.CreateClientSeriazableTransactionActionsFromTransactionRequests(transactionInfo.TransactionResult.TransactionRequests);
+					var messageArgs = new TransactionCompletedMessageArgs(transactionId: transactionInfo.TransactionResult.TransactionId, userId: transactionInfo.TransactionResult.UserId, clientId: transactionInfo.TransactionResult.ClientId,
+																		  serverId: transactionInfo.TransactionResult.ServerId, codePage: transactionInfo.TransactionResult.CodePage, transactionInfo.TransactionResult.CreationTime,
+																		  transactionInfo.TransactionResult.TransactionServerActionInfos);
+
+					//this.SendBroadcastSystemMessage((int)SystemMessage.TransactionCompleted, messageArgs, exceptionSessionKey: session.SessionKey).DoNotAwait(); //.GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
+					this.sendBroadcastSystemMessageActionBlock.Post(new SendBroadcastSystemMessageArgs((int)SystemMessage.TransactionCompleted, messageArgs, exceptionSessionKey: session.SessionKey));
+				}
+			}
+
+			return responseArgs;
 		}
 
+		//private void ObjectManager_TransactionFinished1(object sender, TransactionDatastoreActionRequesterEventArgs e)
+		//{
+		//	if (e.Transaction.Status == TransactionStatus.Completed && this.IsAnyAuthenticatedClient().GetAwaiter().GetResult())
+		//	{
+		//		var messageArgs = new TransactionSucceededMessageArgs(e.Transaction, e.DatastoreActions);
 
-		[SystemRequestCommand((int)SystemRequest.GetObjectIdsTEMP)]
-		public ResponseArgs GetObjectIdsTEMP(ISimpleSession session, PackageReader package)
-		{
-			TableIdRequestArgs requestArgs = (package.PackageArgs as TableIdRequestArgs)!;
-			ServerObjectCache objectCache = (this.ObjectManager.GetObjectCache(requestArgs.TableId) as ServerObjectCache)!;
-			List<long> objectIds = objectCache.GetObjectIds;
-
-			return new ObjectIdsResponseArgs(objectIds);
-		}
+		//		this.SendBroadcastSystemMessage((int)SystemMessage.TransactionSucceeded, messageArgs).GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
+		//	}
+		//}
 
 
 		[SystemRequestCommand((int)SystemRequest.GetObjectPropertyValues)]
@@ -304,13 +376,13 @@ namespace Simple.Objects.SocketProtocol
 			ObjectIdTableIdRequestArgs requestArgs = (package.PackageArgs as ObjectIdTableIdRequestArgs)!;
 			SimpleObject? simpleObject = this.ObjectManager.GetObject(requestArgs.TableId, requestArgs.ObjectId)!;
 			IEnumerable<PropertyIndexValuePair>? oldPropertyIndexValuePairs;
-			
+
 			if (simpleObject != null)
-				oldPropertyIndexValuePairs = simpleObject.GetNonDefaultOldPropertyIndexValuePairs(propertySelector: pm => pm.PropertyIndex != 0 && pm.IsClientSeriazable); // Id is not needed
+				oldPropertyIndexValuePairs = simpleObject.GetNonDefaultOldPropertyIndexValuePairs(propertySelector: pm => pm.PropertyIndex != 0 && pm.IsServerToClientSeriazable); // Id is not needed
 			else
 				oldPropertyIndexValuePairs = null;
 
-            return new ObjectPropertyValuesResponseArgs(requestArgs.TableId, oldPropertyIndexValuePairs);
+			return new ObjectPropertyValuesResponseArgs(requestArgs.TableId, oldPropertyIndexValuePairs);
 		}
 
 
@@ -318,16 +390,18 @@ namespace Simple.Objects.SocketProtocol
 		public ResponseArgs GetGraphElementsWithObjects(SimpleSession session, PackageReader package)
 		{
 			ParentGraphElementIdGraphKeyRequestArgs requestArgs = (package.PackageArgs as ParentGraphElementIdGraphKeyRequestArgs)!;
-			SimpleObjectCollection<GraphElement> graphElements = this.ObjectManager.GetLocalGraphElements(requestArgs.GraphKey, requestArgs.ParentGraphElementId);
+			SimpleObjectCollection<GraphElement> graphElements = (requestArgs.ParentGraphElementId >= 0) ? this.ObjectManager.GetLocalGraphElements(requestArgs.GraphKey, requestArgs.ParentGraphElementId) : 
+																										   new SimpleObjectCollection<GraphElement>(this.ObjectManager, GraphElementModel.TableId, new long[0]);
 			GraphElementObjectPair[] graphElementsWithObjects = new GraphElementObjectPair[graphElements.Count()];
 			List<ServerObjectModelInfo>? newServerObjectModels = null;
+			bool requireCommint = !this.ObjectManager.DefaultChangeContainer.RequireCommit;
 			//ServerObjectModelInfo[]? serverObjectModelInfos = null;
 
 			for (int i = 0; i < graphElementsWithObjects.Length; i++)
 			{
 				GraphElement graphElement = graphElements[i];
 				//IEnumerable<PropertyIndexValuePair> graphElementPropertyIndexValues = graphElement.GetNonDefaultOldPropertyIndexValuePairs(propertySelector: pm => pm.IsClientSeriazable);
-				IEnumerable<PropertyIndexValuePair> simpleObjectPropertyIndexValues = (graphElement.SimpleObject != null) ? graphElement.SimpleObject!.GetNonDefaultOldPropertyIndexValuePairs(propertySelector: pm => pm.PropertyIndex != 0 && pm.IsClientSeriazable)
+				IEnumerable<PropertyIndexValuePair> simpleObjectPropertyIndexValues = (graphElement.SimpleObject != null) ? graphElement.SimpleObject!.GetNonDefaultOldPropertyIndexValuePairs(propertySelector: pm => pm.PropertyIndex != 0 && pm.IsServerToClientSeriazable)
 																														  : new PropertyIndexValuePair[0];
 				// graphElement.SimpleObject.GetModel().TableInfo.TableId
 				int tableId = (int)graphElement.GetPropertyValue(GraphElementModel.PropertyModel.ObjectTableId.PropertyIndex)!;
@@ -341,17 +415,30 @@ namespace Simple.Objects.SocketProtocol
 
 					ServerObjectModelInfo? serverObjectModelInfo = this.ObjectManager.GetServerObjectModel(tableId);
 
-					if (!newServerObjectModels.Contains(serverObjectModelInfo!))
-					{
-						newServerObjectModels.Add(serverObjectModelInfo!);
-						session.IsObjectModelFetchedByTableId[tableId] = true;
-					}
+					//if (!newServerObjectModels.Contains(serverObjectModelInfo!))
+					//{
+					newServerObjectModels.Add(serverObjectModelInfo!);
+					session.IsObjectModelFetchedByTableId[tableId] = true;
+					//}
 				}
 			}
+
+			if (requireCommint && this.ObjectManager.DefaultChangeContainer.RequireCommit)
+				this.ObjectManager.CommitChanges();
 
 			return new GraphElementsWithObjectsResponseArgs(graphElementsWithObjects, newServerObjectModels);
 		}
 
+
+		[SystemRequestCommand((int)SystemRequest.GetOneToOneForeignObject)]
+		public ResponseArgs GetOneToOneForeignObject(SimpleSession session, PackageReader package)
+		{
+			RelationKeyTableIdObjectIdRequestArgs requestArgs = (package.PackageArgs as RelationKeyTableIdObjectIdRequestArgs)!;
+			SimpleObject? simpleObject = this.ObjectManager.GetObject(requestArgs.TableId, requestArgs.ObjectId);
+			SimpleObject? result = simpleObject?.GetOneToOneForeignObject(requestArgs.RealationKey);
+
+			return new TableIdObjectIdResponseArgs(result?.GetModel().TableInfo.TableId ?? 0, result?.Id ?? 0);
+		}
 
 		[SystemRequestCommand((int)SystemRequest.GetOneToManyForeignObjectCollection)]
 		public ResponseArgs GetOneToManyForeignObjectCollection(SimpleSession session, PackageReader package)
@@ -359,11 +446,13 @@ namespace Simple.Objects.SocketProtocol
 			RelationKeyTableIdObjectIdRequestArgs requestArgs = (package.PackageArgs as RelationKeyTableIdObjectIdRequestArgs)!;
 			SimpleObject? simpleObject = this.ObjectManager.GetObject(requestArgs.TableId, requestArgs.ObjectId)!;
 			var collection = simpleObject?.GetOneToManyForeignObjectCollection(requestArgs.RealationKey);
-			int count = collection?.Count ?? 0;
-			List<long> objectIds = new List<long>(count);
+			var objectIds = collection?.GetObjectIds() ?? new long[0];
 
-			for (int i = 0; i < count; i++)
-				objectIds.Add(collection![i].Id);
+			//int count = collection?.Count ?? 0;
+			//List<long> objectIds = new List<long>(count);
+
+			//for (int i = 0; i < count; i++)
+			//	objectIds.Add(collection![i].Id);
 
 			return new ObjectIdsResponseArgs(objectIds);
 		}
@@ -376,19 +465,8 @@ namespace Simple.Objects.SocketProtocol
 			SimpleObject? simpleObject = this.ObjectManager.GetObject(requestArgs.TableId, requestArgs.ObjectId);
 			GraphElement? graphElement = simpleObject?.GetGraphElement(requestArgs.GraphKey);
 			long graphElementId = graphElement?.Id ?? 0;
-			
+
 			return new ObjectIdResponseArgs(graphElementId);
-		}
-
-
-		[SystemRequestCommand((int)SystemRequest.GetOneToOneForeignObject)]
-		public ResponseArgs GetOneToOneForeignObject(SimpleSession session, PackageReader package)
-		{
-			RelationKeyTableIdObjectIdRequestArgs requestArgs = (package.PackageArgs as RelationKeyTableIdObjectIdRequestArgs)!;
-			SimpleObject? simpleObject = this.ObjectManager.GetObject(requestArgs.TableId, requestArgs.ObjectId);
-			SimpleObject? result = simpleObject?.GetOneToOneForeignObject(requestArgs.RealationKey);
-			
-			return new TableIdObjectIdResponseArgs(result?.GetModel().TableInfo.TableId ?? 0, result?.Id ?? 0);
 		}
 
 
@@ -437,36 +515,28 @@ namespace Simple.Objects.SocketProtocol
 		//	return new GetAndLoadPropertyValuesResponseArgs(simpleObject, serverObjectModelInfo);
 		//}
 
-
-		[SystemRequestCommand((int)SystemRequest.TransactionRequest)]
-		public ResponseArgs ProcessTransactionRequest(SimpleSession session, PackageReader package)
+		[SystemRequestCommand((int)SystemRequest.DoesGraphElementHaveChildren)]
+		public ResponseArgs DoesGraphElementHaveChildren(ISimpleSession session, PackageReader package)
 		{
-			ProcessTransactionRequestArgs requestArgs = (package.PackageArgs as ProcessTransactionRequestArgs)!;
-			ProcessTransactionRequestResult transactionInfo = this.ObjectManager.ProcessTransactionRequestFromClient(requestArgs.TransactionActionInfoList!);
-			ProcessTransactionResponseArgs responseArgs;
+			ObjectIdRequestArgs requestArgs = (package.PackageArgs as ObjectIdRequestArgs)!;
+			GraphElement? graphElement = this.ObjectManager.GetObject(GraphElementModel.TableId, requestArgs.ObjectId) as GraphElement;
+			bool hasChilren = (graphElement != null) ? graphElement.HasChildren : false;
 
-			if (transactionInfo.TransactionResult.TransactionSucceeded)
-			{
-				responseArgs = new ProcessTransactionResponseArgs(transactionInfo.TransactionResult.TransactionId, transactionInfo.NewObjectIds);
-
-				if (requestArgs.TransactionActionInfoList!.Count() > 0 && this.IsAnyAuthenticatedClient(exceptionSessionKey: session.SessionKey).GetAwaiter().GetResult())
-				{
-					//var transactionActions = this.ObjectManager.CreateClientSeriazableTransactionActionsFromTransactionRequests(transactionInfo.TransactionResult.TransactionRequests);
-					var messageArgs = new TransactionCompletedMessageArgs(requestArgs.TransactionActionInfoList!);
-					
-					this.SendBroadcastSystemMessage((int)SystemMessage.TransactionCompleted, messageArgs, exceptionSessionKey: session.SessionKey).GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
-					//this.SendBroadcastSystemMessage((int)SystemMessage.TransactionCompleted, messageArgs).GetAwaiter().GetResult(); // .DoNotAwait(); //.ConfigureAwait(false); //.DoNotAwait();
-				}
-			}
-			else
-			{
-				responseArgs = new ProcessTransactionResponseArgs();
-				requestArgs.Status = PackageStatus.Error;
-				requestArgs.ErrorMessage = transactionInfo.InfoMessage;
-			}
-
-			return responseArgs;
+			return new TrueOrFalseResponseArgs(hasChilren);
 		}
+
+		[SystemRequestCommand((int)SystemRequest.GetObjectIdsTEMP)]
+		public ResponseArgs GetObjectIdsTEMP(ISimpleSession session, PackageReader package)
+		{
+			TableIdRequestArgs requestArgs = (package.PackageArgs as TableIdRequestArgs)!;
+			ServerObjectCache objectCache = (this.ObjectManager.GetObjectCache(requestArgs.TableId) as ServerObjectCache)!;
+			List<long> objectIds = objectCache.GetObjectIds;
+
+			return new ObjectIdsResponseArgs(objectIds);
+		}
+
+
+
 
 		#endregion |   System Request Responses   |
 
@@ -541,7 +611,24 @@ namespace Simple.Objects.SocketProtocol
 
 		#region |   Private Methods   |
 
-
 		#endregion |   Private Methods   |
 	}
+
+	#region |   Helper Classes   |
+
+	class SendBroadcastSystemMessageArgs
+	{
+		public SendBroadcastSystemMessageArgs(int messageCode, MessageArgs? messageArgs = null, long exceptionSessionKey = 0)
+		{
+			this.MessageCode = messageCode;
+			this.MessageArgs = messageArgs;
+			this.ExceptionSessionKey = exceptionSessionKey;
+		}
+
+		public int MessageCode { get; private set; }
+		public MessageArgs? MessageArgs { get; private set; }
+		public long ExceptionSessionKey { get; private set; }
+	}
+
+	#endregion |   Helper Classes   |
 }

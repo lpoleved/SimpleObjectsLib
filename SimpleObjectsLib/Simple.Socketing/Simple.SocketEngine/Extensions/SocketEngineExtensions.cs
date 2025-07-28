@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using SuperSocket;
 using SuperSocket.ProtoBase;
 using SuperSocket.Client;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
 using Simple.Serialization;
 
 namespace Simple.SocketEngine
@@ -14,12 +16,12 @@ namespace Simple.SocketEngine
 	{
 		public static async ValueTask SendAsync(this IAppSession session, ReadOnlyMemory<byte> data)
 		{
-			await session.Channel.SendAsync(data);
+			await session.Connection.SendAsync(data);
 		}
 
 		public static async ValueTask SendAsync<TSendPackage>(this IAppSession session, IPackageEncoder<TSendPackage> packageEncoder, TSendPackage package)
 		{
-			await session.Channel.SendAsync<TSendPackage>(packageEncoder, package);
+			await session.Connection.SendAsync<TSendPackage>(packageEncoder, package);
 		}
 
 		public static async ValueTask SendAsync<TSendPackage>(this ClientBase client, IPackageEncoder<TSendPackage> packageEncoder, TSendPackage package)

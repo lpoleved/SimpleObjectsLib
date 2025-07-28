@@ -37,11 +37,11 @@ namespace Simple
 		//object ITaskAction.ResultValue => this.ResultValue;
 	}
 
-	public readonly struct TaskInfo : ITaskInfo
+	public struct TaskInfo : ITaskInfo
 	{
 		//private readonly object resultValue;
 		private readonly TaskResultInfo resultInfo;
-		private readonly string message;
+		private string message;
 
 		public static readonly TaskInfo CompletedSuccessful = new TaskInfo(TaskResultInfo.Succeeded);
 
@@ -59,7 +59,7 @@ namespace Simple
 
 		//public object ResultValue => this.resultValue;
 		public TaskResultInfo ResultInfo => this.resultInfo;
-		public string Message => this.message;
+		public string Message { get => this.message; set => this.message = value; }
 		public bool Succeeded => this.ResultInfo == TaskResultInfo.Succeeded;
 	}
 }

@@ -12,6 +12,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Abstractions.Connections;
 using Simple.Collections;
 using Simple.Serialization;
 using Simple.Threading;
@@ -19,6 +22,7 @@ using System.CodeDom;
 using System.DirectoryServices;
 using System.Threading;
 using System.Collections;
+using SuperSocket.Server.Host;
 
 namespace Simple.SocketEngine
 {
@@ -38,6 +42,7 @@ namespace Simple.SocketEngine
 		//private HashArray<PackageReader?> responsePackagesByToken = new HashArray<PackageReader?>();
 		//private Dictionary<int, ResponseArgs> responseArgsByToken = new Dictionary<int, ResponseArgs>();
 		//private Dictionary<int, object?> responseContextByToken = new Dictionary<int, object?>();
+		private PipelineFilter? filter;
 		private ILogger? logger = null;
 		private bool createPackageDataCopy = false;
 
@@ -122,7 +127,6 @@ namespace Simple.SocketEngine
 
 		#region |   Host Configurator   |
 
-
 		protected static readonly Encoding DefaultEncoding = new UTF8Encoding();
 		protected static ILoggerFactory DefaultLoggerFactory { get; } = LoggerFactory.Create(builder => { builder.AddConsole(); });
 
@@ -131,24 +135,22 @@ namespace Simple.SocketEngine
 
 		//protected virtual PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory();
 
-		protected virtual PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory(this.GetPackageArgsAssemblies());
+		protected abstract PackageArgsFactory CreatePackageArgsFactory();
 
-		protected virtual IEnumerable<Assembly> GetPackageArgsAssemblies()
-		{
-			var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-			var baseType = this.GetType();
-			IEnumerable<Type> types = ReflectionHelper.SelectAssemblyTypes(allAssemblies, type => type == baseType || baseType.IsSubclassOf(type) && !type.IsAbstract &&
-																								  !type.IsInterface && !type.IsGenericType && type != typeof(object));
-			var assemblies = from type in types
-							 select type.Assembly;
+		//protected virtual List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+		//	var baseType = this.GetType();
+		//	IEnumerable<Type> types = ReflectionHelper.SelectAssemblyTypes(allAssemblies, type => type == baseType || baseType.IsSubclassOf(type) && !type.IsAbstract &&
+		//																						  !type.IsInterface && !type.IsGenericType && type != typeof(object));
+		//	var assemblies = from type in types
+		//					 select type.Assembly;
 
-			return assemblies;
-		}
+		//	return assemblies.ToList();
+		//}
 		//protected virtual PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory(this.GetPackageArgsAssemblyList());
 		//protected virtual PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory(AppDomain.CurrentDomain.GetAssemblies());
 		//protected virtual object? GetPackageArgsSerializationContext(PackageType packageType, int requestIdOrMessageCode, bool isSystem) => null;
-
-		private PipelineFilter filter;
 
 		protected virtual IPipelineFilter<PackageReader> CreatePipelineFilter(object session) 
 		{
@@ -158,7 +160,6 @@ namespace Simple.SocketEngine
 
 			return this.filter;
 		}
-
 
 		protected virtual CommandDiscovery CreateComandDiscovery() => new CommandDiscovery(this.GetType());
 
@@ -189,7 +190,7 @@ namespace Simple.SocketEngine
 			return hostConfigurator;
 		}
 
-		protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(IHostConfigurator? configurator = null)
+		protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(IHostConfigurator configurator = null)
 			where TPackageInfo : class
 		{
 			var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
@@ -197,9 +198,19 @@ namespace Simple.SocketEngine
 			return (this.Configure(hostBuilder, configurator) as SuperSocketHostBuilder<TPackageInfo>)!;
 		}
 
-		protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo, TPipelineFilter>(IHostConfigurator? configurator = null)
+		protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo>(Func<IPipelineFilter<TPackageInfo>> filterFactory, IHostConfigurator configurator = null)
 			where TPackageInfo : class
-			where TPipelineFilter : IPipelineFilter<TPackageInfo>, new()
+		{
+			var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
+
+			hostBuilder.UsePipelineFilterFactory(filterFactory);
+
+			return (this.Configure(hostBuilder, configurator) as SuperSocketHostBuilder<TPackageInfo>)!;
+		}
+
+		protected SuperSocketHostBuilder<TPackageInfo> CreateSocketServerBuilder<TPackageInfo, TPipelineFilter>(IHostConfigurator configurator = null)
+			where TPackageInfo : class
+			where TPipelineFilter : class, IPipelineFilter<TPackageInfo>
 		{
 			var hostBuilder = SuperSocketHostBuilder.Create<TPackageInfo>();
 

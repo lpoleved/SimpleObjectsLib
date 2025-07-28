@@ -53,7 +53,7 @@ namespace Simple.Datastore.Controls
                     }
                 }
                 // restore sql-database SqlServerInstanceName DatabaseName BackupFilePath [DataFilePath]
-                // example: restore sql-database .\SQLNETMANAGER NetManagerDatastore c:\Temp\NetManagerDatastore_Empty.bak [c:\Program Files\DemoApp\Datastore]
+                // example: restore sql-database .\SQLNETMANAGER NetManagerDatastore c:\Temp\NetManagerDatastore_Empty.bak [c:\Program Files\Mobiteli\Datastore]
                 else if ((args.Length == 5 || args.Length == 6) && args[0] == "restore" && args[1] == "sql-database")
                 {
                     try

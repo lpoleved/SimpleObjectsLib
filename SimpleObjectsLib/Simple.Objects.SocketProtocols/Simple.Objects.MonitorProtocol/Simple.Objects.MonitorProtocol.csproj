@@ -1,11 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0; netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\SuperSocket\src\SuperSocket.Server\SuperSocket.Server.csproj" />
     <ProjectReference Include="..\..\Simple.Core\Simple.Modeling\Simple.Modeling.csproj" />
     <ProjectReference Include="..\..\Simple.Core\Simple.Serialization\Simple.Serialization.csproj" />
     <ProjectReference Include="..\..\Simple.Socketing\Simple.SocketEngine\Simple.SocketEngine.csproj" />

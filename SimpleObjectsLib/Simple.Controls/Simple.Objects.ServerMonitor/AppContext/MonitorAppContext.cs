@@ -25,7 +25,7 @@ namespace Simple.Objects.ServerMonitor
 		public MonitorAppContext()
         {
 			this.AppName = "Simple.Objects™ Server Monitor";
-			this.Copyright = "Copyright © 2023 by Simple.Objects™";
+			this.Copyright = "Copyright © 2025 by Simple.Objects™";
         }
 
         public static MonitorAppContext Instance { get; private set; }

@@ -15,44 +15,57 @@ namespace Simple.Objects
 		private bool isAnchor = false;
 		private const string defaultPathNameSplitter = "\\";
 		private const string defaultReversePathNameSplitter = "/";
-		private bool newGraphElementCreatedEventRised = false;
+		private bool canRaiseParentChangeEvent = true;
+		private bool canRiseNewGraphElementCreatedEvent = false;
+		private bool isNewGraphElementCreatedEventRaised = false;
 		private bool isChildrenLoadedInClientMode = false;
 		private bool hasChildrenInClientModeWhenNotLoaded = false;
 		private bool isHasChildrenInClientModeWhenNotLoadedSet = false;
+
+		public GraphElement()
+		{
+		}
 
 		public GraphElement(SimpleObjectManager objectManager)
 			: base(objectManager)
 		{
 		}
 
-		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, object? requester = null)
-			: this(objectManager, graphKey, simpleObject, parent, objectManager.DefaultChangeContainer, requester)
+		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, ObjectActionContext context, object? requester = null)
+			: this(objectManager, graphKey, simpleObject, parent, isAnchor: false, context, requester)
 		{
 		}
 
-		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, ChangeContainer changeContainer)
-			: this(objectManager, graphKey, simpleObject, parent, changeContainer, requester: null)
+		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, bool isAnchor, ObjectActionContext context, object? requester = null)
+			: this(objectManager, graphKey, simpleObject, parent, isAnchor, objectManager.DefaultChangeContainer, context, requester)
 		{
 		}
 
-		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, ChangeContainer changeContainer, object? requester)
-			: base(objectManager, changeContainer)
+		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+			: this(objectManager, graphKey, simpleObject, parent, isAnchor: false, changeContainer, context, requester)
 		{
-			//if (changeContainer != this.Manager.DefaultChangeContainer)
-			//	this.ChangeContainer = changeContainer;
-			//this.initialization = true;
+		}
+
+		public GraphElement(SimpleObjectManager objectManager, int graphKey, SimpleObject simpleObject, GraphElement? parent, bool isAnchor, ChangeContainer? changeContainer, ObjectActionContext context, object? requester = null)
+			: base(objectManager, changeContainer, context, requester)
+		{
+			this.canRaiseParentChangeEvent = false;
+			this.canRiseNewGraphElementCreatedEvent = false;
 			
-			//this.ChangeContainer = changeContainer;
+			this.IsAnchor = isAnchor;
 			this.Requester = requester;
 			this.IsStorable = simpleObject.IsStorable;
 			this.GraphKey = graphKey;
-			this.SimpleObject = simpleObject;
 			this.Parent = parent;
-			_ = this.Id; // Enforce new Id creation
-			this.Manager.NewGraphElementIsCreated(this, changeContainer, requester);
-			this.newGraphElementCreatedEventRised = true;
-
-			//this.initialization = false;
+			_ = this.Id; // Enforce new Id creation, if needed
+			this.SimpleObject = simpleObject;
+			
+			this.canRaiseParentChangeEvent = true;
+			this.canRiseNewGraphElementCreatedEvent = true;
+			this.Manager.NewGraphElementIsCreated(this, changeContainer, context, requester);
+			
+			if (parent != null)
+				this.Manager.GraphElementParentIsChanged(this, oldParent: null, changeContainer, context, requester);
 		}
 
 		protected override SimpleObjectCollection GetSortingCollection()
@@ -65,10 +78,30 @@ namespace Simple.Objects
 			get { return this.Manager.GetSystemGraph(this.GraphKey); }
 		}
 
-		internal bool NewGraphElementCreatedEventRised { get => this.newGraphElementCreatedEventRised; set => this.newGraphElementCreatedEventRised = false; }
+		internal bool CanRiseNewGraphElementCreatedEvent
+		{
+			get => this.canRiseNewGraphElementCreatedEvent;
+			set => this.canRiseNewGraphElementCreatedEvent = value;
+		}
+
+		internal bool IsNewGraphElementCreatedRised
+		{
+			get => this.isNewGraphElementCreatedEventRaised;
+			set => this.isNewGraphElementCreatedEventRaised = value;
+		}
+
+		internal bool CanRaiseParentChangeEvent
+		{
+			get => this.canRaiseParentChangeEvent;
+			set => this.canRaiseParentChangeEvent = value;
+		}
 
 
-		internal bool IsChildrenLoadedInClientMode { get => this.isChildrenLoadedInClientMode; set => this.isChildrenLoadedInClientMode = value; }
+		internal bool IsChildrenLoadedInClientMode 
+		{ 
+			get => this.isChildrenLoadedInClientMode; 
+			set => this.isChildrenLoadedInClientMode = value; 
+		}
 		
 		internal bool HasChildrenInClientModeWhenNotLoaded 
 		{ 
@@ -79,9 +112,6 @@ namespace Simple.Objects
 				this.isHasChildrenInClientModeWhenNotLoadedSet = true;
 			}
 		}
-
-		//internal bool IsHasChildrenInClientModeWhenNotLoadedSet { get => this.isHasChildrenInClientModeWhenNotLoadedSet; set => this.isHasChildrenInClientModeWhenNotLoadedSet = value; }
-
 
 		/// <summary>
 		/// Determine if a node has any child node.
@@ -96,12 +126,8 @@ namespace Simple.Objects
 					return this.GraphElements.Count > 0; 
 			}
 		}
-		public bool IsAnchor { get => this.isAnchor; set => this.isAnchor = value; }
 
-		//public SimpleObjectCollection<GraphElement> GetGraphElements(out bool[] hasChildrenInfo)
-		//{
-		//	return this.Manager.GetGraphElements(this.GraphKey, this.parentId, out hasChildrenInfo);
-		//}
+		public bool IsAnchor { get => this.isAnchor; set => this.isAnchor = value; }
 
 		public int GetTreeDepth()
 		{
@@ -151,10 +177,7 @@ namespace Simple.Objects
 		/// Geth the parent GraphElement neighbors
 		/// </summary>
 		/// <returns></returns>
-		public SimpleObjectCollection<GraphElement> GetNeighbours()
-		{
-			return (this.Parent != null) ? this.Parent.GraphElements : this.Graph.GetRootGraphElements();
-		}
+		public SimpleObjectCollection<GraphElement> GetNeighbours() => this.Parent?.GraphElements ?? this.Graph.RootGraphElements;
 
 		public string GetPathName()
 		{
@@ -280,25 +303,41 @@ namespace Simple.Objects
 
 		public override string GetName()
 		{
-			return String.Format("{0} (GE)", (this.SimpleObject != null) ? this.SimpleObject.GetName() ?? String.Empty : "null");
+			return String.Format("{0} (GE)", (this.SimpleObject != null) ? this.SimpleObject.GetName() ?? "Empty" : "Missing Simple.Object");
 		}
 
 		public override string GetDescription()
 		{
-			return String.Format("{0} (GE)", (this.SimpleObject != null) ? this.SimpleObject.GetDescription() ?? String.Empty : "null");
+			return String.Format("{0} (GE)", (this.SimpleObject != null) ? this.SimpleObject.GetDescription() ?? "Empty" : "Missing Simple.Object");
 		}
 
-		public override string? ToString()
-		{
-			if (this.SimpleObject != null)
-				return this.SimpleObject.ToString() + " (GE)";
+		public override string? ToString() => this.GetName();
 
-			return base.ToString();
-		}
+		//public static bool operator ==(GraphElement? a, GraphElement? b)
+		//{
+		//	// If both are null, or both are same instance, return true.
+		//	if (System.Object.ReferenceEquals(a, b))
+		//		return true;
 
-		protected override void OnBeforeRelationPrimaryObjectSet(SimpleObject? primarySimpleObject, SimpleObject? oldPrimarySimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, ref bool cancel, ChangeContainer changeContainer, object? requester)
+		//	// If one is null, but not both, return false.
+		//	if (a is null ^ b is null)
+		//		return false;
+
+		//	if (a is null || b is null)
+		//		return false;
+
+		//	// Return true if the key fields match.
+		//	if (a.Id == b.Id && a.GetModel().TableInfo.TableId == b.GetModel().TableInfo.TableId)
+		//		return a.IsDeleted == b.IsDeleted;
+
+		//	return false;
+		//}
+
+		//public static bool operator !=(GraphElement? a, GraphElement? b) => !(a == b);
+
+		protected override void OnBeforeRelationPrimaryObjectSet(SimpleObject? primarySimpleObject, SimpleObject? oldPrimarySimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, ref bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnBeforeRelationPrimaryObjectSet(primarySimpleObject, oldPrimarySimpleObject, objectRelationPolicyModel, ref cancel, changeContainer, requester);
+			base.OnBeforeRelationPrimaryObjectSet(primarySimpleObject, oldPrimarySimpleObject, objectRelationPolicyModel, ref cancel, changeContainer, context, requester);
 
 			if (this.DeleteStarted)
 				return;
@@ -320,80 +359,89 @@ namespace Simple.Objects
 					{
 						GraphElement? newParent = primarySimpleObject as GraphElement;
 
-						this.Manager.BeforeGraphElementParentIsChanged(this, newParent, ref cancel, requester);
+						this.Manager.BeforeGraphElementParentIsChanged(this, newParent, ref cancel, changeContainer, context, requester);
 					}
 				}
 			}
 		}
 
-		protected override void OnRelationForeignObjectSet(SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, ChangeContainer changeContainer, object? requester)
+		protected override void OnRelationForeignObjectSet(SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel objectRelationPolicyModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnRelationForeignObjectSet(foreignSimpleObject, oldForeignSimpleObject, objectRelationPolicyModel, changeContainer, requester);
+			base.OnRelationForeignObjectSet(foreignSimpleObject, oldForeignSimpleObject, objectRelationPolicyModel, changeContainer, context, requester);
 
 			if (this.DeleteStarted)
 				return;
 
-			// requester == GraphElement.Empty handles SetParent method
-			//if (requester != null && objectRelationPolicyModel.RelationType == ObjectRelationType.OneToMany && objectRelationPolicyModel.RelationKey == RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey)
-			if (objectRelationPolicyModel.RelationKey == RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey && 
-				foreignSimpleObject != oldForeignSimpleObject && this.newGraphElementCreatedEventRised)
-			{
-				//GraphElement parent = foreignSimpleObject as GraphElement;
-				//GraphElement oldParent = oldForeignSimpleObject as GraphElement;
-
-				//this.TreeDepth = (parent == null) ? 0 : parent.TreeDepth + 1;
-				//this.SetChildrenTreeDepth(this);
-				this.Manager.GraphElementParentIsChanged(this, oldForeignSimpleObject as GraphElement, changeContainer, requester);
-			}
+			if (foreignSimpleObject != oldForeignSimpleObject && objectRelationPolicyModel.RelationKey == RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey) // && !this.CanRaiseNewGraphElementCreated) // if canRaiseNewGraphElementCreated is false does this event is not rised and we can call and rise parent chane event
+				this.Manager.GraphElementParentIsChanged(this, oldForeignSimpleObject as GraphElement, changeContainer, context, requester);
 		}
 
 		protected override void OnAfterLoad()
 		{
 			base.OnAfterLoad();
 
-			this.newGraphElementCreatedEventRised = true;
+			this.CanRiseNewGraphElementCreatedEvent = false; // Prevent rising NewGraphElementCreated event after Load object properties
 		}
 
-		protected override SimpleObjectCollection GetOneToManyForeignNullCollection(int oneToManyRelationKey)
+		protected override SimpleObjectCollection? GetOneToManyForeignNullCollection(int oneToManyRelationKey)
 		{
 			if (oneToManyRelationKey == RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey)
-				return this.Graph.GetRootGraphElements(); //  rootSortingGraphElementsCollection;
+				return this.Graph.RootGraphElements; //  rootSortingGraphElementsCollection;
 
 			return base.GetOneToManyForeignNullCollection(oneToManyRelationKey);
 		}
 
-		//protected override void OnPropertyValueChange(IPropertyModel propertyModel, object value, object oldValue, bool isChanged, bool isSaveable, ChangeContainer changeContainer, object requester)
-		//{
-		//	base.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, isSaveable, changeContainer, requester);
-
-		//	if (!this.initialization && !this.newGraphElementCreatedEventRised && this.IsNew && this.GraphKey > 0 && this.Manager.ContainsObject(this.ObjectTableId, this.ObjectId))
-		//	{
-		//		_ = this.Id; // Enforce new Id creation
-		//		this.IsStorable = this.SimpleObject.IsStorable;
-		//		this.Manager.NewGraphElementIsCreated(this, changeContainer, requester);
-		//		this.newGraphElementCreatedEventRised = true;
-		//	}
-		//}
-
-		protected override void OnOrderIndexChange(int orderIndex, int oldOrderIndex, ChangeContainer changeContainer, object? requester)
+		protected override void OnOrderIndexChange(int orderIndex, int oldOrderIndex, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			base.OnOrderIndexChange(orderIndex, oldOrderIndex, changeContainer, requester);
+			base.OnOrderIndexChange(orderIndex, oldOrderIndex, changeContainer, context, requester);
 			
-			this.SimpleObject?.GraphElementOrderIndexIsChanged(this, orderIndex, oldOrderIndex, changeContainer, requester);
+			this.SimpleObject?.GraphElementOrderIndexIsChanged(this, orderIndex, oldOrderIndex, changeContainer, context, requester);
 		}
 
-		internal void SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(GraphElement parent, ChangeContainer changeContainer, object requester)
+		internal void SetParentWithoutCheckingCanGraphElementChangeParentOrRaisingEvents(GraphElement? parent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
-			this.SetParent(parent, checkCanGraphElementChangeParentMode: false, addOrRemoveInChangedPropertyNames: false, firePropertyValueChangeEvent: false, raiseForeignObjectSetEvent: false, changeContainer, requester: requester); //, setSorting: false);
+			//this.SetParent(parent, checkCanGraphElementChangeParentMode: false, addOrRemoveInChangedPropertyNames: false, firePropertyValueChangeEvent: false, raiseForeignObjectSetEvent: false, changeContainer, context, requester); //, setSorting: false);
+			this.SetParent(parent, checkCanGraphElementChangeParentMode: false, raiseForeignObjectSetEvent: false, changeContainer, context, requester); //, setSorting: false);
 		}
 
-		internal void SetGraphElementCollectionInternal(SimpleObjectCollection<GraphElement> graphElements)
+		//
+		// TODO: Check why is this needed!
+		//		 THIS IS NEEDED ONLY ON CLIENT SIDE
+		//
+		internal void SetClientGraphElementCollectionInternal(SimpleObjectCollection<GraphElement> graphElements)
 		{
 			// TODO: Check if this sorting is needed?
 			if (!this.OneToManyForeignCollectionsByRelationKey.ContainsKey(RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey))
 			{
-				graphElements.Sort(setPrevious: true, saveObjects: false); //  GraphElementModel
+				//TODO: Check if sorting is needed
+				graphElements.Sort(setPrevious: true, this.ChangeContainer, this.Requester); //  GraphElementModel
+
+				//if (graphElements.Count > 0 && graphElements[0].SimpleObject.GetModel().SortingModel == SortingModel.ByOneToManyRelationKey)
+				//	this.SetPreviousIdAndNextIdOnGraphElementSimpleObjectsAsIs(graphElements);
+
 				this.OneToManyForeignCollectionsByRelationKey.Add(RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement.RelationKey, graphElements);
+			}
+		}
+
+
+		private void SetPreviousIdAndNextIdOnGraphElementSimpleObjectsAsIs(SimpleObjectCollection<GraphElement> graphElements)
+		{
+			SortableSimpleObject? previousSimpleObject = null;
+			int orderIndex = 0;
+
+			foreach (GraphElement graphElement in graphElements)
+			{
+				if (graphElement.SimpleObject is SortableSimpleObject sortableSimpleObject)
+				{
+					sortableSimpleObject.SetPropertyValueInternal(graphElement.SimpleObject.GetModel().PreviousIdPropertyModel, previousSimpleObject?.Id ?? 0, changeContainer: null, requester: this);
+					sortableSimpleObject.NextId = 0;
+					sortableSimpleObject.SetOrderIndexInternal(orderIndex++);
+
+					if (previousSimpleObject != null)
+						previousSimpleObject.NextId = sortableSimpleObject.Id;
+
+					previousSimpleObject = sortableSimpleObject;
+				}
 			}
 		}
 
@@ -414,22 +462,20 @@ namespace Simple.Objects
 		/// <param name="isCheckCanGraphElementChangeParentMode"></param>
 		/// <param name="addOrRemoveInChangedPropertyNames"></param>
 		/// <param name="firePropertyValueChangeEvent"></param>
-		private void SetParent(GraphElement parent, bool checkCanGraphElementChangeParentMode, bool addOrRemoveInChangedPropertyNames, bool firePropertyValueChangeEvent, bool raiseForeignObjectSetEvent, ChangeContainer changeContainer, object requester) //, bool setSorting)
+		//private void SetParent(GraphElement? parent, bool checkCanGraphElementChangeParentMode, bool addOrRemoveInChangedPropertyNames, bool firePropertyValueChangeEvent, bool raiseForeignObjectSetEvent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) //, bool setSorting)
+		private void SetParent(GraphElement? parent, bool checkCanGraphElementChangeParentMode, bool raiseForeignObjectSetEvent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) //, bool setSorting)
 		{
 			if (this.InternalState != SimpleObjectInternalState.Initialization && checkCanGraphElementChangeParentMode && !this.Manager.CanGraphElementChangeParent(this, parent)) //, enforceSetParentAndValidate: false))
 				return;
 
 			GraphElement? oldParent = null;
 
-			//lock (this.lockObject)
-			//{
 			oldParent = this.Parent;
 
 			if (oldParent == parent && this.InternalState != SimpleObjectInternalState.Initialization)
 				return;
 
-			this.SetOneToManyPrimaryObject(parent, RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement, addOrRemoveInChangedPropertyNames, 
-										   firePropertyValueChangeEvent, raiseForeignObjectSetEvent, changeContainer, requester);
+			this.SetOneToManyPrimaryObject(parent, RelationPolicyModelBase.OneToManyGraphElementToParentGraphElement, raiseForeignObjectSetEvent, changeContainer, context, requester);
 		}
 	}
 }

@@ -23,9 +23,9 @@ namespace Simple.Objects
 			AccessPolicy = PropertyAccessPolicy.ReadOnly,
 			GetAccessModifier = AccessModifier.Public,
 			SetAccessModifier = AccessModifier.Private,
-			IsKey = true,
+			IsId = true,
 			IsIndexed = true,
-			IsClientSeriazable = false, // key is not general property, it is unique object identificator and it is not
+			IsClientToServerSeriazable = false, // key is not general property, it is unique object identificator and it is not
 			IncludeInTransactionActionLog = false // It is written as ObjectId together with the TableId
 		};
 	}

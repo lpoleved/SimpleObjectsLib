@@ -46,7 +46,7 @@ namespace Simple
             return comparison;
         }
 
-        public static bool IsEmpty(object value)
+        public static bool IsEmpty(object? value)
         {
             bool result = false;
 
@@ -66,7 +66,7 @@ namespace Simple
             return result;
         }
 
-		public static bool IsInteger(object valueObject)
+		public static bool IsInteger(object? valueObject)
 		{
 			if (valueObject == null)
 				return false;

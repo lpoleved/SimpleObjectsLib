@@ -33,7 +33,7 @@ namespace Simple.Controls.TreeList
         //private bool showExtraChecked = false;
         private bool customNodeImagesDraw = false;
         private bool useExpandedImages = false;
-		private int nodeUpdate = 0;
+		//private int nodeUpdate = 0;
         private TreeListNode oldNode = null;
         private Color focusedCellForeColor;
 		private bool isEditing = false;
@@ -480,17 +480,17 @@ namespace Simple.Controls.TreeList
         }
 		//#endif
 
-		public override void BeginUpdate()
-		{
-            this.nodeUpdate++;
-            base.BeginUpdate();
-		}
+		//public override void BeginUpdate()
+		//{
+  //          this.nodeUpdate++;
+  //          base.BeginUpdate();
+		//}
 
-		public override void EndUpdate()
-		{
-			base.EndUpdate();
-            this.nodeUpdate--;
-        }
+		//public override void EndUpdate()
+		//{
+		//	base.EndUpdate();
+  //          this.nodeUpdate--;
+  //      }
 
         //public override void BeginUnboundLoad()
         //{
@@ -530,12 +530,13 @@ namespace Simple.Controls.TreeList
 
         #region |   Protected Method Overrides   |
 
-        protected override TreeListNode CreateNode(int nodeID, TreeListNodes owner, object tag)
+        protected override TreeListNode CreateNode(int nodeId, TreeListNodes owner, object tag)
         {
             //NETreeListNode newNode = new NETreeListNode(nodeID, owner, tag);
             //newNode.ExpandedImageIndex = 9;
             //return newNode;
-            SimpleTreeListNode node = new SimpleTreeListNode(nodeID, owner, tag);
+            SimpleTreeListNode node = new SimpleTreeListNode(nodeId, owner, tag);
+            
             return node;
         }
 
@@ -790,7 +791,7 @@ namespace Simple.Controls.TreeList
 
 		private void SimpleTreeList_NodeCellStyle(object sender, GetCustomNodeCellStyleEventArgs e)
 		{
-			if (e.Node == this.FocusedNode && !this.Focused && !this.isEditing)
+            if (e.Node == this.FocusedNode && !this.Focused && !this.isEditing)
 				e.Appearance.ForeColor = this.Appearance.HideSelectionRow.ForeColor;
 
 

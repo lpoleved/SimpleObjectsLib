@@ -228,7 +228,9 @@ namespace Simple
                 return "byte[" + (value as byte[])!.Length + "]";
             }
 
-            return Convert.ToString(value);
+            string? result = Convert.ToString(value);
+
+			return result != null ? result : String.Empty;
         }
 
         public static T ToObject<T>(string value)

@@ -7,6 +7,10 @@ namespace Simple.Objects
 {
     public partial class Folder : SimpleObject
     {
+		public Folder()
+		{
+		}
+
 		public Folder(SimpleObjectManager objectManager)
 			: base(objectManager)
 		{

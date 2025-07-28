@@ -14,6 +14,7 @@ using Simple.Objects;
 using Simple.SocketEngine;
 using Simple.Objects.SocketProtocol;
 using System.Threading;
+using DevExpress.DataProcessing;
 
 namespace Simple.Objects.ServerMonitor
 {
@@ -55,7 +56,7 @@ namespace Simple.Objects.ServerMonitor
 				this.tabPageObjectName.Text = String.Format("Socket Package Massage  -  {0}.{1} ({2})", keyAppInfo, keyDescription, packageKey);
 				this.editorMessageCodeOrRequestId.Text += $"  ({keyAppInfo}.{keyDescription})";
 				this.editorMessagePackageLength.Text = message.PackageLength.ToString() + " Bytes";
-				this.editorMessagePackageValue.Text = "0x" + message.HeaderInfo.Value.ToString("X4");
+				this.editorMessagePackageHeaderValue.Text = "0x" + message.HeaderInfo.Value.ToString("X4");
 				this.packageHeaderControlMessage.SetPackageHeaderValues(message.HeaderInfo);
 
 				if (message.Buffer.Length < LargePackageBufferSize)
@@ -79,7 +80,6 @@ namespace Simple.Objects.ServerMonitor
 					setPackageHexText.Start();
 				}
 
-
 				if (message.PackageArgs is null)
 				{
 					MessageArgs? messageArgs = this.CreateMessageArgs();
@@ -87,7 +87,7 @@ namespace Simple.Objects.ServerMonitor
 					if (messageArgs != null)
 					{
 						SequenceReader reader = new SequenceReader(message.Buffer);
-						ISimpleObjectSession? session = this.Context?.GetSessionContext(this.PackageInfoRow.SessionKey);
+						ISimpleObjectSession? session = this.Context?.GetSimpleObjectSession(this.PackageInfoRow.SessionKey);
 
 						try
 						{
@@ -100,7 +100,7 @@ namespace Simple.Objects.ServerMonitor
 					}
 				}
 
-				this.editorMessagePackageValue.Text = BitConverter.ToString(message.Buffer);
+				//this.editorMessagePackageValue.Text = BitConverter.ToString(message.Buffer);
 			}
 		}
 

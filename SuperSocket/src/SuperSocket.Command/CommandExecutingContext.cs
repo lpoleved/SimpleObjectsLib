@@ -1,7 +1,12 @@
 ﻿using System;
+using System.Threading;
+using SuperSocket.Server.Abstractions.Session;
 
 namespace SuperSocket.Command
 {
+    /// <summary>
+    /// Represents the context for executing a command.
+    /// </summary>
     public struct CommandExecutingContext
     {
         /// <summary>
@@ -26,5 +31,10 @@ namespace SuperSocket.Command
         /// The exception.
         /// </value>
         public Exception Exception { get; set; }
+
+        /// <summary>
+        /// Gets the cancellation token.
+        /// </summary>
+        public CancellationToken CancellationToken { get; set; }
     }
 }

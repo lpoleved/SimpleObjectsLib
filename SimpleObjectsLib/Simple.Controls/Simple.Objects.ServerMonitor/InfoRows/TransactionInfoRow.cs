@@ -15,23 +15,27 @@ namespace Simple.Objects.ServerMonitor
 
 	public class TransactionInfoRow
 	{
-		internal Encoding characterEncoding;
 		//private IEnumerable<TransactionActionInfo>? rollbackActions = null;
 		//private IEnumerable<DatastoreActionInfo>? datastoreActions = null;
 		//private object context;
 
 		public TransactionInfoRow(int rowIndex, TransactionMessageArgs transactionMessageArgs)
 		{
+
 			this.RowIndex = rowIndex;
 			this.TransactionId = transactionMessageArgs.TransactionId;
 			this.UserId = transactionMessageArgs.UserId;
-			this.Status = transactionMessageArgs.Status.ToString();
+			this.Status = transactionMessageArgs.TransactionStatus.ToString();
 			this.CreationTime = transactionMessageArgs.CreationTime;
-			this.RollbackActionData = transactionMessageArgs.RollbackActionData!;
+			this.CharacterEncoding = Encoding.GetEncoding(transactionMessageArgs.CodePage).ToString() ?? String.Empty;
+			
+			// imternal properies
+			this.CodePage = transactionMessageArgs.CodePage;
 			this.IsRollbackActionDataCompressed = transactionMessageArgs.IsRollbackActionDataCompressed;
+			this.TransactionRequestData = transactionMessageArgs.TransactionRequestsData!;
 			this.DatastoreActionsData = transactionMessageArgs.DatastoreActionsData!;
-			this.characterEncoding = Encoding.GetEncoding(transactionMessageArgs.CodePage);
-			this.CharacterEncoding = this.characterEncoding.ToString() ?? String.Empty;
+			this.RollbackActionData = transactionMessageArgs.RollbackActionData!;
+
 			//this.context = context;
 		}
 
@@ -60,13 +64,33 @@ namespace Simple.Objects.ServerMonitor
 		public string Status { get; private set; }
 		public DateTime CreationTime { get; private set; }
 		public string CharacterEncoding { get; private set; }
-		internal byte[] RollbackActionData { get; set; }
-		internal byte[] DatastoreActionsData { get; private set; }
+	
+		internal int CodePage { get; private set; }
 		internal bool IsRollbackActionDataCompressed { get; set; }
+		internal TransactionCompressionAlgorithm CompressionAlgorithm { get; set; }
 		internal float CompressionRatio { get; private set; }
 
+		internal byte[] TransactionRequestData { get; set; }
+		internal TransactionActionInfo[] TransactionRequests { get; set; }
 
-		internal IEnumerable<TransactionActionInfo>? RollbackActions { get; set; } = null;
+		internal byte[] DatastoreActionsData { get; set; }
+		internal DatastoreActionInfo[] DatastoreActions { get; set; }
+
+		internal byte[] RollbackActionData { get; set; }
+		internal TransactionActionInfo[] RollbackTransactionActions { get; set; }
+
+		//internal IEnumerable<DatastoreActionInfo>? DatastoreActions { get; set; } = null;
+		//{
+		//	get 
+		//	{
+		//		if (this.datastoreActions is null)
+		//			this.datastoreActions = this.ReadDatastoreActions();
+
+		//		return this.datastoreActions; 
+		//	}
+		//}
+		
+		//internal IEnumerable<TransactionActionInfo>? RollbackActions { get; set; } = null;
 		//{
 		//	get 
 		//	{
@@ -88,16 +112,6 @@ namespace Simple.Objects.ServerMonitor
 		//	}
 		//}
 
-		internal IEnumerable<DatastoreActionInfo>? DatastoreActions { get; set; } = null;
-		//{
-		//	get 
-		//	{
-		//		if (this.datastoreActions is null)
-		//			this.datastoreActions = this.ReadDatastoreActions();
-
-		//		return this.datastoreActions; 
-		//	}
-		//}
 
 
 	}

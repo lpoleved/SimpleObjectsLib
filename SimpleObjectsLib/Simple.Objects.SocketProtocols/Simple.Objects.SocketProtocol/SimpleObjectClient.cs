@@ -15,18 +15,23 @@ using Simple.Objects;
 using Simple.Security;
 using System.Diagnostics;
 using System.Threading.Tasks.Dataflow;
+using System.Reflection;
 
 namespace Simple.Objects.SocketProtocol
 {
-	public class SimpleObjectClient : ClientBase, ISimpleObjectSession, ISimpleSession
+	public abstract class SimpleObjectClient : ClientBase, ISimpleObjectSession, ISimpleSession, ISimpleObjectServerContext, IServerContext
 	{
-		private Version? protocolVersion;
+		#region |   Private Members   |
+
+		//private Version? protocolVersion;
+		private Version? systemServerVersion = null, appServerVersion = null;
 		private HashArray<ServerObjectModelInfo?> serverObjectModelInfosByTableId = new HashArray<ServerObjectModelInfo?>();
 		private ServerObjectModelInfo[]? serverObjectModelsArray = null;
 		private ActionBlock<TransactionCompletedMessageArgs> onForeignTransactionCompletedActionBlock;
-		private string username = String.Empty;
 
-		//public static SimpleObjectClient Empty;
+		#endregion |   Private Members   |
+
+		#region |   Constructors and Initialization   |
 
 		public SimpleObjectClient(SimpleObjectManager objectManager)
 		{
@@ -35,24 +40,65 @@ namespace Simple.Objects.SocketProtocol
 			this.ObjectManager = objectManager;
 			this.RemoteDatastore = new RemoteDatastore(this);
 			this.ObjectManager.SetClientWorkingMode(this.RemoteDatastore);
-			this.onForeignTransactionCompletedActionBlock = new ActionBlock<TransactionCompletedMessageArgs>(args => this.ObjectManager!.OnForeignTransactionCompleted(args.TransactionActions!), dataflowOptions);
+			this.onForeignTransactionCompletedActionBlock = new ActionBlock<TransactionCompletedMessageArgs>(args => this.ObjectManager!.OnForeignTransactionCompleted(args.TransactionServerActionInfos!), dataflowOptions);
 		}
 
-		//public event ClientAuthenticatedEventHandler Authenticated;
+		#endregion |   Constructors and Initialization   |
+
+		#region |   Public Properties   |
 
 		public SimpleObjectManager ObjectManager { get; private set; }
 		public RemoteDatastore RemoteDatastore { get; private set; }
+		public string Username { get; private set; } = String.Empty;
+		public long UserId { get; private set; } = 0;
 
-		public Version? ProtocolVersion
+		//public Version? ProtocolVersion
+		//{
+		//	get
+		//	{
+		//		if (this.protocolVersion == null && this.IsConnected)
+		//			this.protocolVersion = this.GetProtocolVersion().GetAwaiter().GetResult().ProtocolVersion;
+
+		//		return this.protocolVersion;
+		//	}
+		//}
+
+		public Version? SystemServerVersion
 		{
 			get
 			{
-				if (this.protocolVersion == null && this.IsConnected)
-					this.protocolVersion = this.GetProtocolVersion().GetAwaiter().GetResult().ProtocolVersion;
+				if (this.systemServerVersion == null && this.IsConnected)
+					this.SetServerVersionInfo();
 
-				return this.protocolVersion;
+				return this.systemServerVersion;
 			}
 		}
+
+		public Version? AppServerVersion
+		{
+			get
+			{
+				if (this.appServerVersion == null && this.IsConnected)
+					this.SetServerVersionInfo();
+
+				return this.appServerVersion;
+			}
+		}
+
+		#endregion |   Public Properties   |
+
+		#region |   Protected Override Methods   |
+
+		//protected override PackageArgsFactory CreatePackageArgsFactory() => new PackageArgsFactory(this.GetPackageArgsAssemblies());
+
+		//protected override List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var assemblies = base.GetPackageArgsAssemblies();
+
+		//	assemblies.Add(Assembly.GetExecutingAssembly());
+
+		//	return assemblies;
+		//}
 
 		//protected override async ValueTask OnConnect()
 		//{
@@ -130,11 +176,18 @@ namespace Simple.Objects.SocketProtocol
 		//	}
 		//}
 
+		#endregion |   Protected Override Methods   |
+
 		#region |   System Requests   |
 
-		public async ValueTask<ProtocolVersionResponseArgs> GetProtocolVersion()
+		//public async ValueTask<ProtocolVersionResponseArgs> GetProtocolVersion()
+		//{
+		//	return await this.SendSystemRequest<ProtocolVersionResponseArgs>((int)SystemRequest.GetProtocolVersion);
+		//}
+
+		public async ValueTask<ServerVersionInfoResponseArgs> GetServerVersionInfo()
 		{
-			return await this.SendSystemRequest<ProtocolVersionResponseArgs>((int)SystemRequest.GetProtocolVersion);
+			return await this.SendSystemRequest<ServerVersionInfoResponseArgs>((int)SystemRequest.GetServerVersionInfo);
 		}
 
 		public async ValueTask<AuthenticateSessionResponseArgs> AuthenticateSession(string username, string password)
@@ -150,13 +203,26 @@ namespace Simple.Objects.SocketProtocol
 
 			if (this.IsAuthenticated)
 			{
-				//this.UserId = response.UserId;
-				this.username = username;
+				this.UserId = response.UserId;
+				this.Username = username;
 				//await this.GetAllServerObjectModels();
+				this.ObjectManager.SetCurrentUser(response.UserId);
+
 				await GetServerObjectModel(GraphElementModel.TableId); // Cache GraphElement model 
+			}
+			else
+			{
+				this.ObjectManager.SetCurrentUser(userId: 0);
 			}
 
 			return response;
+		}
+
+		protected override void OnClose()
+		{
+			base.OnClose();
+			this.ObjectManager.SetCurrentUser(userId: 0);
+			this.UserId = 0;
 		}
 
 		//public ServerObjectModelInfo GetServerObjectModelByGetAll(int tableId) => this.serverObjectModelsArray![tableId];
@@ -182,26 +248,45 @@ namespace Simple.Objects.SocketProtocol
 			return serverObjectModelInfo;
 		}
 
+		//public async ValueTask<AllServerObjectModelsResponseArgs_OLD> GetAllServerObjectModels()
+		//{
+		//	var response = await this.SendSystemRequest<AllServerObjectModelsResponseArgs_OLD>((int)SystemRequest.GetAllServerObjectModels_OLD);
 
-		public async ValueTask<AllServerObjectModelsResponseArgs> GetAllServerObjectModels()
+		//	this.serverObjectModelsArray = new ServerObjectModelInfo[response.ServerObjectModels!.Max(item => item.TableId) + 1];
+
+		//	foreach (var item in response.ServerObjectModels!)
+		//		this.serverObjectModelsArray[item.TableId] = item;
+
+		//	return response;
+		//}
+
+		public async ValueTask<ClientTransactionResult> SendTransactionRequest(IEnumerable<TransactionActionInfo> transactionActionInfoList, Func<int, ISimpleObjectModel> getClientObjectModelByTableId, Func<int, ServerObjectModelInfo> getServerObjectPropertyInfoByTableId)
 		{
-			var response = await this.SendSystemRequest<AllServerObjectModelsResponseArgs>((int)SystemRequest.GetAllServerObjectModels);
+			ProcessTransactionRequestArgs request = new ProcessTransactionRequestArgs(transactionActionInfoList); //, getClientObjectModelByTableId, getServerObjectPropertyInfoByTableId);
+			ClientTransactionResult result;
 
-			this.serverObjectModelsArray = new ServerObjectModelInfo[response.ServerObjectModels!.Max(item => item.TableId) + 1];
+			// Make shure that all transaction related TableId object models are featched and cached from client - avoid collision of resending request for object model needed for serialize object properties
+			// Otherwise we have sending request inside request while serializing ProcessTransactionRequestArgs
+			foreach (var transactionActionInfo in transactionActionInfoList) 
+				await this.GetServerObjectModel(transactionActionInfo.TableId);
 
-			foreach (var item in response.ServerObjectModels!)
-				this.serverObjectModelsArray[item.TableId] = item;
+			var response = await this.SendSystemRequest<ProcessTransactionResponseArgs>((int)SystemRequest.TransactionRequest, request);
 
-			return response;
+			if (response.ResponseSucceeded)
+			{
+				if (response.TransactionSucceeded)
+					result = new ClientTransactionResult(request.TempClientObjectIds!, response.NewObjectIds!, request.SimpleObjectPropertyWithTempObjectIdsNeedsToBeChangedToPositives!);
+				else
+					result = new ClientTransactionResult(response.InfoMessage);
+			}
+			else
+			{
+				result = new ClientTransactionResult(response.ErrorMessage);
+			}
+
+			return result;
 		}
 
-		public async ValueTask<ObjectIdsResponseArgs> GetObjectIdsTEMP(int tableId)
-		{
-			var request = new TableIdRequestArgs(tableId);
-			var response = await this.SendSystemRequest<ObjectIdsResponseArgs>((int)SystemRequest.GetObjectIdsTEMP, request);
-
-			return response;
-		}
 
 		public async ValueTask<ObjectPropertyValuesResponseArgs> GetObjectPropertyValues(int tableId, long objectId)
 		{
@@ -222,6 +307,25 @@ namespace Simple.Objects.SocketProtocol
 		}
 
 
+		public async ValueTask<ObjectIdResponseArgs> GetSimpleObjectGraphElementIdByGraphKey(int tableId, long objectId, int graphKey)
+		{
+			var request = new GraphKeyTableIdObjectIdRequestArgs(tableId, objectId, graphKey);
+			var response = await this.SendSystemRequest<ObjectIdResponseArgs>((int)SystemRequest.GetSimpleObjectGraphElementByGraphKey, request);
+
+			return response;
+		}
+
+		public async ValueTask<TableIdObjectIdResponseArgs> GetOneToOneForeignObject(int tableId, long objectId, int relationKey)
+		{
+			if (tableId == 0 || objectId == 0)
+				tableId = 0;
+			
+			var request = new RelationKeyTableIdObjectIdRequestArgs(tableId, objectId, relationKey);
+			var response = await this.SendSystemRequest<TableIdObjectIdResponseArgs>((int)SystemRequest.GetOneToOneForeignObject, request);
+
+			return response;
+		}
+
 		public async ValueTask<ObjectIdsResponseArgs> GetOneToManyForeignObjectCollection(int tableId, long objectId, int relationKey)
 		{
 			var request = new RelationKeyTableIdObjectIdRequestArgs(tableId, objectId, relationKey);
@@ -233,27 +337,28 @@ namespace Simple.Objects.SocketProtocol
 		public async ValueTask<ObjectIdsResponseArgs> GetGroupMembershipCollection(int tableId, long objectId, int relationKey)
 		{
 			var request = new RelationKeyTableIdObjectIdRequestArgs(tableId, objectId, relationKey);
-			var response = await this.SendSystemRequest<ObjectIdsResponseArgs>((int)SystemRequest.GetOneToManyForeignObjectCollection, request);
+			var response = await this.SendSystemRequest<ObjectIdsResponseArgs>((int)SystemRequest.GetGroupMembershipCollection, request);
 
 			return response;
 		}
 
-
-		public async ValueTask<ObjectIdResponseArgs> GetSimpleObjectGraphElementIdByGraphKey(int tableId, long objectId, int graphKey)
+		public async ValueTask<TrueOrFalseResponseArgs> DoesGraphElementHaveChildren(long graphElementId)
 		{
-			var request = new GraphKeyTableIdObjectIdRequestArgs(tableId, objectId, graphKey);
-			var response = await this.SendSystemRequest<ObjectIdResponseArgs>((int)SystemRequest.GetSimpleObjectGraphElementByGraphKey, request);
+			var request = new ObjectIdRequestArgs(graphElementId);
+			var response = await this.SendSystemRequest<TrueOrFalseResponseArgs>((int)SystemRequest.DoesGraphElementHaveChildren, request);
 
 			return response;
 		}
 
-		public async ValueTask<TableIdObjectIdResponseArgs> GetOneToForeignObject(int tableId, long objectId, int graphKey)
+
+		public async ValueTask<ObjectIdsResponseArgs> GetObjectIdsTEMP(int tableId)
 		{
-			var request = new GraphKeyTableIdObjectIdRequestArgs(tableId, objectId, graphKey);
-			var response = await this.SendSystemRequest<TableIdObjectIdResponseArgs>((int)SystemRequest.GetOneToOneForeignObject, request);
+			var request = new TableIdRequestArgs(tableId);
+			var response = await this.SendSystemRequest<ObjectIdsResponseArgs>((int)SystemRequest.GetObjectIdsTEMP, request);
 
 			return response;
 		}
+
 
 
 		//public async ValueTask<PropertyIndexValuesResponseArgs> GetObjectPropertyValuesFromServer(int tableId, long objectId)
@@ -326,34 +431,9 @@ namespace Simple.Objects.SocketProtocol
 		//	}
 		//}
 
-		public async ValueTask<ClientTransactionResult> SendTransactionRequest(IEnumerable<TransactionActionInfo> transactionActionInfoList, Func<int, ISimpleObjectModel> getClientObjectModelByTableId, Func<int, ServerObjectModelInfo> getServerObjectPropertyInfoByTableId)
-		{
-			ProcessTransactionRequestArgs request = new ProcessTransactionRequestArgs(transactionActionInfoList); //, getClientObjectModelByTableId, getServerObjectPropertyInfoByTableId);
-			ClientTransactionResult result;
-
-			var response = await this.SendSystemRequest<ProcessTransactionResponseArgs>((int)SystemRequest.TransactionRequest, request);
-
-			if (response.ResponseSucceeded)
-			{
-				if (response.TransactionSucceeded)
-					result = new ClientTransactionResult(request.TempClientObjectIds!, response.NewObjectIds!, request.SimpleObjectPropertyWithTempObjectIdsNeedsToBeChangedToPositives!);
-				else
-					result = new ClientTransactionResult(response.MessageInfo);
-			}
-			else
-			{
-				result = new ClientTransactionResult(response.ErrorMessage);
-			}
-
-			return result;
-		}
-
 		#endregion |   System Requests   |
 
 		#region |   System Message Receivers   |
-
-
-
 
 		[SystemMessageCommand((int)SystemMessage.TransactionCompleted)]
 		protected void MessageReceive_TransactionCompleted(ISimpleSession session, PackageReader packageInfo)
@@ -365,7 +445,6 @@ namespace Simple.Objects.SocketProtocol
 				//if (!result.TransactionSucceeded)
 				//	Debug.WriteLine("Transaction completed from server but not on client: " + result.InfoMessage);
 		}
-
 
 		//protected override void OnSesionPackageJobAction(AppSession session, JobActionType jobActionType, PackageInfo receivedPackage, byte[] sentData)
 		//{
@@ -442,46 +521,6 @@ namespace Simple.Objects.SocketProtocol
 
 		#endregion |   System Message Receives   |
 
-		#region |   Public Properties   |
-
-		//public bool Connect(EndPoint endPoint)
-		//{
-		//	bool connected = false;
-		//	int sleepInterval = 500;
-		//	int repeat = this.Timeout * 1000 / sleepInterval;
-
-		//	this.ConnectAsync(endPoint);
-
-		//	for (int i = 0; i < repeat; i++)
-		//	{
-		//		if (this.IsConnected)
-		//		{
-		//			connected = true;
-		//			break;
-		//		}
-		//		else
-		//		{
-		//			Thread.Sleep(sleepInterval);
-		//		}
-		//	}
-
-		//	if (connected)
-		//		this.ProtocolVersion = this.GetProtocolVersion().ResultValue;
-
-		//	return connected;
-		//}
-
-		//public new Task<bool> Close()
-		//{
-		//	var result = base.Close();
-
-		//	this.ProtocolVersion = null;
-
-		//	return result;
-		//}
-
-		#endregion |   Public Properties   |
-
 		#region |   Public methods   |
 
 		//public override void InitializeProtocol()
@@ -510,7 +549,19 @@ namespace Simple.Objects.SocketProtocol
 
 		#endregion |   Protected Methods   |
 
-		#region |   ISimpleObjectSession, Interface Implementation   |
+		#region |   Private Methods   |
+
+		private void SetServerVersionInfo()
+		{
+			var serverVersionInfo = this.GetServerVersionInfo().GetAwaiter().GetResult();
+
+			this.systemServerVersion = serverVersionInfo.SystemServerVersion;
+			this.appServerVersion = serverVersionInfo.AppServerVersion;
+		}
+
+		#endregion |   Private Methods   |
+
+		#region |   ISimpleObjectSession Interface Implementation   |
 
 		ServerObjectModelInfo? ISimpleObjectSession.GetServerObjectModel(int tableId)
 		{
@@ -522,7 +573,13 @@ namespace Simple.Objects.SocketProtocol
 			this.serverObjectModelInfosByTableId.SetValue(tableId, serverObjectModelInfo);
 		}
 
-		#endregion |   ISimpleObjectSession, Interface Implementation   |
+		#endregion |   ISimpleObjectSession Interface Implementation   |
+
+		#region |   ISimpleObjectServerContext Interface Implementation   |
+
+		ServerObjectModelInfo? ISimpleObjectServerContext.GetServerObjectModel(int tableId) => this.GetServerObjectModel(tableId).GetAwaiter().GetResult();
+
+		#endregion |   ISimpleObjectServerContext Interface Implementation   |
 	}
 
 	#region |   Public Delegates   |

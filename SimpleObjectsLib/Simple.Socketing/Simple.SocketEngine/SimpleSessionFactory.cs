@@ -5,6 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SuperSocket;
+using System.Threading;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
 
 namespace Simple.SocketEngine
 {

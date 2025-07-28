@@ -29,7 +29,7 @@ namespace Simple.Objects.Controls
 
 			if (this.propertyIndexValues != null)
 			{
-				newSimpleObject.SetPropertyValues(this.propertyIndexValues, this.SimpleObject.Manager.DefaultChangeContainer, requester: this);
+				newSimpleObject.SetPropertyValues(this.propertyIndexValues, this.SimpleObject.Manager.DefaultChangeContainer, ObjectActionContext.Unspecified, requester: this);
 				this.SimpleObject = newSimpleObject;
 			}
 		}

@@ -48,10 +48,10 @@ namespace Simple.Objects.Controls
             {
                 if (this.changableBindingObjectControl != null)
                 {
-                    this.changableBindingObjectControl.BindingObjectChange -= new SimpleObjectEventHandler(changableBindingObjectControl_BindingObjectChange);
-                    this.changableBindingObjectControl.BindingObjectPropertyValueChange -= new ChangePropertyValueRequesterBindingObjectEventHandler(changableBindingObjectControl_BindingObjectPropertyValueChange);
+                    this.changableBindingObjectControl.BindingObjectChange -= new BindingObjectEventHandler(changableBindingObjectControl_BindingObjectChange);
+                    this.changableBindingObjectControl.BindingObjectPropertyValueChange -= new ChangePropertyValueBindingObjectRequesterEventHandler(changableBindingObjectControl_BindingObjectPropertyValueChange);
                     this.changableBindingObjectControl.BindingObjectOnValidation -= new GraphValidationResultEventHandler(changableBindingObjectControl_OnValidation);
-                    this.changableBindingObjectControl.BindingObjectPushData -= new SimpleObjectEventHandler(changableBindingObjectControl_StoreData);
+                    this.changableBindingObjectControl.BindingObjectPushData -= new BindingObjectEventHandler(changableBindingObjectControl_StoreData);
 					this.changableBindingObjectControl.BindingObjectRelationForeignObjectSet -= changableBindingObjectControl_BindingObjectRelationForeignObjectSet;
 				}
 
@@ -59,10 +59,10 @@ namespace Simple.Objects.Controls
 
                 if (this.changableBindingObjectControl != null)
                 {
-                    this.changableBindingObjectControl.BindingObjectChange += new SimpleObjectEventHandler(changableBindingObjectControl_BindingObjectChange);
-                    this.changableBindingObjectControl.BindingObjectPropertyValueChange += new ChangePropertyValueRequesterBindingObjectEventHandler(changableBindingObjectControl_BindingObjectPropertyValueChange);
+                    this.changableBindingObjectControl.BindingObjectChange += new BindingObjectEventHandler(changableBindingObjectControl_BindingObjectChange);
+                    this.changableBindingObjectControl.BindingObjectPropertyValueChange += new ChangePropertyValueBindingObjectRequesterEventHandler(changableBindingObjectControl_BindingObjectPropertyValueChange);
                     this.changableBindingObjectControl.BindingObjectOnValidation += new GraphValidationResultEventHandler(changableBindingObjectControl_OnValidation);
-                    this.changableBindingObjectControl.BindingObjectPushData += new SimpleObjectEventHandler(changableBindingObjectControl_StoreData);
+                    this.changableBindingObjectControl.BindingObjectPushData += new BindingObjectEventHandler(changableBindingObjectControl_StoreData);
 					this.changableBindingObjectControl.BindingObjectRelationForeignObjectSet += changableBindingObjectControl_BindingObjectRelationForeignObjectSet;
                 }
             }
@@ -161,7 +161,7 @@ namespace Simple.Objects.Controls
 		}
 
 		public void RegisterComboBox(RepositoryItemComboBox repositoryItemComboBox, Type objectType, EditorBindingType bindingType, IPropertyModel propertyModel, int relationKey, IDictionary keyValueDictionary, 
-									 Func<object, object>? getName, Action<object>? setControlValue, Func<object?, object>? getImageName)
+									 Func<object, object>? getName, Action<object>? setControlValue, Func<object, object?>? getImageName)
         {
 			NullableDictionary<object?, object?> keysByValue = new NullableDictionary<object?, object?>();
 			NullableDictionary<object?, object?> valuesByKey = new NullableDictionary<object?, object?>();
@@ -216,7 +216,7 @@ namespace Simple.Objects.Controls
 					object? value = keyValueDictionary[key];																				 // if declared property type is enum and key is not, convert key value to enum 
 					object? objectKey = (key != null && bindingType == EditorBindingType.ObjectProperty && propertyModel.PropertyType.IsEnum && !key.GetType().IsEnum) ? Conversion.TryChangeType(key, propertyModel.PropertyType) 
 																																									   : key;
-					object objectValue = ((getName != null) ? getName(value) : value) ?? String.Empty;
+					object objectValue = ((getName != null && value != null) ? getName(value) : value) ?? String.Empty;
                     bool isItemAdded = false;
 
 					if (bindingType == EditorBindingType.ObjectProperty && propertyModel.PropertyType.IsEnum && !key.GetType().IsEnum)
@@ -231,14 +231,13 @@ namespace Simple.Objects.Controls
 					{
 						repositoryItemImageComboBox.Items.Add(new ImageComboBoxItem(objectValue, -1));
 
-						if (getImageName is not null && repositoryItemImageComboBox.SmallImages is not null && repositoryItemImageComboBox.SmallImages is ImageList imageList)
+						if (key != null && getImageName is not null && repositoryItemImageComboBox.SmallImages is not null && repositoryItemImageComboBox.SmallImages is ImageList imageList)
 						{
-							object? imageNameObject = getImageName(key);
-							string? imageName = imageNameObject?.ToString();
+							string? imageName = getImageName(key)?.ToString();
 
 							if (!imageName.IsNullOrEmpty())
 							{
-								int imageIndex = imageList.Images.IndexOfKey(imageName);
+								int imageIndex = imageList.Images.IndexOfKey(imageName!);
 								
 								repositoryItemImageComboBox.Items.Add(new ImageComboBoxItem(objectValue, imageIndex));
 								isItemAdded = true;
@@ -387,13 +386,16 @@ namespace Simple.Objects.Controls
             if (editorComponent == null)
                 return result;
 
-            EditorBindingPolicy editorBindingPolicy = this.editorBindingPolicyDictionary.GetEditorBindingPolicyByEditorComponent(editorComponent);
+            EditorBindingPolicy? editorBindingPolicy = this.editorBindingPolicyDictionary.GetEditorBindingPolicyByEditorComponent(editorComponent);
 
-			if (editorBindingPolicy != null && editorBindingPolicy.GetControlValueFromPropertyValue != null && editorBindingPolicy.PropertyModel == propertyModel &&
-				(editorBindingPolicy.ObjectType == objectType || editorBindingPolicy.ObjectType.IsSubclassOf(objectType)) || objectType.IsSubclassOf(editorBindingPolicy!.ObjectType))
+			if (editorBindingPolicy != null)
 			{
-				controlValue = editorBindingPolicy.GetControlValueFromPropertyValue!(propertyValue);
-				result = true;
+				if (editorBindingPolicy.GetControlValueFromPropertyValue != null && editorBindingPolicy.PropertyModel == propertyModel &&
+					(editorBindingPolicy.ObjectType == objectType || editorBindingPolicy.ObjectType.IsSubclassOf(objectType)) || objectType.IsSubclassOf(editorBindingPolicy.ObjectType))
+				{
+					controlValue = editorBindingPolicy.GetControlValueFromPropertyValue!(propertyValue);
+					result = true;
+				}
 			}
 
             return result;
@@ -520,7 +522,7 @@ namespace Simple.Objects.Controls
 			}
 		}
 
-		public object? GetNormalizedPropertyValue(IPropertyModel propertyModel, object propertyValue)
+		public object? GetNormalizedPropertyValue(IPropertyModel propertyModel, object? propertyValue)
 		{
 			object? normalizedPropertyValue = Conversion.TryChangeType(propertyValue, propertyModel.PropertyType); //  .PropertyTypeId);
 
@@ -567,7 +569,7 @@ namespace Simple.Objects.Controls
 
         #region |   Private Methods   |
 
-        private void changableBindingObjectControl_BindingObjectChange(object sender, SimpleObjectEventArgs e)
+        private void changableBindingObjectControl_BindingObjectChange(object sender, BindingObjectEventArgs e)
         {
 			//if (this.GetBindingObject != null)
 			//{
@@ -577,7 +579,7 @@ namespace Simple.Objects.Controls
 				//	this.BindingObject.RelationForeignObjectSet -= BindingObject_RelationForeignObjectSet;
 				//}
 
-                this.BindingObject = e.SimpleObject;
+                this.BindingObject = e.BindingObject as IBindingSimpleObject;
 
 				//if (this.BindingObject != null)
 				//{
@@ -594,24 +596,18 @@ namespace Simple.Objects.Controls
 			//	this.BindingObject = e.SimpleObject;
 			//	this.ReloadData();
 
-			if (this.TabControl != null) // Reset tab error if you delete node with error, fot example.
-			{
-                SimpleObject? simpleObject = (e.SimpleObject is SimpleObject) ? e.SimpleObject as SimpleObject 
-																			  : null;
-				
-				if (simpleObject != null)
-					SetTabControlErrorStatus(SimpleObjectValidationResult.GetDefaultPassedResult(simpleObject), this.TabControl.SelectedTabPage);
-			}
+			if (this.TabControl != null && this.BindingObject is SimpleObject simpleObject) // Reset tab error if you delete node with error, fot example.
+				SetTabControlErrorStatus(SimpleObjectValidationResult.GetDefaultPassedResult(simpleObject), this.TabControl.SelectedTabPage);
 			//}
         }
 
-        private void changableBindingObjectControl_BindingObjectPropertyValueChange(object sender, ChangePropertyValueBindingObjectRequesterEventArgs e)
+        private void changableBindingObjectControl_BindingObjectPropertyValueChange(object sender, ChangePropertyValueBindingObjectEventArgs e)
         {
-			if (e.BindingObject as IBindingSimpleObject == this.BindingObject) // && e.Requester != this)
+			if (e.BindingObject as IBindingSimpleObject == this.BindingObject && e.PropertyModel != null) // && e.Requester != this)
 				this.ReloadData(e.BindingObject.GetType(), e.PropertyModel, e.Value, e.Requester);
 		}
 
-		private void changableBindingObjectControl_BindingObjectRelationForeignObjectSet(object sender, BindingObjectRelationForeignObjectSetRequesterEventArgs e)
+		private void changableBindingObjectControl_BindingObjectRelationForeignObjectSet(object sender, BindingObjectRelationForeignObjectSetEventArgs e)
 		{
 			if (e.BindingObject == this.BindingObject && e.Requester != this)
 			{
@@ -683,9 +679,9 @@ namespace Simple.Objects.Controls
             }
         }
 
-		private void changableBindingObjectControl_StoreData(object sender, SimpleObjectEventArgs e)
+		private void changableBindingObjectControl_StoreData(object sender, BindingObjectEventArgs e)
         {
-            if ((IBindingSimpleObject)e.SimpleObject == this.BindingObject)
+            if (e.BindingObject == this.BindingObject)
             {
                 foreach (Component editorComponent in this.editorBindingPolicyDictionary.EditorComponents)
                 {
@@ -704,7 +700,7 @@ namespace Simple.Objects.Controls
             }
         }
 
-		private void ObjectManager_RequireCommitChange(object sender, RequireCommitChangeEventArgs e)
+		private void ObjectManager_RequireCommitChange(object sender, RequireCommiChangeContainertEventArgs e)
 		{
 			if (!e.RequireCommit)
 				this.ResetErrorStatus();
@@ -805,7 +801,7 @@ namespace Simple.Objects.Controls
 
 			foreach (EditorBindingPolicy editPanelPolicy in editorBindingPolicyList)
             {
-				if (editPanelPolicy.EditorComponent == requester) // || objectType.IsSameOrSubclassOf(editPanelPolicy.ObjectType))
+				if (editPanelPolicy.EditorComponent == requester || editPanelPolicy.ObjectType != objectType) // || objectType.IsSameOrSubclassOf(editPanelPolicy.ObjectType))
 					continue;
 
 				object? controlValue = (editPanelPolicy.GetControlValueFromPropertyValue) != null ? editPanelPolicy.GetControlValueFromPropertyValue(propertyValue) : propertyValue;
@@ -879,12 +875,12 @@ namespace Simple.Objects.Controls
         //    return key;
         //}
 
-        private void SetErrorProviderError(Component editorComponent, string? errorText)
+        public void SetErrorProviderError(Component editorComponent, string? errorText)
         {
             this.SetErrorProviderError(editorComponent, errorText, ErrorType.Default);
         }
 
-        private void SetErrorProviderError(Component editorComponent, string? errorText, ErrorType errorType)
+        public void SetErrorProviderError(Component editorComponent, string? errorText, ErrorType errorType)
         {
             if (this.ErrorProvider != null)
             {
@@ -935,7 +931,7 @@ namespace Simple.Objects.Controls
 			//if (this.BindingObject.GetModel().TableInfo.TableId != (editPanelPolicy.PropertyModel.Owner as SimpleObjectModel)?.TableInfo.TableId)
 			//	return;
 			
-			object propertyValue = editPanelPolicy.GetPropertyValueFromControlValue != null ? editPanelPolicy.GetPropertyValueFromControlValue(newEditValue) : newEditValue;
+			object? propertyValue = editPanelPolicy.GetPropertyValueFromControlValue != null ? editPanelPolicy.GetPropertyValueFromControlValue(newEditValue) : newEditValue;
 
 			//if (editPanelPolicy.SetControlValue != null)
 			//{
@@ -949,33 +945,33 @@ namespace Simple.Objects.Controls
 				case EditorBindingType.ObjectProperty:
 
 					IPropertyModel propertyModel = this.BindingObject.GetModel().PropertyModels[editPanelPolicy.PropertyModel.PropertyIndex];
-					object normalizedPropertyValue = this.GetNormalizedPropertyValue(propertyModel, propertyValue);
+					object? normalizedPropertyValue = this.GetNormalizedPropertyValue(propertyModel, propertyValue);
 
-					this.BindingObject.SetPropertyValue(editPanelPolicy.PropertyModel.PropertyIndex, normalizedPropertyValue, this.ObjectManager.DefaultChangeContainer, requester: editorComponent);
+					this.BindingObject.SetPropertyValue(editPanelPolicy.PropertyModel.PropertyIndex, normalizedPropertyValue, requester: editorComponent);
 					
 					break;
 
 				case EditorBindingType.OneToOneRelationPrimaryObject:
 
-					this.BindingObject.SetOneToOnePrimaryObject(propertyValue as SimpleObject, editPanelPolicy.RelationKey, requester: this);
+					this.BindingObject.SetOneToOnePrimaryObject((propertyValue as SimpleObject)!, editPanelPolicy.RelationKey, requester: this);
 					
 					break;
 
 				case EditorBindingType.OneToOneRelationForeignObject:
 
-					this.BindingObject.SetOneToOneForeignObject(propertyValue as SimpleObject, editPanelPolicy.RelationKey, requester: this);
+					this.BindingObject.SetOneToOneForeignObject((propertyValue as SimpleObject)!, editPanelPolicy.RelationKey, requester: this);
 
 					break;
 
 				case EditorBindingType.OneToManyRelation:
 
-					this.BindingObject.SetOneToManyPrimaryObject(propertyValue as SimpleObject, editPanelPolicy.RelationKey, requester: this);
+					this.BindingObject.SetOneToManyPrimaryObject((propertyValue as SimpleObject)!, editPanelPolicy.RelationKey, requester: this);
 					
 					break;
 
 				default:
 					
-					this.BindingObject.SetPropertyValue(editPanelPolicy.PropertyModel.PropertyIndex, propertyValue, this.ObjectManager.DefaultChangeContainer, requester: editorComponent);
+					this.BindingObject.SetPropertyValue(editPanelPolicy.PropertyModel.PropertyIndex, propertyValue, requester: editorComponent);
 					
 					break;
 			}

@@ -9,8 +9,9 @@ using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.ProtoBase;
 using SuperSocket.Client;
-using SuperSocket.Channel;
+using SuperSocket.Connection;
 using Simple.Serialization;
+using System.Reflection;
 
 namespace Simple.SocketEngine
 {
@@ -29,6 +30,7 @@ namespace Simple.SocketEngine
 		//private long userId;
 		//private string? username = null;
 		private bool startReceiveOnConnect = true;
+		private bool receiveStarted = false;
 		private Encoding characterEncoding = new UTF8Encoding(false); //Encoding.UTF8;
 		private ManualResetEvent requestResetEvent = new ManualResetEvent(false);
 		private PackageReader? response = null;
@@ -117,7 +119,7 @@ namespace Simple.SocketEngine
 
 		protected virtual object CreatePipelineContext() => this as ISimpleSession;
 
-		protected virtual ChannelOptions CreateCannelOptions() => new ChannelOptions 
+		protected virtual ConnectionOptions CreateConnectionOptions() => new ConnectionOptions()
 		{ 
 			Logger = GetLoggerFactory().CreateLogger(nameof(ClientBase)), 
 			ReceiveBufferSize = this.ReceiveBufferSize, 
@@ -129,18 +131,31 @@ namespace Simple.SocketEngine
 		protected virtual IEasyClient<PackageReader> CreateClientProvider()
 		{
 			var pipelineFilter = this.CreatePipelineFilter(this);
-			var channelOptions = this.CreateCannelOptions();
+			var connectionOptions = this.CreateConnectionOptions();
 			var hostConfigurator = this.CreateHostConfigurator(this.UseChannelCompression, this.UseChannelEncryption);
 
 			pipelineFilter.Context = this.CreatePipelineContext();
 
-			if (channelOptions.Logger != null)
-				this.Logger = channelOptions.Logger;
+			if (connectionOptions.Logger != null)
+				this.Logger = connectionOptions.Logger;
 
-			return hostConfigurator.ConfigureEasyClient(pipelineFilter, channelOptions);
+			return hostConfigurator.ConfigureEasyClient(pipelineFilter, connectionOptions);
 		}
 
 		#endregion |   Protected Virtual Methods   |
+
+		#region |   Protected Override Methods   |
+
+		//protected override List<Assembly> GetPackageArgsAssemblies()
+		//{
+		//	var assemblies = base.GetPackageArgsAssemblies();
+
+		//	assemblies.Add(this.GetType().Assembly);
+
+		//	return assemblies;
+		//}
+
+		#endregion |   Protected Override Methods   |
 
 		#region |   Public Methods   |
 
@@ -176,9 +191,21 @@ namespace Simple.SocketEngine
 
 		//protected virtual ValueTask OnConnect() => new ValueTask();
 
-		public void StartReceive() => this.Provider?.StartReceive();
+		public void StartReceive()
+		{
+			if (!this.receiveStarted)
+				this.Provider?.StartReceive();
+			
+			this.receiveStarted = true;
+		}
 
-		public async ValueTask CloseAsync() => await this.ClientCloseAsync();
+		public async ValueTask CloseAsync()
+		{
+			await this.ClientCloseAsync();
+			this.OnClose();
+		}
+
+		protected virtual void OnClose() { }
 
 		public async ValueTask<bool> SendMessage(int messageCode, MessageArgs? messageArgs)
 		{
@@ -324,7 +351,7 @@ namespace Simple.SocketEngine
 			if (this.Provider == null)
 				return;
 
-			try // Client Channel can be null snd will throw object null reference exception. Ignore it, not connected anyway.
+			try // Client Connection can be null snd will throw object null reference exception. Ignore it, not connected anyway.
 			{
 				await this.Provider.CloseAsync();
 			}
@@ -335,6 +362,7 @@ namespace Simple.SocketEngine
 			{
 				this.isConnected = false;
 				this.isAuthenticated = false;
+				this.receiveStarted = false;
 			}
 		}
 

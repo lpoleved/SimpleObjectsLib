@@ -11,7 +11,7 @@ namespace Simple.Objects
 	{
 		static SystemProperty()
 		{
-			Model.TableInfo = SystemTables.SystemProperties;
+			Model.TableInfo = SystemTablesBase.SystemProperties;
 			Model.AutoGenerateKey = true;
 		}
 

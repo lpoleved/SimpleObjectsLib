@@ -68,7 +68,7 @@ namespace Simple.SocketEngine
 					{
 						packageInfo.PackageArgs.Status = PackageStatus.ExceptionIsCaughtOnArgsSerialization;
 						packageInfo.PackageArgs.ErrorMessage = $"Error in args serialization, PackageType={packageInfo.HeaderInfo.PackageType.ToString()}, RequestId={packageInfo.Key}, " +
-														$"IsSystem={packageInfo.HeaderInfo.IsSystem.ToString()}: {ExceptionHelper.GetFullErrorMessage(ex)}";
+															   $"IsSystem={packageInfo.HeaderInfo.IsSystem.ToString()}: {ExceptionHelper.GetFullErrorMessage(ex)}";
 					}
 				}
 			}

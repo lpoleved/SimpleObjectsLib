@@ -26,18 +26,18 @@ namespace Simple.Objects.Controls
         protected void SetGraphController(SimpleObjectGraphController graphController)
         {
             if (this.graphController != null)
-                this.graphController.BindingObjectChange -= new SimpleObjectEventHandler(graphController_BindingObjectChange);
+                this.graphController.BindingObjectChange -= new BindingObjectEventHandler(graphController_BindingObjectChange);
 
             this.graphController = graphController;
 
 			if (this.graphController != null)
 			{
 				this.graphController.ObjectManager = this.ObjectManager;
-				this.graphController.BindingObjectChange += new SimpleObjectEventHandler(graphController_BindingObjectChange);
+				this.graphController.BindingObjectChange += new BindingObjectEventHandler(graphController_BindingObjectChange);
 			}
         }
 
-        protected virtual void graphController_BindingObjectChange(object sender, SimpleObjectEventArgs e)
+        protected virtual void graphController_BindingObjectChange(object sender, BindingObjectEventArgs e)
         {
         }
 

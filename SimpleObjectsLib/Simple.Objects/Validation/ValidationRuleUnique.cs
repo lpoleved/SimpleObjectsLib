@@ -79,13 +79,13 @@ namespace Simple.Objects
         public Func<SimpleObject, IEnumerable<IEnumerable<SimpleObject>>>? GetValidationMultipleCollection { get; protected set; }
         public string? ErrorSuffix { get; protected set; }
 
-        public override ValidationResult Validate(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
+        public override ValidationResult Validate(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction>? transactionRequests)
         {
 			PropertyValidationResult validationResult = PropertyValidationResult.GetDefaultSuccessResult(this.PropertyModel);
             SimpleObject? inputSimpleObject = this.GetValidationSimpleObject(simpleObject);
 
-			if (inputSimpleObject != null && inputSimpleObject.IsValidationTest && this.SkipIfTest)
-				return validationResult;
+			//if (inputSimpleObject != null && inputSimpleObject.IsValidationTest && this.SkipIfTest)
+			//	return validationResult;
 
             if (inputSimpleObject is null)
 				return new PropertyValidationResult(false, "Unique property validation failed: input object is null");
@@ -123,7 +123,7 @@ namespace Simple.Objects
             }
             else
             {
-                SimpleObjectCollection<SimpleObject>? validationList = (simpleObject.Manager.GetObjectCache(simpleObject.GetModel().TableInfo.TableId) as ServerObjectCache)?.SelectAll<SimpleObject>();
+                SimpleObjectCollection<SimpleObject>? validationList = (simpleObject.Manager.GetObjectCache(simpleObject.GetModel().TableInfo.TableId))?.GetObjectCollection<SimpleObject>();
 
                 if (validationList != null)
                 {

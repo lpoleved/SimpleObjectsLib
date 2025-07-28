@@ -1,0 +1,13 @@
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\bin\Debug\netstandard2.1\Simple.Collections.deps.json
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\bin\Debug\netstandard2.1\Simple.Collections.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\bin\Debug\netstandard2.1\Simple.Collections.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\bin\Debug\netstandard2.1\Simple.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\bin\Debug\netstandard2.1\Simple.pdb
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.csproj.AssemblyReference.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.GeneratedMSBuildEditorConfig.editorconfig
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.AssemblyInfoInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.AssemblyInfo.cs
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.csproj.CoreCompileInputs.cache
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.C.47FBAF56.Up2Date
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.dll
+D:\Git\wild-wind\Sources\SimpleObjectsLib\Simple.Core\Simple.Collections\obj\Debug\netstandard2.1\Simple.Collections.pdb

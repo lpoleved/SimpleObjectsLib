@@ -20,7 +20,7 @@ namespace Simple.Datastore.Controls
         private void buttonSelectOfficeAccessFile_Click(object sender, EventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog();
-            dialog.Filter = "Office Access files (*.mdb)|*.mdb|All files (*.*)|*.*";
+            dialog.Filter = "Office Access files (*.mdb;*.accdb)|*.mdb;*.accdb|All files (*.*)|*.*";
             dialog.InitialDirectory = this.TextEditOfficeAccessFile.Text;
             dialog.Title = "Select a Office Access file";
 

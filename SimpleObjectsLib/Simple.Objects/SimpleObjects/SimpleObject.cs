@@ -6,10 +6,11 @@ using System.Text;
 using Simple;
 using Simple.Collections;
 using Simple.Modeling;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Simple.Objects
 {
-	public abstract partial class SimpleObject : IBindingSimpleObject, IPropertyValue, IDisposable
+	public abstract partial class SimpleObject : IBindingSimpleObject, IPropertyValue, IEqualityComparer, IDisposable
 	{
 		#region |   Private Members   |
 
@@ -18,15 +19,17 @@ namespace Simple.Objects
 		private int status = 0;
 		private bool isPropertyInitialization = true;
 		private SimpleObjectInternalState internalState = SimpleObjectInternalState.Initialization;
-		private ChangeContainer? changeContainer = null;
-		private object? requester = null;
+		private ChangeContainer? changeContainer, defaultChangeContainer;
+		private ObjectActionContext context, defaultContext;
+		private object? requester = null, defaultRequester = null;
 		//private SimpleObjectCollection<GraphElement> graphElements = null;
 		//private Hashtable manyToManyCollectionsByRelatedObjectType = null;
 		//private IObjectRelationModel objectRelationModel = null;
 		//private SimpleObjectRelationCache objectRelationCache = null;
 		//private SimpleDictionary<int, SimpleObject> oneToOnePrimaryObjectsByRelationKey = null;    // Key is one to one relation model key as int, Value is SimpleObject
-		private Dictionary<int, SimpleObjectKey>? oneToOneForeignObjectKeysByRelationKey = null;    // Key is one to one relation model key as int, Value is SimpleObject
-		//private SimpleDictionary<int, SimpleObject> oneToManyPrimaryObjectsByRelationKey = null;    // Key is one to many relation model key as int, Value is SimpleObjectCollection
+		//private Dictionary<int, SimpleObjectKey>? oneToOneForeignSimpleObjectsByRelationKey = null;    // Key is one to one relation model key as int, Value is SimpleObject
+		private Dictionary<int, SimpleObject?>? oneToOneForeignSimpleObjectsByRelationKey = null;    // Key is one to one relation model key as int, Value is SimpleObject
+																									//private SimpleDictionary<int, SimpleObject> oneToManyPrimaryObjectsByRelationKey = null;    // Key is one to many relation model key as int, Value is SimpleObjectCollection
 		private Dictionary<int, SimpleObjectCollection>? oneToManyForeignCollectionsByRelationKey = null;    // Key is one to many relation model key as int, Value is SimpleObjectCollection
 		//private SimpleDictionary<int, ISimpleObjectCollection_OLD> manyToManyCollectionsByRelationKey = null;  // Key is many to many relation model key as int, Value is SimpleObjectCollection
 		private Dictionary<int, SimpleObjectCollection>? groupMembershipCollectionsByRelationKey = null;  // Key is many to many relation model key as int, Value is SimpleObjectCollection
@@ -69,6 +72,7 @@ namespace Simple.Objects
 		//public const string StringPropertyOrderIndex = "OrderIndex";
 
 		public const int IndexPropertyId = 0;
+
 		//public const int IndexPropertyGuid = 1;
 		//public const int IndexPropertyName = 2;
 		//public const int IndexPropertyDescription = 3;
@@ -86,16 +90,31 @@ namespace Simple.Objects
 		//      {
 		//      }
 
+		protected SimpleObject()
+			: this(SimpleObjectManager.Instance!) 
+		{
+		}
+
 		public SimpleObject(SimpleObjectManager manager)
 			: this(manager, manager.DefaultChangeContainer)
 		{
 		}
 
-		public SimpleObject(SimpleObjectManager manager, ChangeContainer changeContainer)
+		public SimpleObject(SimpleObjectManager manager, ChangeContainer? changeContainer, ObjectActionContext context = ObjectActionContext.Unspecified, object? requester = null)
 		//: this(objectManager, true)
 		{
 			this.manager = manager;
 			this.changeContainer = changeContainer;
+			this.defaultChangeContainer = changeContainer; // manager.DefaultChangeContainer;
+
+			if (context == ObjectActionContext.Unspecified)
+				this.defaultContext = (manager.WorkingMode == ObjectManagerWorkingMode.Server) ? ObjectActionContext.ServerTransaction : ObjectActionContext.Client;
+			else
+				this.defaultContext = context;
+
+			this.context = defaultContext;
+			this.requester = requester;
+			this.defaultRequester = requester;
 			this.isStorable = this.GetModel().IsStorable;
 			//this.isPropertyInitialization = true;
 			this.OnInitialize();
@@ -120,7 +139,7 @@ namespace Simple.Objects
 			{
 				if (this.id == 0 && this.isNew)
 				{
-					this.id = this.Manager.AddNewObjectInCache(simpleObject: this, this.GetChangeContainer(), this.Requester);
+					this.id = this.Manager.AddNewObjectInCache(simpleObject: this, this.ChangeContainer, this.Context, this.Requester);
 					//this.changedPropertyIndexes.Add(SimpleObject.IndexPropertyId);
 					//this.changedSaveablePropertyIndexes.Add(SimpleObject.IndexPropertyId);
 				}
@@ -133,15 +152,38 @@ namespace Simple.Objects
 
 		public ChangeContainer? ChangeContainer
 		{
-			get { return this.changeContainer; }
-			set { this.changeContainer = value; }
+			get => this.changeContainer;
+
+			set
+			{
+				//if (value is null)
+				//	throw new ArgumentNullException(nameof(value) + " isn't allowed to be null");
+
+				this.changeContainer = value;
+			}
+
 		}
 
-		public object? Requester
+		public ChangeContainer? DefaultChangeContainer
 		{
-			get { return this.requester; }
-			set { this.requester = value; }
+			get => this.changeContainer;
+
+			set
+			{
+				//if (value is null)
+				//	throw new ArgumentNullException(nameof(value) + " isn't allowed to be null");
+
+				this.defaultChangeContainer = value;
+			}
+
 		}
+
+		public ObjectActionContext Context { get => this.context; set => this.context = value; }
+
+		public ObjectActionContext DefaultContext { get => this.context; set => this.context = value; }
+
+		public object? Requester { get => this.requester; set => this.requester = value; }
+		public object? DefaultRequester { get => this.defaultRequester; set => this.defaultRequester = value; }
 
 		//public void SetChangeMember(ChangeContainer changeContainer, object requester)
 		//{
@@ -190,16 +232,9 @@ namespace Simple.Objects
 		//	//}
 		//}
 
-		internal void SetId(long objectId)
-		{
-			this.id = objectId;
-		}
+		internal void SetId(long objectId) => this.id = objectId;
 
-		public bool IsNew
-		{
-			get { return this.isNew; }
-			//protected internal set { this.isNew = value; }
-		}
+		public bool IsNew => this.isNew;
 
 		//internal void SetKey(Guid objectKey)
 		//{
@@ -359,7 +394,7 @@ namespace Simple.Objects
 		//	}
 		//}
 
-		private Dictionary<int, SimpleObjectKey> OneToOneForeignObjectKeysByRelationKey => this.oneToOneForeignObjectKeysByRelationKey ??= new Dictionary<int, SimpleObjectKey>();
+		private Dictionary<int, SimpleObject?> OneToOneForeignSimpleObjectsByRelationKey => this.oneToOneForeignSimpleObjectsByRelationKey ??= new Dictionary<int, SimpleObject?>();
 
 		//private SimpleDictionary<int, SimpleObject> OneToManyPrimaryObjectsByRelationKey
 		//{
@@ -775,24 +810,38 @@ namespace Simple.Objects
 
 		public void RequestDelete(object? requester)
 		{
-			this.RequestDelete(this.GetChangeContainer(), requester);
+			this.RequestDelete(this.ChangeContainer, requester);
 		}
 
-		public void RequestDelete(ChangeContainer changeContainer)
+		public void RequestDelete(ObjectActionContext context)
+		{
+			this.RequestDelete(context, this.Requester);
+		}
+
+		public void RequestDelete(ObjectActionContext context, object? requester)
+		{
+			this.RequestDelete(this.ChangeContainer, context, requester);
+		}
+
+		public void RequestDelete(ChangeContainer? changeContainer)
 		{
 			this.RequestDelete(changeContainer, this.Requester);
 		}
 
-		public void RequestDelete(ChangeContainer changeContainer, object? requester)
+		public void RequestDelete(ChangeContainer? changeContainer, object? requester)
         {
-			if (!this.DeleteRequested)
-				this.Manager.RequestDelete(this, changeContainer, findRelatedObjectsForDelete: true, requester);
+			this.RequestDelete(changeContainer, this.Context, requester);
         }
 
-		internal void RequestDelete(ChangeContainer changeContainer, bool findRelatedObjectsForDelete, object? requester)
+		public void RequestDelete(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.RequestDelete(findRelatedObjectsForDelete: true, changeContainer, context, requester);
+		}
+
+		public void RequestDelete(bool findRelatedObjectsForDelete, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (!this.DeleteRequested)
-				this.Manager.RequestDelete(this, changeContainer, findRelatedObjectsForDelete, requester);
+				this.Manager.RequestDeleteInternal(this, findRelatedObjectsForDelete, changeContainer, context, requester);
 		}
 
 
@@ -803,18 +852,18 @@ namespace Simple.Objects
 
 		public void CancelDeleteRequest(object? requester)
 		{
-			this.CancelDeleteRequest(this.GetChangeContainer(), this.Requester);
+			this.CancelDeleteRequest(this.ChangeContainer, context: ObjectActionContext.Unspecified);
 		}
 
-		public void CancelDeleteRequest(ChangeContainer changeContainer)
+		public void CancelDeleteRequest(ChangeContainer? changeContainer, ObjectActionContext context)
 		{
-			this.CancelDeleteRequest(changeContainer, this.Requester);
+			this.CancelDeleteRequest(changeContainer, context, this.Requester);
 		}
 
-		public void CancelDeleteRequest(ChangeContainer changeContainer, object? requester)
+		public void CancelDeleteRequest(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (this.DeleteRequested)
-				this.Manager.CancelDeleteRequest(this, changeContainer, requester);
+				this.Manager.CancelDeleteRequest(this, changeContainer, context, requester);
 		}
 
 		//public void Save()
@@ -850,9 +899,9 @@ namespace Simple.Objects
 		//	this.Manager.CommitChanges(changeContainer, requester);
 		//}
 
-		public virtual SimpleObjectValidationResult ValidateSave() => this.Manager.ValidateSave(this, this.GetChangeContainer().TransactionRequests);
+		public virtual SimpleObjectValidationResult ValidateSave() => this.Manager.ValidateSave(this, this.ChangeContainer?.TransactionRequests);
 
-		public virtual SimpleObjectValidationResult ValidateDelete() => this.Manager.ValidateDelete(this, this.GetChangeContainer().TransactionRequests);
+		public virtual SimpleObjectValidationResult ValidateDelete() => this.Manager.ValidateDelete(this, this.ChangeContainer?.TransactionRequests);
 
 		//public new bool Save()
 		//{
@@ -1078,9 +1127,13 @@ namespace Simple.Objects
 
 		public override int GetHashCode()
 		{
-			return base.GetHashCode();
-			// return this.GetModel().TableInfo.TableId.GetHashCode() ^ this.Id.GetHashCode();
+			int result = base.GetHashCode();
+			//return base.GetHashCode();
+			//int result2 = this.GetModel().TableInfo.TableId.GetHashCode() ^ this.Id.GetHashCode();
+
+			return result;
 		}
+
 
 		public static bool operator ==(SimpleObject? a, SimpleObject? b)
         {
@@ -1137,7 +1190,7 @@ namespace Simple.Objects
 			//OneToOneRelationModel oneToOneRelationModel;
 			//RelationPolicyModelBase.Instance.OneToOneRelations.TryGetValue(oneToOneRelationKey, out oneToOneRelationModel);
 
-			IOneToOneRelationModel oneToOneRelationModel = this.GetModel().RelationModel.AsForeignObjectInOneToOneRelations[oneToOneRelationKey];
+			IOneToOneRelationModel? oneToOneRelationModel = this.GetModel().RelationModel.AsForeignObjectInOneToOneRelations[oneToOneRelationKey];
 
 			if (oneToOneRelationModel == null)
 			{
@@ -1150,6 +1203,8 @@ namespace Simple.Objects
 
 			return this.GetOneToOnePrimaryObject(oneToOneRelationModel);
 		}
+
+		protected T? GetOneToOnePrimaryObject<T>(IOneToOneRelationModel oneToOneRelationModel) where T : SimpleObject => this.GetOneToOnePrimaryObject(oneToOneRelationModel) as T;
 
 		protected SimpleObject? GetOneToOnePrimaryObject(IOneToOneRelationModel oneToOneRelationModel)
 		{
@@ -1218,6 +1273,10 @@ namespace Simple.Objects
 			return this.GetOneToOneForeignObject(oneToOneRelationModel);
 		}
 
+
+		protected T? GetOneToOneForeignObject<T>(IOneToOneRelationModel oneToOneRelationModel) where T : SimpleObject => this.GetOneToOneForeignObject(oneToOneRelationModel) as T;
+
+
 		// TODO: foreignObjectCache.FindFirst method need to search throght the idexed values
 
 		protected SimpleObject? GetOneToOneForeignObject(IOneToOneRelationModel oneToOneRelationModel)
@@ -1225,13 +1284,12 @@ namespace Simple.Objects
 			// return this.ObjectRelationCache.GetOneToOneRelationKeyHolderObject<T>(oneToOneRelationModel);
 			//return this.GetOneToOneRelationKeyHolderObject<T>(oneToOneRelationModel);
 
-			SimpleObjectKey valueKey;
+			//SimpleObjectKey valueKey;
 			SimpleObject? value;
 
-			lock (this.lockObject)
-			{
-
-				if (!this.OneToOneForeignObjectKeysByRelationKey.TryGetValue(oneToOneRelationModel.RelationKey, out valueKey))
+			//lock (this.lockObject)
+			//{
+				if (!this.OneToOneForeignSimpleObjectsByRelationKey.TryGetValue(oneToOneRelationModel.RelationKey, out value))
 				{
 					//if (this.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations.ContainsKey(oneToOneRelationModel.RelationKey)) // .ObjectRelationModel.OneToOneRelationKeyHolderObjectDictionary.ContainsKey(oneToOneRelationModel.RelationKey))
 					//{
@@ -1286,8 +1344,6 @@ namespace Simple.Objects
 
 						value = foreignObjectCache?.FindFirst(simpleObject => !simpleObject.DeleteStarted && this.Id.Equals(simpleObject.GetPropertyValue(oneToOneRelationModel.PrimaryObjectIdPropertyModel.PropertyIndex)));
 
-						SimpleObjectKey foreignObjectKey = (value != null) ? new SimpleObjectKey(value.GetModel().TableInfo.TableId, value.Id) : new SimpleObjectKey(0, 0);
-
 						//if (relatedObjects.Count > 0)
 						//{
 						//    value = relatedObjects[0];
@@ -1297,7 +1353,6 @@ namespace Simple.Objects
 						//{
 						//lock (lockObject)
 						//{
-						this.OneToOneForeignObjectKeysByRelationKey.Add(oneToOneRelationModel.RelationKey, foreignObjectKey);
 						//}
 						//}
 						//				}
@@ -1310,22 +1365,38 @@ namespace Simple.Objects
 						//#endif
 						//				}
 					}
-				}
-				else
-				{
-					value = this.Manager.GetObject(valueKey);
-				}
-			}
 
+					//SimpleObjectKey foreignObjectKey = (value != null) ? new SimpleObjectKey(value.GetModel().TableInfo.TableId, value.Id) : new SimpleObjectKey(0, 0);
+
+					this.SetOneToOneForeignObjectInternal(oneToOneRelationModel.RelationKey, value);
+				}
+				//else
+				//{
+				//	value = this.Manager.GetObject(valueKey);
+				//}
+			//}
 			return value;
 		}
 
-		public bool SetOneToOnePrimaryObject(SimpleObject primaryObject, int oneToOneRelationKey, object requester)
+		public bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, int oneToOneRelationKey)
 		{
-			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationKey, this.GetChangeContainer(), requester);
+			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationKey, this.Requester);
 		}
 
-		public bool SetOneToOnePrimaryObject(SimpleObject primaryObject, int oneToOneRelationKey, ChangeContainer changeContainer, object requester)
+		public bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, int oneToOneRelationKey, object? requester)
+		{
+			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationKey, this.ChangeContainer, this.Context, requester);
+		}
+
+		//internal void RemoveOneToOneRelationPrimaryObjectFromCache(SimpleObject? primaryObject, int oneToOneRelationKey)
+		//{
+		//	if (primaryObject != null)
+		//		primaryObject.RemoveOneToOneRelationForeignObjectFromCache(oneToOneRelationKey);
+
+		//	this.OneToOneForeignObjectKeysByRelationKey.Remove(oneToOneRelationKey);
+		//}
+
+		public bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, int oneToOneRelationKey, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//OneToOneRelationModel oneToOneRelationModel;
 			//RelationPolicyModelBase.Instance.OneToOneRelations.TryGetValue(oneToOneRelationKey, out oneToOneRelationModel);
@@ -1341,7 +1412,7 @@ namespace Simple.Objects
 #endif
 			}
 
-			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, changeContainer, requester);
+			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, changeContainer, context, requester);
 		}
 
 		protected bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, IOneToOneRelationModel oneToOneRelationModel)
@@ -1351,10 +1422,10 @@ namespace Simple.Objects
 
 		protected bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, IOneToOneRelationModel oneToOneRelationModel, object? requester)
 		{
-			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, this.GetChangeContainer(), requester);
+			return this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, this.ChangeContainer, this.Context, requester);
 		}
 
-		protected bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, IOneToOneRelationModel oneToOneRelationModel, ChangeContainer? changeContainer, object? requester)
+		protected bool SetOneToOnePrimaryObject(SimpleObject? primaryObject, IOneToOneRelationModel oneToOneRelationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//this.ObjectRelationCache.SetOneToOneRelationForeignObject(requester, oneToOneRelationModel, foreignObject);
 		
@@ -1366,7 +1437,7 @@ namespace Simple.Objects
 			if (primaryObject == oldPrimaryObject)
 				return true;
 
-			this.OnBeforeRelationPrimaryObjectSet(primaryObject, oldPrimaryObject, oneToOneRelationModel, ref cancel, changeContainer, requester);
+			this.OnBeforeRelationPrimaryObjectSet(primaryObject, oldPrimaryObject, oneToOneRelationModel, ref cancel, changeContainer, context, requester);
 
 			if (cancel)
 				return false;
@@ -1378,7 +1449,7 @@ namespace Simple.Objects
 			if (oneToOneRelationModel.PrimaryTableIdPropertyModel != null)
 			{
 				int primaryObjectTableId = (primaryObject != null) ? primaryObject.GetModel().TableInfo.TableId : 0; // oneToOneRelationModel.ForeignTableIdPropertyModel.PropertyType.GetDefaultValue(); // oneToOneRelationModel.ForeignObjectTableId;
-				this.SetPropertyValueInternal(oneToOneRelationModel.PrimaryTableIdPropertyModel, primaryObjectTableId, changeContainer, requester);
+				this.SetPropertyValueInternal(oneToOneRelationModel.PrimaryTableIdPropertyModel, primaryObjectTableId, changeContainer, context, requester);
 				// this.SetPropertyValueInternal(oneToOneRelationModel.ForeignTableIdPropertyModel, relatedObjectKey.GetTableId(), true, false, this);
 			}
 
@@ -1389,7 +1460,7 @@ namespace Simple.Objects
 
 			// Set related object relation value change and add value to the local hash if required or remove from hash if is null.
 			if (primaryObject != null)
-				primaryObject.SetOneToOneRelationForeignObjectIfInHash(oneToOneRelationModel.RelationKey, this);
+				primaryObject.SetOneToOneForeignObjectInternal(oneToOneRelationModel.RelationKey, this);
 				////this.OneToOnePrimaryObjectsByRelationKey[oneToOneRelationModel.RelationKey] = primaryObject;
     ////           }
     ////           else
@@ -1399,22 +1470,22 @@ namespace Simple.Objects
 
             // Reset old related object relation value
             if (oldPrimaryObject != null)
-                oldPrimaryObject.SetOneToOneRelationForeignObjectIfInHash(oneToOneRelationModel.RelationKey, null);
+                oldPrimaryObject.SetOneToOneForeignObjectInternal(oneToOneRelationModel.RelationKey, null);
 
             // Remove oldForeignSimpleObject relation cache
             if (oldPrimaryObjectRelatedForeignObject != null)
             {
-                oldPrimaryObjectRelatedForeignObject.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, requester);
+                oldPrimaryObjectRelatedForeignObject.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, context, requester);
 					
 				//if (changeContainer != null)
 				//	changeContainer.Set(oldForeignObjectRelatedKeyHolder, TransactionRequestAction.Save, requester);
 				////oldForeignSimpleObjectRelatedKeyHolder.Save();
             }
 
-			this.OnRelationForeignObjectSet(primaryObject, oldPrimaryObject, oneToOneRelationModel, changeContainer, requester);
+			this.OnRelationForeignObjectSet(primaryObject, oldPrimaryObject, oneToOneRelationModel, changeContainer, context, requester);
 
 			if (!this.isPropertyInitialization)
-				this.Manager.RelationForeignObjectIsSet(this, primaryObject, oldPrimaryObject, oneToOneRelationModel, changeContainer, requester);
+				this.Manager.RelationForeignObjectIsSet(this, primaryObject, oldPrimaryObject, oneToOneRelationModel, changeContainer, context, requester);
             //}
             //else
             //{
@@ -1424,7 +1495,12 @@ namespace Simple.Objects
 			return true;
 		}
 
-		public bool SetOneToOneForeignObject(SimpleObject foreignObject, int oneToOneRelationKey, object requester)
+		public bool SetOneToOneForeignObject(SimpleObject? foreignObject, int oneToOneRelationKey)
+		{
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationKey, this.Requester);
+		}
+
+		public bool SetOneToOneForeignObject(SimpleObject? foreignObject, int oneToOneRelationKey, object? requester)
 		{
 			//OneToOneRelationModel oneToOneRelationModel;
 			//RelationPolicyModelBase.Instance.OneToOneRelations.TryGetValue(oneToOneRelationKey, out oneToOneRelationModel);
@@ -1440,31 +1516,41 @@ namespace Simple.Objects
 #endif
 			}
 
-			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.GetChangeContainer(), requester);
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.Context, requester);
 		}
 
-		protected bool SetOneToOneForeignObject(SimpleObject foreignObject, IOneToOneRelationModel oneToOneRelationModel)
+		protected bool SetOneToOneForeignObject(SimpleObject? foreignObject, IOneToOneRelationModel oneToOneRelationModel)
 		{
-			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, requester: this.Requester);
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.Requester);
 		}
 
-		protected bool SetOneToOneForeignObject(SimpleObject foreignObject, IOneToOneRelationModel oneToOneRelationModel, object requester)
+		protected bool SetOneToOneForeignObject(SimpleObject? foreignObject, IOneToOneRelationModel oneToOneRelationModel, object? requestert)
 		{
-			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.GetChangeContainer(), requester);
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.Context, requester);
 		}
 
-		protected bool SetOneToOneForeignObject(SimpleObject foreignObject, IOneToOneRelationModel oneToOneRelationModel, ChangeContainer changeContainer, object requester)
+		protected bool SetOneToOneForeignObject(SimpleObject? foreignObject, IOneToOneRelationModel oneToOneRelationModel, ObjectActionContext context)
+		{
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, context, this.Requester);
+		}
+
+		protected bool SetOneToOneForeignObject(SimpleObject? foreignObject, IOneToOneRelationModel oneToOneRelationModel, ObjectActionContext context, object? requester)
+		{
+			return this.SetOneToOneForeignObject(foreignObject, oneToOneRelationModel, this.ChangeContainer, context, requester);
+		}
+
+		protected bool SetOneToOneForeignObject(SimpleObject? foreignObject, IOneToOneRelationModel oneToOneRelationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//this.ObjectRelationCache.SetOneToOneRelationKeyHolderObject(requester, oneToOneRelationModel, keyHolderObject);
 			bool succeed = false;
-			SimpleObject oldForeignObject = this.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey);
+			SimpleObject? oldForeignObject = this.GetOneToOneForeignObject(oneToOneRelationModel.RelationKey);
 
 			if (foreignObject == oldForeignObject)
 				return false;
 
 			if (oldForeignObject != null)
 			{
-				succeed = oldForeignObject.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, requester);
+				succeed = oldForeignObject.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, context, requester);
 
 				//if (succeed && changeContainer != null)
 				//	changeContainer.Set(oldForeignKeyHolderSimpleObject, TransactionRequestAction.Save, requester);
@@ -1475,10 +1561,10 @@ namespace Simple.Objects
 			//if (succeed && keyHolderObject != null)
 			if (foreignObject != null)
 			{
-				succeed = foreignObject.SetOneToOnePrimaryObject(primaryObject: this, oneToOneRelationModel, changeContainer, requester);
+				succeed = foreignObject.SetOneToOnePrimaryObject(primaryObject: this, oneToOneRelationModel, changeContainer, context, requester);
 
 				if (!succeed && oldForeignObject != null)
-					oldForeignObject.SetOneToOnePrimaryObject(primaryObject: this, oneToOneRelationModel, changeContainer, requester);
+					oldForeignObject.SetOneToOnePrimaryObject(primaryObject: this, oneToOneRelationModel, changeContainer, context, requester);
 			}
 
 			return succeed;
@@ -1512,7 +1598,7 @@ namespace Simple.Objects
 		{
 			//return this.ObjectRelationCache.GetOneToManyRelationForeignObject<T>(oneToManyRelationModel);
 
-            SimpleObject? value;
+            SimpleObject? value = null;
 
             //if (!this.OneToManyPrimaryObjectsByRelationKey.TryGetValue(oneToManyRelationModel.RelationKey, out value))
             //{
@@ -1534,10 +1620,12 @@ namespace Simple.Objects
 
                     //Guid? foreignObjectKey = this.GetPropertyValue<Guid?>(oneToManyRelationModel.ForeignKeyPropertyModel.Index);
 					int primaryTableId = (oneToManyRelationModel.PrimaryTableIdPropertyModel != null) ? this.GetPropertyValue<int>(oneToManyRelationModel.PrimaryTableIdPropertyModel.PropertyIndex) : oneToManyRelationModel.PrimaryObjectTableId;
-					long primaryObjectId = this.GetPropertyValue<long>(oneToManyRelationModel.PrimaryObjectIdPropertyModel);
+					long? primaryObjectId = this.GetPropertyValue<long?>(oneToManyRelationModel.PrimaryObjectIdPropertyModel);
 
 					//value = this.ObjectManager.GetObject(foreignObjectKey);
-					value = this.Manager.GetObject(primaryTableId, primaryObjectId);
+					
+					if (primaryObjectId != null)		
+						value = this.Manager.GetObject(primaryTableId, (long)primaryObjectId);
 
                     //if (value != null)
                     //{
@@ -1557,29 +1645,38 @@ namespace Simple.Objects
             return value;
 		}
 
-		protected T? GetOneToManyPrimaryObject<T>(IOneToManyRelationModel oneToManyRelationModel) where T : SimpleObject
+		protected T? GetOneToManyPrimaryObject<T>(IOneToManyRelationModel oneToManyRelationModel) where T : SimpleObject //, IUser
 		{
 			return (T?)this.GetOneToManyPrimaryObject(oneToManyRelationModel);
 		}
 
 
-		public bool SetOneToManyPrimaryObject(SimpleObject primaryObject, int oneToManyRelationKey)
+		public bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, int oneToManyRelationKey)
 		{
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, requester: this.Requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, this.Requester);
 		}
 
-		public bool SetOneToManyPrimaryObject(SimpleObject primaryObject, int oneToManyRelationKey, object? requester)
+		public bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, int oneToManyRelationKey, object? requester)
 		{
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, this.GetChangeContainer(), requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, this.Context, requester);
 		}
 
-		public bool SetOneToManyPrimaryObject(SimpleObject primaryObject, int oneToManyRelationKey, ChangeContainer changeContainer, object? requester)
+		public bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, int oneToManyRelationKey, ObjectActionContext context)
+		{
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, context, requester: this.Requester);
+		}
+
+		public bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, int oneToManyRelationKey, ObjectActionContext context, object? requester)
+		{
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationKey, this.ChangeContainer, context, requester);
+		}
+
+		public bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, int oneToManyRelationKey, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//OneToManyRelationModel oneToManyRelationModel;
 			//RelationPolicyModelBase.Instance.OneToManyRelations.TryGetValue(oneToManyRelationKey, out oneToManyRelationModel);
 
 			IOneToManyRelationModel oneToManyRelationModel = this.GetModel().RelationModel.AsForeignObjectInOneToManyRelations[oneToManyRelationKey];
-
 
 			if (oneToManyRelationModel == null)
 			{
@@ -1590,48 +1687,71 @@ namespace Simple.Objects
 #endif
 			}
 
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, changeContainer, requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, changeContainer, context, requester);
 		}
 
 		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel)
 		{
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, requester: this.Requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, this.Requester);
 		}
 
 		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, object? requester)
 		{
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, this.GetChangeContainer(), requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, this.Context, requester);
 		}
 
-		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, ChangeContainer? changeContainer, object? requester)
+		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, ObjectActionContext context)
 		{
-			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, addOrRemoveInChangedPropertyNames: true, firePropertyValueChangeEvent: true, raiseForeignObjectSetEvent: true, changeContainer, requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, context, this.Requester);
 		}
 
+		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, ObjectActionContext context, object? requester)
+		{
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, this.ChangeContainer, context, requester);
+		}
+
+		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			//return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, addOrRemoveInChangedPropertyNames: true, firePropertyValueChangeEvent: true, raiseForeignObjectSetEvent: true, changeContainer, context, requester);
+			return this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, raiseForeignObjectSetEvent: true, changeContainer, context, requester);
+		}
+
+
+		/// <summary>
+		/// Gets the Null Collection with elements whan primary object is null when foreign key allows to be null (0). For e.g. whent Parent GraphElement is null, this is null collection is root GraphElement collection where Parent is null (ParentId = 0)
+		/// </summary>
+		/// <param name="relationKey">Specify relation by relation key</param>
+		/// <returns>Collection of null SimpleObjects</returns>
 		protected virtual SimpleObjectCollection? GetOneToManyForeignNullCollection(int relationKey) => null;
 
-		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, bool addOrRemoveInChangedPropertyNames, bool firePropertyValueChangeEvent, bool raiseForeignObjectSetEvent, ChangeContainer? changeContainer, object? requester)
+		//protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, bool addOrRemoveInChangedPropertyNames, bool firePropertyValueChangeEvent, bool raiseForeignObjectSetEvent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		protected bool SetOneToManyPrimaryObject(SimpleObject? primaryObject, IOneToManyRelationModel oneToManyRelationModel, bool raiseForeignObjectSetEvent, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//if (this.GetModel().RelationModel.AsForeignObjectInOneToManyRelations.ContainsKey(oneToManyRelationModel.RelationKey)) //  ObjectRelationModel.OneToManyRelationForeignKeyObjectDictionary.ContainsKey(oneToManyRelationModel.RelationKey))
 			//{
 			bool cancel = false;
 			SimpleObject? oldPrimaryObject = this.GetOneToManyPrimaryObject(oneToManyRelationModel);  //OneToManyForeignObjectsByRelationModelKey[oneToManyRelationModel.Key] as SimpleObject;
 																									 //bool isSortableCollection = true; // (this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey && this.GetModel().IsSortable);
+			//
+			// Is this needed any more ???????????????????????????
+			//
 			if (primaryObject == oldPrimaryObject)
 			{
 				// if object is new, check if needed to add it to the null collection 
 				if (primaryObject == null && !this.DeleteStarted)
 				{
-					SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
+					this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Add(this, changeContainer, requester);
 
-					if (oneToManyForeignNullCollection != null && !oneToManyForeignNullCollection.Contains(this))
-						oneToManyForeignNullCollection.Add(this);
+					//SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
+
+					//if (oneToManyForeignNullCollection != null && !oneToManyForeignNullCollection.Contains(this))
+					//	oneToManyForeignNullCollection.Add(this, changeContainer, requester);
 				}
 
 				return true;
 			}
 
-				//if (!this.IsNew && foreignObject == oldForeignObject)
+			//if (!this.IsNew && foreignObject == oldForeignObject)
 				//{
 				//	if (this.deleteStarted && foreignObject == null) // Remove from Null collection on delete
 				//	{
@@ -1644,42 +1764,43 @@ namespace Simple.Objects
 				//	return false;
 				//}
 
-				
-
-			this.OnBeforeRelationPrimaryObjectSet(primaryObject, oldPrimaryObject, oneToManyRelationModel, ref cancel, changeContainer, requester);
+			this.OnBeforeRelationPrimaryObjectSet(primaryObject, oldPrimaryObject, oneToManyRelationModel, ref cancel, changeContainer, context, requester);
 
 			if (cancel)
 				return false;
 
-
-
-
-
 			// Remove from old related object collection
 			if (oldPrimaryObject != null)
 			{
-				oldPrimaryObject.RemoveFromOneToManyForeignCollectionIfInCache(oneToManyRelationModel.RelationKey, this);
-
-				if (this is SortableSimpleObject sortableSimpleObject)
+				// First get the sorting collection and removr from if, otherwise if oldPrimaryObject.RemoveFromOneToManyForeignCollectionIfInCache(oneToManyRelationModel.RelationKey, this);
+				// is called first, if collection is not cached from foreign object, sortableSimpleObject.GetSortingCollectionInternal method will collect this object that will be removed and becom null.
+				//
+				if (this is SortableSimpleObject sortableSimpleObject && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey) 
 				{
-					SimpleObjectCollection? sortableCollection = sortableSimpleObject.GetSortingCollectionInternal();
+					sortableSimpleObject.GetSortingCollectionInternal()?.Remove(this, changeContainer, requester);
 
-					if (sortableCollection != null && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey && 
-													  sortableCollection.Contains(sortableSimpleObject) && !this.DeleteStarted)
-						sortableCollection.Remove(this);
+					//SimpleObjectCollection ? sortableCollection = sortableSimpleObject.GetSortingCollectionInternal();
+
+					//if (sortableCollection != null && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey && 
+					//								  sortableCollection.Contains(sortableSimpleObject) && !this.DeleteStarted)
+					//	sortableCollection.Remove(this, changeContainer, requester);
 				}
+
+				oldPrimaryObject.RemoveOneToManyForeignCollectionIfInCache(oneToManyRelationModel.RelationKey, this, changeContainer, requester);
 			}
 			else //if (!this.DeleteStarted) // && !this.IsNew) // RemoveAllRelatedObjectsFromAllRelatedObjectCaches handling null collection removal
 			{
-				SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
+				this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Remove(this, changeContainer, requester);
 
-				if (oneToManyForeignNullCollection != null)
-				{
-					int index = oneToManyForeignNullCollection.IndexOf(this.GetModel().TableInfo.TableId, this.Id);
+				//SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
+
+				//if (oneToManyForeignNullCollection != null)
+				//{
+				//	int index = oneToManyForeignNullCollection.IndexOf(this.GetModel().TableInfo.TableId, this.Id);
 					
-					if (index >= 0)
-						oneToManyForeignNullCollection.RemoveAt(index);
-				}
+				//	if (index >= 0)
+				//		oneToManyForeignNullCollection.RemoveAt(index, changeContainer, requester);
+				//}
 			}
 
 			// Set Owner's property value(s) (foreign key)
@@ -1689,38 +1810,39 @@ namespace Simple.Objects
 			if (oneToManyRelationModel.PrimaryTableIdPropertyModel != null) // No PropertyValueChange event on relation TableId property change, only on relation Guid
 			{
 				int foreignTableId = (primaryObject != null) ? primaryObject.GetModel().TableInfo.TableId : 0; // oneToManyRelationModel.ForeignTableIdPropertyModel.PropertyType.GetDefaultValue(); // oneToManyRelationModel.ForeignObjectTableId;
-				this.SetPropertyValueInternal(oneToManyRelationModel.PrimaryTableIdPropertyModel, foreignTableId, changeContainer, requester);
+				this.SetPropertyValueInternal(oneToManyRelationModel.PrimaryTableIdPropertyModel, foreignTableId, changeContainer, context, requester);
 			}
 
 			//this.OneToManyPrimaryObjectsByRelationKey[oneToManyRelationModel.RelationKey] = primaryObject;
-			this.SetPropertyValueInternal(oneToManyRelationModel.PrimaryObjectIdPropertyModel, foreignObjectId, changeContainer, requester);
+			this.SetPropertyValueInternal(oneToManyRelationModel.PrimaryObjectIdPropertyModel, foreignObjectId, changeContainer, context, requester);
 				
 			// Add to related object collection and to the local hash if required or remove from hash if is null.
 			if (primaryObject != null)
 			{
-				primaryObject.AddToOneToManyForeignCollectionIfInCache(oneToManyRelationModel.RelationKey, this);
+				primaryObject.AddToOneToManyForeignCollectionIfInCache(oneToManyRelationModel.RelationKey, this, changeContainer, requester);
 
-				if (this is SortableSimpleObject sortableSimpleObject)
+				if (this is SortableSimpleObject sortableSimpleObject && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey)
 				{
-					SimpleObjectCollection? sortablegCollection = sortableSimpleObject.GetSortingCollectionInternal();
+					sortableSimpleObject.GetSortingCollectionInternal()?.Add(this, changeContainer, requester);
 
-					if (sortablegCollection != null && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey && 
-													   !sortablegCollection.Contains(sortableSimpleObject) && !this.DeleteStarted) // If delete in progress OnBeforeDeleting at SortableSimpleObject will set ordering in a collection
-						sortablegCollection.Add(this);
+					//if (sortablegCollection != null && this.GetModel().SortableOneToManyRelationKey == oneToManyRelationModel.RelationKey && 
+					//								   !sortablegCollection.Contains(sortableSimpleObject) && !this.DeleteStarted) // If delete in progress OnBeforeDeleting at SortableSimpleObject will set ordering in a collection
+					//	sortablegCollection.Add(this, changeContainer, requester);
 				}
-
 
 				//if (isSortableCollection)
 				//	(this.Owner as SortableSimpleObject).SetOrderingAfterInsertingIntoCollection(requester, (this.Owner as SortableSimpleObject).GetSortingCollection());
 			}
 			else if (!this.DeleteStarted) // When DeleteStarted the object is removing from any collection
 			{
-				SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
+				this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Add(this, changeContainer, requester);
 
-				if (oneToManyForeignNullCollection != null && !oneToManyForeignNullCollection.Contains(this))
-					oneToManyForeignNullCollection.Add(this);
+				//SimpleObjectCollection? oneToManyForeignNullCollection = this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey);
 
-				//this.OneToManyPrimaryObjectsByRelationKey.Remove(oneToManyRelationModel.RelationKey);
+				//if (oneToManyForeignNullCollection != null && !oneToManyForeignNullCollection.Contains(this))
+				//	oneToManyForeignNullCollection.Add(this, changeContainer, requester);
+
+				////this.OneToManyPrimaryObjectsByRelationKey.Remove(oneToManyRelationModel.RelationKey);
 			}
 
 			//if (isSortableCollection && !this.DeleteStarted) // && foreignObject != null // If delete in progress OnBeforeDeleting at SortableSimpleObject will set ordering in a collection
@@ -1734,12 +1856,10 @@ namespace Simple.Objects
 			//	}
 			//}
 
-
-
-			this.OnRelationForeignObjectSet(primaryObject, oldPrimaryObject, oneToManyRelationModel, changeContainer, requester);
+			this.OnRelationForeignObjectSet(primaryObject, oldPrimaryObject, oneToManyRelationModel, changeContainer, context, requester);
 
 			if (raiseForeignObjectSetEvent && !this.isPropertyInitialization)
-				this.Manager.RelationForeignObjectIsSet(this, primaryObject, oldPrimaryObject, oneToManyRelationModel, changeContainer, requester);
+				this.Manager.RelationForeignObjectIsSet(this, primaryObject, oldPrimaryObject, oneToManyRelationModel, changeContainer, context, requester);
 			//}
 			//else
 			//{
@@ -1767,8 +1887,8 @@ namespace Simple.Objects
 			SimpleObjectCollection? value;
 			SimpleObjectCollection<T>? result = null;
 
-			lock (this.lockObject)
-			{
+			//lock (this.lockObject)
+			//{
 				if (this.OneToManyForeignCollectionsByRelationKey.TryGetValue(oneToManyRelationModel.RelationKey, out value))
 				{
 					result = value as SimpleObjectCollection<T>;
@@ -1833,13 +1953,23 @@ namespace Simple.Objects
 
 				result = new SimpleObjectCollection<T>(this.Manager, oneToManyRelationModel.ForeignObjectTableId, objectIds);
 
+
 				if (sortCollection)
-					result.Sort(setPrevious: true, saveObjects: false);
+				{
+					bool requireSave = this.Manager.WorkingMode != ObjectManagerWorkingMode.Client && this.ChangeContainer != null && !this.ChangeContainer.RequireCommit && this.ChangeContainer.RequestCount == 0;
+					
+					result.Sort(setPrevious: true, this.ChangeContainer, this.Requester);
+					
+					
+				if (requireSave && this.ChangeContainer!.RequireCommit)
+						this.Manager.CommitChanges(this.ChangeContainer, this.Context, this.Requester);
+				}
 
 				this.OneToManyForeignCollectionsByRelationKey.Add(oneToManyRelationModel.RelationKey, result);
 
+
 				return result;
-			}
+			//}
 		}
 
 		//public SimpleObjectCollection<T> GetOneToManyRelationKeyHolderObjectCollection<T>(IOneToManyRelationModel oneToManyRelationModel) where T : SimpleObject
@@ -2052,18 +2182,23 @@ namespace Simple.Objects
 
 		protected SimpleObjectCollection<T> GetGroupMemberCollection<T>(IManyToManyRelationModel manyToManyRelationModel) where T : SimpleObject
 		{
-			SimpleObjectCollection value;
+			SimpleObjectCollection? value;
 			SimpleObjectCollection<T> result;
 
-			lock (this.lockObject)
-			{
+			//lock (this.lockObject)
+			//{
 				if (this.GroupMembershipCollectionsByRelationKey.TryGetValue(manyToManyRelationModel.RelationKey, out value))
 				{
 					result = (value as SimpleObjectCollection<T>)!;
-#if DEBUG
+//#if DEBUG
 					if (result == null)
-						throw new ArgumentException(String.Format("GetGroupMembershipCollection error: The result object collection is not castable from {0} to {1} type (RelationKey={2}.", value.GetElementType().Name, typeof(T).Name, manyToManyRelationModel.RelationKey));
-#endif
+					{
+						result = value.AsCustom<T>(); // e.g. NetworkGroup has NetworkObject as element types
+
+						if (result == null)
+							throw new ArgumentException(String.Format("GetGroupMembershipCollection error: The result object collection is not castable from {0} to {1} type (RelationKey={2}.", value.GetElementType().Name, typeof(T).Name, manyToManyRelationModel.RelationKey));
+					}
+//#endif
 				}
 				else
 				{
@@ -2079,15 +2214,29 @@ namespace Simple.Objects
 						IList<long> groupMembershipIds = this.Manager.RemoteDatastore!.GetGroupMembershipCollection(this, manyToManyRelationModel.RelationKey).GetAwaiter().GetResult();
 						
 						groupMembershipElements = new SimpleObjectCollection<GroupMembership>(this.Manager, GroupMembershipModel.TableId, groupMembershipIds);
-
 					}
 					else
 					{
 						ServerObjectCache objectCache = (this.Manager.GetObjectCache(GroupMembershipModel.TableId) as ServerObjectCache)!;
-						
-						groupMembershipElements = objectCache.Select<GroupMembership>(gm =>   gm.RelationKey == manyToManyRelationModel.RelationKey &&
-																						    ((gm.Object1TableId == this.GetModel().TableInfo.TableId && gm.Object1Id == this.Id) ||
-																							 (gm.Object2TableId == this.GetModel().TableInfo.TableId && gm.Object2Id == this.Id)));
+
+						//if (this.GetType() == manyToManyRelationModel.FirstObjectType)
+						//	groupMembershipElements = objectCache.Select<GroupMembership>(gm => gm.RelationKey == manyToManyRelationModel.RelationKey && gm.Object1TableId == this.GetModel().TableInfo.TableId && gm.Object1Id == this.Id);
+						//else if (this.GetType() == manyToManyRelationModel.SecondObjectType)
+						//	groupMembershipElements = objectCache.Select<GroupMembership>(gm => gm.RelationKey == manyToManyRelationModel.RelationKey && gm.Object2TableId == this.GetModel().TableInfo.TableId && gm.Object2Id == this.Id);
+						//else
+							groupMembershipElements = objectCache.Select<GroupMembership>(gm =>   gm.RelationKey == manyToManyRelationModel.RelationKey &&
+																								((gm.Object1TableId == this.GetModel().TableInfo.TableId && gm.Object1Id == this.Id) ||
+																								 (gm.Object2TableId == this.GetModel().TableInfo.TableId && gm.Object2Id == this.Id)));
+
+						//// Check if they sre the same
+						//bool isTheSame = true;
+
+						//if (groupMembershipElements.Count != groupMembershipElements2.Count)
+						//	isTheSame = false;
+						//else
+						//	foreach (var item in groupMembershipElements)
+						//		if (!groupMembershipElements2.GetObjectIds().Contains(item.id))
+						//			throw new Exception("GroupMembership are not the same!");
 					}
 
 					List<int> tableIds = new List<int>(groupMembershipElements.Count); // In case that the groupMembershipElements are with different tableId's
@@ -2112,7 +2261,7 @@ namespace Simple.Objects
 
 					this.GroupMembershipCollectionsByRelationKey.Add(manyToManyRelationModel.RelationKey, result);
 				}
-			}
+			//}
 
 			return result;
 		}
@@ -2255,15 +2404,15 @@ namespace Simple.Objects
 			//return this.Manager.GetObject(primaryTableId, primaryObjectId);
 		}
 
-		public SimpleObject GetRelationOldPrimaryObject(int relationKey)
+		public SimpleObject? GetRelationOldPrimaryObject(int relationKey)
 		{
 			IRelationModel relationModel = this.Manager.GetRelationModel(relationKey)!;
-			SimpleObject result = this.GetRelationOldPrimaryObject((relationModel as IOneToOneOrManyRelationModel)!);
+			SimpleObject? result = this.GetRelationOldPrimaryObject((relationModel as IOneToOneOrManyRelationModel)!);
 
 			return result;
 		}
 
-		private SimpleObject GetRelationOldPrimaryObject(IOneToOneOrManyRelationModel relationModel)
+		private SimpleObject? GetRelationOldPrimaryObject(IOneToOneOrManyRelationModel relationModel)
 		{
 			int primaryTableId = (relationModel.PrimaryTableIdPropertyModel != null) ? (int)this.GetOldPropertyValue(relationModel.PrimaryTableIdPropertyModel.PropertyIndex)! : relationModel.PrimaryObjectTableId;
 			long primaryObjectId = (long)this.GetOldPropertyValue(relationModel.PrimaryObjectIdPropertyModel.PropertyIndex)!;
@@ -2271,12 +2420,6 @@ namespace Simple.Objects
 			return this.Manager.GetObject(primaryTableId, primaryObjectId)!;
 		}
 
-		private void SetRelationPrimaryObject(int primaryTableId, long primaryObjectId, int relationKey, ChangeContainer changeContainer, object? requester)
-		{
-			SimpleObject primaryObject = this.Manager.GetObject(primaryTableId, primaryObjectId)!;
-
-			this.SetRelationPrimaryObject(primaryObject, relationKey, changeContainer, requester);
-		}
 
 		//private void SetRelationPrimaryObject(int primaryTableId, long primaryObjectId, IOneToOneOrManyRelationModel relationModel, ChangeContainer changeContainer, object requester)
 		//{
@@ -2285,32 +2428,55 @@ namespace Simple.Objects
 		//	this.SetRelationPrimaryObject(primaryObject, relationModel, changeContainer, requester);
 		//}
 
-		internal void SetRelationPrimaryObject(int primaryTableId, long primaryObjectId, IOneToOneOrManyRelationModel relationModel, ChangeContainer changeContainer, object? requester)
+		public void SetRelationPrimaryObject(SimpleObject? primaryObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			this.SetRelationPrimaryObjectInternal(primaryObject, relationModel, changeContainer, context, requester);
+		}
+
+		internal void SetRelationPrimaryObjectInternal(int primaryTableId, long primaryObjectId, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			SimpleObject primaryObject = this.Manager.GetObject(primaryTableId, primaryObjectId)!;
 
-			this.SetRelationPrimaryObject(primaryObject, relationModel, changeContainer, requester);
+			this.SetRelationPrimaryObjectInternal(primaryObject, relationModel, changeContainer, context, requester);
 		}
 
-		private void SetRelationPrimaryObject(SimpleObject? foreignObject, int relationKey, ChangeContainer? changeContainer, object? requester)
-		{
-			IRelationModel relationModel = this.Manager.GetRelationModel(relationKey)!;
-
-			this.SetRelationPrimaryObject(foreignObject, (relationModel as IOneToOneOrManyRelationModel)!, changeContainer, requester);
-		}
-
-		public void SetRelationPrimaryObject(SimpleObject? primaryObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, object? requester)
+		internal void SetRelationPrimaryObjectInternal(SimpleObject? primaryObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			if (relationModel is IOneToOneRelationModel oneToOneRelationModel)
+				this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, changeContainer, context, requester);
+			else if (relationModel is IOneToManyRelationModel oneToManyRelationModel)
+				this.SetOneToManyPrimaryObject(primaryObject, oneToManyRelationModel, changeContainer, context, requester);
+		}
+
+		internal void RemoveRelationPrimaryObjectFromCache(int primaryObjectTableId, long primaryObjectId, IOneToOneOrManyRelationModel relationModel)
+		{
+			if (relationModel is IOneToOneRelationModel)
 			{
-				this.SetOneToOnePrimaryObject(primaryObject, oneToOneRelationModel, changeContainer, requester);
+				SimpleObject? primaryObject = this.Manager.GetObject(primaryObjectTableId, primaryObjectId);
+
+				if (primaryObject != null)
+					primaryObject.RemoveOneToOneForeignObjectFromCache(relationModel.RelationKey);
 			}
 			else if (relationModel is IOneToManyRelationModel)
 			{
-				this.SetOneToManyPrimaryObject(primaryObject, (relationModel as IOneToManyRelationModel)!, changeContainer, requester);
+				this.RemoveOneToManyForeignCollectionFromCache(relationModel.RelationKey);
 			}
 		}
 
+		public void SetRelationPrimaryObject(int primaryTableId, long primaryObjectId, int relationKey, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			SimpleObject primaryObject = this.Manager.GetObject(primaryTableId, primaryObjectId)!;
+
+			this.SetRelationPrimaryObject(primaryObject, relationKey, changeContainer, context, requester);
+		}
+
+		public void SetRelationPrimaryObject(SimpleObject? foreignObject, int relationKey, ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
+		{
+			IRelationModel relationModel = this.Manager.GetRelationModel(relationKey)!;
+
+			this.SetRelationPrimaryObjectInternal(foreignObject, (relationModel as IOneToOneOrManyRelationModel)!, changeContainer, context, requester);
+		}
+		
 		//public SimpleObject GetRelationForeignObjectByForeignObjectIdPropertyIndex(int foreignTableId, long foreignObjectId, int foreignObjectIdPropertyIndex)
 		//{
 		//	IOneToOneOrManyRelationModel relationModel = this.GetModel().RelationModel.GetForeignRelationModel(foreignObjectIdPropertyIndex, foreignTableId);
@@ -2353,83 +2519,95 @@ namespace Simple.Objects
 		//	//}
 		//}
 
-		internal void SetOneToOneRelationForeignObjectIfInHash(int oneToOneRelationKey, SimpleObject foreignObject)
+		internal void SetOneToOneForeignObjectInternal(int oneToOneRelationKey, SimpleObject? foreignObject)
 		{
-			lock (this.lockObject)
-			{
-				if (foreignObject != null)
-				{
-					SimpleObjectKey key;
-					int tableId = foreignObject.GetModel().TableInfo.TableId;
-					long objectId = foreignObject.Id;
+			this.OneToOneForeignSimpleObjectsByRelationKey[oneToOneRelationKey] = foreignObject;
 
-					if (this.OneToOneForeignObjectKeysByRelationKey.TryGetValue(oneToOneRelationKey, out key))
-					{
-						// now check if key need update?
-						if (key.TableId != tableId || key.ObjectId != objectId)
-							this.OneToOneForeignObjectKeysByRelationKey[oneToOneRelationKey] = new SimpleObjectKey(tableId, objectId);
-					}
-					else
-					{
-						this.OneToOneForeignObjectKeysByRelationKey.Add(oneToOneRelationKey, new SimpleObjectKey(tableId, objectId));
-					}
-				}
-				else if (this.OneToOneForeignObjectKeysByRelationKey.ContainsKey(oneToOneRelationKey))
-				{
-					this.OneToOneForeignObjectKeysByRelationKey.Remove(oneToOneRelationKey);
-				}
-			}
+			////lock (this.lockObject)
+			////{
+			//	if (foreignObject != null)
+			//	{
+			//		SimpleObjectKey key;
+			//		int tableId = foreignObject.GetModel().TableInfo.TableId;
+			//		long objectId = foreignObject.Id;
+
+			//		if (this.OneToOneForeignSimpleObjectsByRelationKey.TryGetValue(oneToOneRelationKey, out key))
+			//		{
+			//			// now check if key need update?
+			//			if (key.TableId != tableId || key.ObjectId != objectId)
+			//				this.OneToOneForeignSimpleObjectsByRelationKey[oneToOneRelationKey] = new SimpleObjectKey(tableId, objectId);
+			//		}
+			//		else
+			//		{
+			//			this.OneToOneForeignSimpleObjectsByRelationKey.Add(oneToOneRelationKey, new SimpleObjectKey(tableId, objectId));
+			//		}
+			//	}
+			//	else if (this.OneToOneForeignSimpleObjectsByRelationKey.ContainsKey(oneToOneRelationKey))
+			//	{
+			//		this.OneToOneForeignSimpleObjectsByRelationKey.Remove(oneToOneRelationKey);
+			//	}
+			////}
 		}
 
-		internal void ChangeOneToOneRelationForeignObjectTempIdIfInCache(int tableId, long oldTempId, long newId)
+		internal void RemoveOneToOneForeignObjectFromCache(int oneToOneRelationKey)
 		{
-			lock (this.lockObject)
-			{
-				if (this.oneToOneForeignObjectKeysByRelationKey != null)
-				{
-					foreach (var item in this.oneToOneForeignObjectKeysByRelationKey)
-					{
-						SimpleObjectKey objectKey = item.Value;
+			this.OneToOneForeignSimpleObjectsByRelationKey.Remove(oneToOneRelationKey);
+		}
 
-						if (objectKey.ObjectId == oldTempId && objectKey.TableId == tableId)
-						{
-							int relationKey = item.Key;
+		//internal void ChangeOneToOneForeignObjectTempIdIfInCache(int tableId, long oldTempId, long newId)
+		//{
+		//	//lock (this.lockObject)
+		//	//{
+		//	//	if (this.oneToOneForeignSimpleObjectsByRelationKey != null)
+		//	//	{
+		//	//		foreach (var item in this.oneToOneForeignSimpleObjectsByRelationKey)
+		//	//		{
+		//	//			SimpleObjectKey objectKey = item.Value;
+
+		//	//			if (objectKey.ObjectId == oldTempId && objectKey.TableId == tableId)
+		//	//			{
+		//	//				int relationKey = item.Key;
 							
-							this.OneToOneForeignObjectKeysByRelationKey[relationKey] = new SimpleObjectKey(tableId, newId);
-						}
-					}
-				}
-			}
-		}
+		//	//				this.OneToOneForeignSimpleObjectsByRelationKey[relationKey] = new SimpleObjectKey(tableId, newId);
+		//	//			}
+		//	//		}
+		//	//	}
+		//	//}
+		//}
 
-		internal void AddToOneToManyForeignCollectionIfInCache(int oneToManyRelationKey, SimpleObject simpleObject)
+		internal void AddToOneToManyForeignCollectionIfInCache(int oneToManyRelationKey, SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
 		{
-			lock (this.lockObject)
-			{
-				SimpleObjectCollection relatedObjectCollection;
+			//lock (this.lockObject)
+			//{
+				SimpleObjectCollection? relatedObjectCollection;
 
 				if (this.OneToManyForeignCollectionsByRelationKey.TryGetValue(oneToManyRelationKey, out relatedObjectCollection))
 					if (!relatedObjectCollection.Contains(simpleObject))
-						relatedObjectCollection.Add(simpleObject);
-			}
+						relatedObjectCollection.Add(simpleObject, changeContainer, requester);
+			//}
 		}
 
-		internal void RemoveFromOneToManyForeignCollectionIfInCache(int oneToManyRelationKey, SimpleObject simpleObject)
+		internal void RemoveOneToManyForeignCollectionIfInCache(int oneToManyRelationKey, SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
 		{
-			lock (this.lockObject)
-			{
-				SimpleObjectCollection relatedObjectCollection;
+			//lock (this.lockObject)
+			//{
+				SimpleObjectCollection? relatedObjectCollection;
 
 				if (this.OneToManyForeignCollectionsByRelationKey.TryGetValue(oneToManyRelationKey, out relatedObjectCollection))
-					relatedObjectCollection.Remove(simpleObject);
-			}
+					relatedObjectCollection.Remove(simpleObject, changeContainer, requester);
+			//}
 		}
 
-		internal void AddGroupMembershipIfInCache(GroupMembership groupMembership)
+		internal void RemoveOneToManyForeignCollectionFromCache(int oneToManyRelationKey)
+		{
+			this.OneToManyForeignCollectionsByRelationKey.Remove(oneToManyRelationKey);
+		}
+
+		internal void AddGroupMembershipIfInCache(GroupMembership groupMembership, ChangeContainer? changeContainer, object? requester)
 		{
 			lock (this.lockObject)
 			{
-				SimpleObjectCollection membershipCollection;
+				SimpleObjectCollection? membershipCollection;
 
 				if (this.GroupMembershipCollectionsByRelationKey.TryGetValue(groupMembership.RelationKey, out membershipCollection))
 				{
@@ -2437,17 +2615,17 @@ namespace Simple.Objects
 					int tableId = (isThisFirst) ? groupMembership.Object2TableId : groupMembership.Object1TableId;
 					long objectId = (isThisFirst) ? groupMembership.Object2Id : groupMembership.Object1Id;
 
-					membershipCollection.Add(tableId, objectId);
-					membershipCollection.AddGroupMembership(groupMembership.Id);
+					membershipCollection.Add(tableId, objectId, changeContainer, requester);
+					membershipCollection.AddGroupMembership(groupMembership.Id, changeContainer, requester);
 				}
 			}
 		}
 
-		internal void RemoveGroupMembershipIfInCache(GroupMembership groupMembership)
+		internal void RemoveGroupMembershipFromCache(GroupMembership groupMembership, ChangeContainer? changeContainer, object? requester)
 		{
 			lock (this.lockObject)
 			{
-				SimpleObjectCollection membershipCollection;
+				SimpleObjectCollection? membershipCollection;
 
 				if (this.GroupMembershipCollectionsByRelationKey.TryGetValue(groupMembership.RelationKey, out membershipCollection))
 				{
@@ -2455,8 +2633,8 @@ namespace Simple.Objects
 					int tableId = (isThisFirst) ? groupMembership.Object2TableId : groupMembership.Object1TableId;
 					long objectId = (isThisFirst) ? groupMembership.Object2Id : groupMembership.Object1Id;
 
-					membershipCollection.Remove(tableId, objectId);
-					membershipCollection.RemoveGroupMembership(groupMembership.Id);
+					membershipCollection.Remove(tableId, objectId, changeContainer, requester);
+					membershipCollection.RemoveGroupMembership(groupMembership.Id, changeContainer, requester);
 				}
 			}
 		}
@@ -2496,7 +2674,7 @@ namespace Simple.Objects
 		//		groupMembershipElement.SaveIfNeeded();
 		//}
 
-		internal void RemoveAllRelatedObjectsFromAllRelatedObjectCaches(ChangeContainer changeContainer, object? requester)
+		internal void RemoveAllRelatedObjectsFromAllRelatedObjectCachesInternal(ChangeContainer? changeContainer, ObjectActionContext context, object? requester)
 		{
 			//foreach (IOneToManyRelationModel oneToManyRelationModel in this.GetModel().RelationModel.AsForeignObjectInOneToManyRelations) //  ObjectRelationModel.OneToManyRelationForeignKeyObjectDictionary)
 			//	this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Remove(this.GetModel().TableInfo.TableId, this.Id);
@@ -2523,16 +2701,16 @@ namespace Simple.Objects
 			//}
 
 			foreach (IOneToOneRelationModel oneToOneRelationModel in this.GetModel().RelationModel.AsForeignObjectInOneToOneRelations) //    ObjectRelationModel.OneToOneRelationKeyHolderObjectDictionary)
-				this.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, requester);
+				this.SetOneToOnePrimaryObject(primaryObject: null, oneToOneRelationModel, changeContainer, context, requester);
 
 			foreach (IOneToOneRelationModel oneToOneRelationModel in this.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations) //    ObjectRelationModel.OneToOneRelationKeyHolderObjectDictionary)
-				this.SetOneToOneForeignObject(foreignObject: null, oneToOneRelationModel, changeContainer, requester);
+				this.SetOneToOneForeignObject(foreignObject: null, oneToOneRelationModel, changeContainer, context, requester);
 
 			//// Consider if this need to do since cascade delete is checked in SimpleObjectManager.GetRelatedObjectsForDelete method
 			//foreach (IOneToOneRelationModel oneToOneRelationModel in this.GetModel().RelationModel.AsPrimaryObjectInOneToOneRelations) // this.ObjectRelationModel.OneToOneRelationForeignKeyObjectDictionary)
 			//	this.SetOneToOneForeignObject(foreignObject: null, oneToOneRelationModel, changeContainer, requester);
 
-			this.OneToOneForeignObjectKeysByRelationKey.Clear();
+			this.OneToOneForeignSimpleObjectsByRelationKey.Clear();
 			//this.OneToOnePrimaryObjectsByRelationKey.Clear();
 
 
@@ -2615,8 +2793,9 @@ namespace Simple.Objects
 
 			foreach (IOneToManyRelationModel oneToManyRelationModel in this.GetModel().RelationModel.AsForeignObjectInOneToManyRelations)
 			{ //  ObjectRelationModel.OneToManyRelationForeignKeyObjectDictionary)
-				this.SetOneToManyPrimaryObject(null, oneToManyRelationModel, addOrRemoveInChangedPropertyNames: false, firePropertyValueChangeEvent: false, raiseForeignObjectSetEvent: true, changeContainer, requester);
-				this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Remove(this);
+				//this.SetOneToManyPrimaryObject(null, oneToManyRelationModel, addOrRemoveInChangedPropertyNames: false, firePropertyValueChangeEvent: false, raiseForeignObjectSetEvent: true, changeContainer, context, requester);
+				this.SetOneToManyPrimaryObject(null, oneToManyRelationModel, raiseForeignObjectSetEvent: true, changeContainer, context, requester);
+				this.GetOneToManyForeignNullCollection(oneToManyRelationModel.RelationKey)?.Remove(this, changeContainer, requester);
 			}
 
 			this.OneToManyForeignCollectionsByRelationKey.Clear();
@@ -2640,8 +2819,9 @@ namespace Simple.Objects
 			//}
 
 			foreach (var item in this.GetModel().RelationModel.AsObjectInGroupMembership)
-				foreach (var groupMembership in this.GetGroupMemberCollection(item.RelationKey).GetGroupMembershipCollection())
-						groupMembership.RequestDelete();
+				if (this.GetGroupMemberCollection(item.RelationKey)?.GetGroupMembershipCollection() is SimpleObjectCollection<GroupMembership> groupMembershipCollection)
+					foreach (var groupMembership in groupMembershipCollection)
+						groupMembership.RequestDelete(changeContainer, context, requester);
 
 
 
@@ -2659,19 +2839,19 @@ namespace Simple.Objects
 			//this.ManyToManyObjectCollectionsByRelationKey.Clear();
 		}
 
-#endregion |   Internal Object Relation Methods   |
+		#endregion |   Internal Object Relation Methods   |
 
 		#region |   Protected Internal Methods   |
 
-		protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object value, ChangeContainer? changeContainer, object? requester)
-		{
-			this.SetPropertyValueinternal(propertyModel, value, propertyModel.AddOrRemoveInChangedProperties, propertyModel.FirePropertyValueChangeEvent, changeContainer, requester);
-		}
+		//protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object? value, ChangeContainer? changeContainer, object? requester = null)
+		//{
+		//	this.SetPropertyValuePrivate(propertyModel, value, changeContainer, requester);
+		//}
 
-		protected internal void SetPropertyValueinternal(IPropertyModel propertyModel, object value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, ChangeContainer? changeContainer, object? requester)
-		{
-			this.SetPropertyValueInternal(propertyModel, value, addOrRemoveInChangedProperties, firePropertyValueChangeEvent, enforceAccessModifier: false, changeContainer, requester);
-		}
+		//protected internal void SetPropertyValueInternal(IPropertyModel propertyModel, object? value, bool addOrRemoveInChangedProperties, bool firePropertyValueChangeEvent, ChangeContainer? changeContainer, object? requester)
+		//{
+		//	this.SetPropertyValuePrivate(propertyModel, value, addOrRemoveInChangedProperties, firePropertyValueChangeEvent, enforceAccessModifier: false, trimBeforeStringComparison: true, changeContainer, requester);
+		//}
 
 
 
@@ -2831,9 +3011,9 @@ namespace Simple.Objects
 
 		#region |   Protected Methods   |
 
-		protected virtual void OnBeforeRelationPrimaryObjectSet(SimpleObject? primaryObject, SimpleObject? oldPrimaryObject, IOneToOneOrManyRelationModel relationModel, ref bool cancel, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnBeforeRelationPrimaryObjectSet(SimpleObject? primaryObject, SimpleObject? oldPrimaryObject, IOneToOneOrManyRelationModel relationModel, ref bool cancel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
-		protected virtual void OnRelationForeignObjectSet(SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer changeContainer, object? requester) { }
+		protected virtual void OnRelationForeignObjectSet(SimpleObject? foreignSimpleObject, SimpleObject? oldForeignSimpleObject, IOneToOneOrManyRelationModel relationModel, ChangeContainer? changeContainer, ObjectActionContext context, object? requester) { }
 
 
 				//protected override void OnAfterSave(object requester)
@@ -3024,6 +3204,21 @@ namespace Simple.Objects
 
 		#endregion |   IBindingSimpleObject Interface   |
 
+		#region |   IEqualityComparer Interface   |
+
+		bool IEqualityComparer.Equals(object? x, object? y)
+		{
+			return x as SimpleObject == y as SimpleObject;
+		}
+
+		int IEqualityComparer.GetHashCode(object obj)
+		{
+			return obj as SimpleObject == null ? 0 : obj.GetHashCode();
+			//return obj as SimpleObject == null ? 0 : this.GetModel().TableInfo.TableId.GetHashCode() ^ this.Id.GetHashCode(); ;
+		}
+
+		#endregion |   IEqualityComparer Interface   |
+
 		#region |   Dispose   |
 
 		public void Dispose()
@@ -3036,11 +3231,11 @@ namespace Simple.Objects
 			//	this.objectRelationCache.Dispose();
 			//	this.objectRelationCache = null;
 			//}
-			this.changedPropertyIndexes = null;
-			this.changedSaveablePropertyIndexes = null;
+			//this.changedPropertyIndexes = null;
+			//this.changedSaveablePropertyIndexes = null;
 			this.tag = null;
 
-			this.oneToOneForeignObjectKeysByRelationKey = null;
+			this.oneToOneForeignSimpleObjectsByRelationKey = null;
 			//this.oneToManyPrimaryObjectsByRelationKey = null;
 
 			//this.oneToOnePrimaryObjectsByRelationKey = null;
