@@ -99,10 +99,10 @@ namespace Simple.Datastore
 			return this.GetSingleElementQueryResult<string>(query, reader => reader["TABLE_NAME"].ToString());
         }
 
-        public virtual List<TKey> GetRecordKeys<TKey>(TableInfo tableInfo, int idPropertyIndex, string idFieldName)
+        public virtual List<TKey> GetRecordKeys<TKey>(TableInfo tableInfo, IPropertyModel idPropertyModel)
         {
 			string datastoreTableName = this.GetDatastoreTableName(tableInfo.TableName);
-			string query = this.BuildSelectQuery(datastoreTableName, whereCriteria: String.Empty, fieldNames: idFieldName);
+			string query = this.BuildSelectQuery(datastoreTableName, whereCriteria: String.Empty, idPropertyModel.DatastoreFieldName!);
 			
 			return this.GetSingleElementQueryResult<TKey>(query);
         }
@@ -136,9 +136,9 @@ namespace Simple.Datastore
 		//    return this.GetRecord(tableName, idFieldName, id);
 		//}
 
-		public virtual IDataReader GetRecord(TableInfo tableInfo, int idPropertyIndex, string idFieldName, object id, IEnumerable<int>? propertyIndexes, Func<int, IPropertyModel>? getPropertyModel)
+		public virtual IDataReader GetRecord(TableInfo tableInfo, IPropertyModel idPropertyModel, object id, IEnumerable<int>? propertyIndexes, Func<int, IPropertyModel>? getPropertyModel)
         {
-            string whereCriteria = String.Format("[{0}] = {1}", idFieldName, id.ToString());
+            string whereCriteria = String.Format("[{0}] = {1}", idPropertyModel.DatastoreFieldName, id.ToString());
 			string[] fieldNames = this.GetFieldNames(propertyIndexes, getPropertyModel);
             string query = this.BuildSelectQuery(this.GetDatastoreTableName(tableInfo.TableName), whereCriteria, fieldNames);
 
@@ -242,10 +242,10 @@ namespace Simple.Datastore
 			}
         }
 
-        public virtual void DeleteRecord(TableInfo tableInfo, int idPropertyIndex, string idFieldName, object id)
+        public virtual void DeleteRecord(TableInfo tableInfo, IPropertyModel idPropertyModel, object id)
         {
             string datastoreTableName = this.GetDatastoreTableName(tableInfo.TableName);
-            string query = String.Format("DELETE FROM {0} WHERE [{1}] = {2}", datastoreTableName, idFieldName, id);
+            string query = String.Format("DELETE FROM {0} WHERE [{1}] = {2}", datastoreTableName, idPropertyModel.DatastoreFieldName, id);
 
 			using (IDbCommand cmd = this.BuildDbCommand(query))
 			{
@@ -565,7 +565,7 @@ namespace Simple.Datastore
 					int propertyIndex = propertyIndexes.ElementAt(i);
 					IPropertyModel propertyModel = getPropertyModel(propertyIndex);
 
-					fieldNames[i] = propertyModel.DatastoreFieldName;
+					fieldNames[i] = propertyModel.DatastoreFieldName!;
 				}
 			}
 			else
