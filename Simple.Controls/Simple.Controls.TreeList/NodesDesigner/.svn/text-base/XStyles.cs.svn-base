@@ -1,0 +1,55 @@
+﻿//#if IncludeNodesEditorCode 
+
+using System;
+using System.Collections;
+using System.Drawing;
+using System.Data;
+using System.Windows.Forms;
+using DevExpress.Utils;
+using DevExpress.XtraEditors.Repository;
+using System.Reflection;
+
+namespace NET.Controls.NetTreeList.Designer
+{
+    public class NETreeListAssign
+    {
+        public static NetTreeList CreateTreeListControlAssign(NetTreeList editingTreeList)
+        {
+            NetTreeList treeList = Assembly.GetAssembly(editingTreeList.GetType()).CreateInstance(editingTreeList.GetType().ToString()) as NetTreeList;
+            treeList.Dock = DockStyle.Fill;
+            treeList.OptionsBehavior.PopulateServiceColumns = true;
+            TreeListControlAssign(editingTreeList, treeList, true, true);
+            return treeList;
+        }
+        public static void TreeListControlAssign(NetTreeList editingTreeList, NetTreeList treeList, bool setRepository, bool setStyles)
+        {
+            if (setRepository)
+            {
+                AssignEditors(editingTreeList, treeList);
+                treeList.ExternalRepository = editingTreeList.ExternalRepository;
+            }
+            treeList.LookAndFeel.Assign(editingTreeList.LookAndFeel);
+            treeList.SelectImageList = editingTreeList.SelectImageList;
+            treeList.StateImageList = editingTreeList.StateImageList;
+            treeList.CheckBoxImageList = editingTreeList.CheckBoxImageList;
+
+            treeList.CustomCheckBoxDraw = editingTreeList.CustomCheckBoxDraw;
+            treeList.CustomNodeImagesDraw = editingTreeList.CustomNodeImagesDraw;
+            treeList.ShowExtraChecked = editingTreeList.ShowExtraChecked;
+            treeList.UseExpandedImages = editingTreeList.UseExpandedImages;
+
+            treeList.Appearance.Assign(editingTreeList.Appearance);
+            System.IO.MemoryStream str = new System.IO.MemoryStream();
+            editingTreeList.SaveLayoutToStream(str);
+            str.Seek(0, System.IO.SeekOrigin.Begin);
+            treeList.RestoreLayoutFromStream(str);
+            str.Close();
+        }
+        private static void AssignEditors(NetTreeList sourceTreeList, NetTreeList treeList)
+        {
+            foreach (DevExpress.XtraEditors.Repository.RepositoryItem item in sourceTreeList.RepositoryItems)
+                treeList.RepositoryItems.Add(item.Clone() as DevExpress.XtraEditors.Repository.RepositoryItem);
+        }
+    }
+}
+//#endif

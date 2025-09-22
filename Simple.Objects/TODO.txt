@@ -1,0 +1,6 @@
+﻿Implement IpropertyModel interface on ServerPropertyInfo
+Manager/SimpleObjectManager.cs ValidateDelete(SimpleObject simpleObject, IDictionary<SimpleObject, TransactionRequestAction> transactionRequests)
+	Implement CancelDelete with restoring all RemoveAllRelatedObjectsFromAllRelatedObjectCaches to its original state (ChangeContainter -> reject changes)
+	Call SimpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches before transactiona validation and if CancelDelete is called restore related realations to its original state after calling DelereRequested
+	Than SimpleObject.RemoveAllRelatedObjectsFromAllRelatedObjectCaches should not be called after transaction succeded. The Rollback transaction should do that
+

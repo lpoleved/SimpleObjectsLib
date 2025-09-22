@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Simple.Core\Simple.Serialization\Simple.Serialization.csproj" />
+    <ProjectReference Include="..\..\Simple.Core\Simple.Threading\Simple.Threading.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Client\SuperSocket.Client.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Connection\SuperSocket.Connection.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Primitives\SuperSocket.Primitives.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.ProtoBase\SuperSocket.ProtoBase.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Server.Abstractions\SuperSocket.Server.Abstractions.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Server\SuperSocket.Server.csproj" />
+    <ProjectReference Include="..\..\SuperSocket\src\SuperSocket.Udp\SuperSocket.Udp.csproj" />
+  </ItemGroup>
+
+</Project>

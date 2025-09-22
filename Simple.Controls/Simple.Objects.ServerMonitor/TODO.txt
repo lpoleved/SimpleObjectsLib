@@ -1,0 +1,1 @@
+﻿Replace Program.ModelDiscovery.GetObjectModel(tableId) with await Program.AppClient.GetServerObjectModelInfoFromCache(this.tableId)

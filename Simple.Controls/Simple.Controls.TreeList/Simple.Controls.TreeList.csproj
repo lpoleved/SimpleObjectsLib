@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>True</UseWindowsForms>
+    <RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
+    <EnableNETAnalyzers>False</EnableNETAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="NodesDesigner\.svn\all-wcprops" />
+    <None Include="NodesDesigner\.svn\entries" />
+    <None Include="NodesDesigner\.svn\prop-base\Images.bmp.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\Images.bmp.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\NodesEditor.cs.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\Serialization.cs.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\SimpleTreeListAssign.cs.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\SimpleTreeListNodesEditor.cs.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\SimpleTreeListNodesEditor.resx.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\xNodesEditor.cs.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\xNodesEditor.resx.svn-base" />
+    <None Include="NodesDesigner\.svn\text-base\XStyles.cs.svn-base" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevExpress.Win.Design" Version="25.1.5" />
+    <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+  </ItemGroup>
+
+</Project>
