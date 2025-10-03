@@ -17,7 +17,7 @@ namespace Simple.SocketEngine
 	public class PipelineFilter : IPipelineFilter<PackageInfo>, IPipelineFilter
 	{
 		private PackageArgsFactory packageArgsFactory;
-		private Encoding characterEncoding = new UTF8Encoding();
+		//private Encoding characterEncoding = new UTF8Encoding();
 		private PackageReader packageReader;
 		private bool createPackageDataCopy;
 

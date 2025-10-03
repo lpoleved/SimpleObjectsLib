@@ -526,7 +526,7 @@ namespace Simple.Objects.Controls
             if (this.TreeList != null)
                 return false;
             
-            TreeListColumn? column = this.TreeList.Columns[columnIndex];
+            TreeListColumn? column = this.TreeList?.Columns[columnIndex];
 
             if (column is not null)
                 return column.OptionsColumn.AllowEdit;
@@ -544,6 +544,30 @@ namespace Simple.Objects.Controls
             if (column is not null)
                 column.OptionsColumn.AllowEdit = enabled;
         }
+
+		public bool GetColumnReadOnlyProperty(int columnIndex)
+		{
+			if (this.TreeList != null)
+				return false;
+
+			TreeListColumn? column = this.TreeList?.Columns[columnIndex];
+
+			if (column is not null)
+				return column.OptionsColumn.ReadOnly;
+
+			return false;
+		}
+
+		public void SetColumnReadOnlyProperty(int columnIndex, bool enabled)
+		{
+			if (this.TreeList is null)
+				return;
+
+			TreeListColumn? column = this.TreeList.Columns[columnIndex];
+
+			if (column is not null)
+				column.OptionsColumn.ReadOnly = enabled;
+		}
 
 		public bool GetColumnVisibleProperty(int columnIndex)
 		{

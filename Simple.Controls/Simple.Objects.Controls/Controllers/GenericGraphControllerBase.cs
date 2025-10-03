@@ -995,7 +995,20 @@ namespace Simple.Objects.Controls
             this.GraphControl?.SetColumnEnableProperty(graphColumn.Index, enabled);
         }
 
-        public bool GetGraphColumnVisibleProperty(GraphColumn graphColumn)
+		public bool GetGraphColumnReadOnlyProperty(GraphColumn graphColumn)
+		{
+			if (this.GraphControl is not null)
+				return this.GraphControl.GetColumnReadOnlyProperty(graphColumn.Index);
+
+			return false;
+		}
+
+		public void SetGraphColumnReadOnlyProperty(GraphColumn graphColumn, bool enabled)
+		{
+			this.GraphControl?.SetColumnReadOnlyProperty(graphColumn.Index, enabled);
+		}
+
+		public bool GetGraphColumnVisibleProperty(GraphColumn graphColumn)
         {
             if (this.GraphControl is not null)
                 return this.GraphControl.GetColumnVisibleProperty(graphColumn.Index);
@@ -2620,6 +2633,17 @@ namespace Simple.Objects.Controls
             }
         }
 
+        private bool GetColumnEnableProperty(Type objectType, GraphColumn graphColumn)
+        {
+            bool columnEnabled = false;
+            GraphColumnBindingPolicy<TGraphElement>? graphColumnBindingPolicy = this.GetGraphColumnBindingPolicyByColumnIndex(objectType, graphColumn.Index);
+
+            if (graphColumnBindingPolicy != null && graphColumnBindingPolicy.BindingOption == BindingOption.EnableEditing && graphColumnBindingPolicy.PropertyModel.AccessPolicy != PropertyAccessPolicy.ReadOnly)
+                columnEnabled = true;
+
+            return columnEnabled;
+        }
+
         private void SetColumnsEnableProperty(object node)
         {
             TGraphElement? graphElement = default;
@@ -2650,18 +2674,19 @@ namespace Simple.Objects.Controls
                 this.RaiseAfterSetGraphColumnsEnableProperty(graphElement);
         }
 
-        private bool GetColumnEnableProperty(Type objectType, GraphColumn graphColumn)
-        {
-            bool columnEnabled = false;
-            GraphColumnBindingPolicy<TGraphElement>? graphColumnBindingPolicy = this.GetGraphColumnBindingPolicyByColumnIndex(objectType, graphColumn.Index);
+		private bool GetColumnReadOnlyProperty(Type objectType, GraphColumn graphColumn)
+		{
+			bool readOnly = false;
+			GraphColumnBindingPolicy<TGraphElement>? graphColumnBindingPolicy = this.GetGraphColumnBindingPolicyByColumnIndex(objectType, graphColumn.Index);
 
-            if (graphColumnBindingPolicy != null && graphColumnBindingPolicy.BindingOption == BindingOption.EnableEditing && graphColumnBindingPolicy.PropertyModel.AccessPolicy != PropertyAccessPolicy.ReadOnly)
-                columnEnabled = true;
+			if (graphColumnBindingPolicy != null && graphColumnBindingPolicy.BindingOption == BindingOption.ReadOnly) // && graphColumnBindingPolicy.PropertyModel.AccessPolicy == PropertyAccessPolicy.ReadOnly)
+				readOnly = true;
 
-            return columnEnabled;
-        }
+			return readOnly;
+		}
 
-        private TGraphElement? GetParentGraphElementForNewGraphInsertion(TGraphElement? graphElement, AddButtonPolicy<TGraphElement> addButtonPolicy)
+
+		private TGraphElement? GetParentGraphElementForNewGraphInsertion(TGraphElement? graphElement, AddButtonPolicy<TGraphElement> addButtonPolicy)
         {
             TGraphElement? anchorGraphElement = graphElement != null ? graphElement : this.anchorGraphElement;
             TGraphElement? result = anchorGraphElement;
@@ -3091,6 +3116,16 @@ namespace Simple.Objects.Controls
             this.GraphControl!.SetColumnEnableProperty(columnIndex, enable);
         }
 
+		bool IGraphController.GetColumnReadOnlyProperty(int columnIndex)
+		{
+			return this.GraphControl!.GetColumnReadOnlyProperty(columnIndex);
+		}
+
+		void IGraphController.SetColumnReadOnlyProperty(int columnIndex, bool enable)
+		{
+			this.GraphControl!.SetColumnReadOnlyProperty(columnIndex, enable);
+		}
+		
         bool IGraphController.GetColumnVisibleProperty(int columnIndex)
         {
             return this.GraphControl!.GetColumnVisibleProperty(columnIndex);
@@ -3818,7 +3853,9 @@ namespace Simple.Objects.Controls
         void SetColumnWidth(int columnIndex, int width);
         bool GetColumnEnableProperty(int columnIndex);
         void SetColumnEnableProperty(int columnIndex, bool value);
-        bool GetColumnVisibleProperty(int columnIndex);
+		bool GetColumnReadOnlyProperty(int columnIndex);
+		void SetColumnReadOnlyProperty(int columnIndex, bool value);
+		bool GetColumnVisibleProperty(int columnIndex);
         void SetColumnVisibleProperty(int columnIndex, bool value);
         bool GetColumnShowInCustomizationFormProperty(int columnIndex);
         void SetColumnShowInCustomizationFormProperty(int columnIndex, bool value);
@@ -3868,7 +3905,9 @@ namespace Simple.Objects.Controls
         void RemoveColumn(int columnIndex);
         bool GetColumnEnableProperty(int columnIndex);
         void SetColumnEnableProperty(int columnIndex, bool value);
-        bool GetColumnVisibleProperty(int columnIndex);
+		bool GetColumnReadOnlyProperty(int columnIndex);
+		void SetColumnReadOnlyProperty(int columnIndex, bool value);
+		bool GetColumnVisibleProperty(int columnIndex);
         void SetColumnVisibleProperty(int columnIndex, bool value);
         bool GetColumnShowInCustomizationFormProperty(int columnIndex);
         void SetColumnShowInCustomizationFormProperty(int columnIndex, bool value);

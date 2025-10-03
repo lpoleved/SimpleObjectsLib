@@ -66,7 +66,7 @@ namespace Simple.Objects
 		//public const string StringPropertyGuid = "Guid";
 		public const string StringPropertyName = "Name";
 		public const string StringPropertyDescription = "Description";
-		public const string StringPropertyObjectSubType = "ObjectSubType";
+		public const string StringPropertySubType = "SubType";
 		//public const string StringPropertyPreviousId = "PreviousId";
 		//public const string StringPropertyPreviousGuid = "PreviousGuid";
 		//public const string StringPropertyOrderIndex = "OrderIndex";

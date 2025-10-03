@@ -5,19 +5,19 @@ VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.ServerMonitor", "Simple.Controls\Simple.Objects.ServerMonitor\Simple.Objects.ServerMonitor.csproj", "{FBA179D1-9581-481D-B5BF-C780B636FCF4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "Simple.Core\Simple\Simple.csproj", "{AA942002-040F-4747-B796-A1114DBB5C3D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "..\Simple.Core\Simple\Simple.csproj", "{AA942002-040F-4747-B796-A1114DBB5C3D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "Simple.Core\Simple.AppContext\Simple.AppContext.csproj", "{6405FD95-A34F-4389-B7B5-FDA1508BFEA9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "..\Simple.Core\Simple.AppContext\Simple.AppContext.csproj", "{6405FD95-A34F-4389-B7B5-FDA1508BFEA9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.SocketEngine", "Simple.SocketEngine\Simple.SocketEngine.csproj", "{9BD0BD94-BD01-47B6-9359-0649BFAD74EB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "Simple.Core\Simple.Modeling\Simple.Modeling.csproj", "{3A38C96D-B1FE-49D0-84C1-0B9E74967DD4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "..\Simple.Core\Simple.Modeling\Simple.Modeling.csproj", "{3A38C96D-B1FE-49D0-84C1-0B9E74967DD4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "Simple.Core\Simple.Serialization\Simple.Serialization.csproj", "{9E7675EF-FC0E-4313-A1E2-7141D6EC1245}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "..\Simple.Core\Simple.Serialization\Simple.Serialization.csproj", "{9E7675EF-FC0E-4313-A1E2-7141D6EC1245}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "Simple.Core\Simple.Collections\Simple.Collections.csproj", "{28B194D1-C585-4B78-BE72-3BD3D84372A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "..\Simple.Core\Simple.Collections\Simple.Collections.csproj", "{28B194D1-C585-4B78-BE72-3BD3D84372A2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "Simple.Core\Simple.Datastore\Simple.Datastore.csproj", "{A5DD49D4-217E-4260-9A0A-3B3DFE15B5C0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "..\Simple.Core\Simple.Datastore\Simple.Datastore.csproj", "{A5DD49D4-217E-4260-9A0A-3B3DFE15B5C0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects", "Simple.Objects\Simple.Objects.csproj", "{518B745D-62CF-408A-BEC8-74D7EE248F00}"
 EndProject
@@ -35,21 +35,21 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.Controls", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SuperSocket.Client", "..\SuperSocket\src\SuperSocket.Client\SuperSocket.Client.csproj", "{4B99061F-2B6D-4B43-8C68-BC8D443A7719}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "Simple.Core\Simple.Network\Simple.Network.csproj", "{19AD8213-7057-4F01-B099-995B3CA29976}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "..\Simple.Core\Simple.Network\Simple.Network.csproj", "{19AD8213-7057-4F01-B099-995B3CA29976}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.SocketProtocol", "Simple.Objects.SocketProtocols\Simple.Objects.SocketProtocol\Simple.Objects.SocketProtocol.csproj", "{36E2D10B-1877-449F-AD96-5B35D14B6E99}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Threading", "Simple.Core\Simple.Threading\Simple.Threading.csproj", "{B1668656-6653-4958-AB49-D7F15AF42CDD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Threading", "..\Simple.Core\Simple.Threading\Simple.Threading.csproj", "{B1668656-6653-4958-AB49-D7F15AF42CDD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "Simple.Core\Simple.Security\Simple.Security.csproj", "{0122793A-5218-49CA-AEB7-F761512FFC9F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "..\Simple.Core\Simple.Security\Simple.Security.csproj", "{0122793A-5218-49CA-AEB7-F761512FFC9F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SuperSocket.Udp", "..\SuperSocket\src\SuperSocket.Udp\SuperSocket.Udp.csproj", "{04AC5827-C5DC-4497-A679-94ECA4C3A151}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "Simple.Core\Simple.Compression\Simple.Compression.csproj", "{20223EFC-A39C-4FD2-B61D-D8FFB39E8738}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "..\Simple.Core\Simple.Compression\Simple.Compression.csproj", "{20223EFC-A39C-4FD2-B61D-D8FFB39E8738}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.MonitorProtocol", "Simple.Objects.SocketProtocols\Simple.Objects.MonitorProtocol\Simple.Objects.MonitorProtocol.csproj", "{8AD32403-BA84-42EE-9723-BE10AC44C706}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Core", "Simple.Core", "{FFACEFCF-7AEF-4609-B307-880040F5E148}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Core", "..\Simple.Core", "{FFACEFCF-7AEF-4609-B307-880040F5E148}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Controls", "Simple.Controls", "{AB1AF600-8C2A-4CB0-A20D-E220A25419DA}"
 EndProject

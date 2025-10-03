@@ -34,7 +34,7 @@ namespace Simple.Objects
 		private static Dictionary<long, long> EmptyNewObjectIdsByTempClientObjectIdDictionary = new Dictionary<long, long>();
 
 		private string? imageName = null;
-		private string? defaultImageName = null;
+		//private string? defaultImageName = null;
 		private object? tag = null;
 
 		private const string imageNameOptionSeparator = ".";
@@ -613,33 +613,34 @@ namespace Simple.Objects
 			return this.imageName;
 		}
 
-		public virtual string? GetDefaultImageName()
+		//private string? GetDefaultImageNameInternal() => this.defaultImageName ??= this.GetDefaultImageName();
+
+		protected internal virtual string? GetDefaultImageName()
 		{
-			if (this.defaultImageName == null)
+			string? imageName = null;
+			
+			if (this is GraphElement graphElement)
 			{
-				if (this is GraphElement graphElement)
+				if (graphElement.SimpleObject != null)
+					imageName = graphElement.SimpleObject.GetDefaultImageName();
+			}
+			else
+			{
+				ISimpleObjectModel objectModel = this.GetModel();
+
+				imageName = objectModel.ImageName;
+
+				if (objectModel.SubTypePropertyModel != null) // ObjectSubTypes.Count > 0)
 				{
-					if (graphElement.SimpleObject != null)
-						this.defaultImageName = graphElement.SimpleObject.GetDefaultImageName();
-				}
-				else
-				{
-					ISimpleObjectModel objectModel = this.GetModel();
+					int objectSubType = this.GetPropertyValue<int>(objectModel.SubTypePropertyModel);
+					IModelElement? subTypeModel;
 
-					this.defaultImageName = objectModel.ImageName;
-
-					if (objectModel.ObjectSubTypePropertyModel != null) // ObjectSubTypes.Count > 0)
-					{
-						int objectSubType = this.GetPropertyValue<int>(objectModel.ObjectSubTypePropertyModel);
-						IModelElement? subTypeModel;
-
-						if (objectModel.ObjectSubTypes.TryGetValue(objectSubType, out subTypeModel))
-							this.defaultImageName = subTypeModel.ImageName;
-					}
+					if (objectModel.SubTypes.TryGetValue(objectSubType, out subTypeModel))
+						imageName = subTypeModel.ImageName;
 				}
 			}
 
-			return this.defaultImageName;
+			return imageName;
 		}
 
 		public void SetImageName(string imageName)
@@ -654,7 +655,7 @@ namespace Simple.Objects
 			
 			this.imageName = this.Manager.GetImageNameInternal(this);
 
-			if (this.imageName != oldImageName && !(oldImageName == null && this.imageName == this.GetDefaultImageName()))  // If first GetImageName is invoked and image name is default image name -> no need for fire event ImageNameChange
+			if (this.imageName != oldImageName) // && !(oldImageName == null && this.imageName == this.GetDefaultImageNameInternal()))  // If first GetImageName is invoked and image name is default image name -> no need for fire event ImageNameChange
 				this.Manager.ImageNameIsChanged(this, this.imageName, oldImageName);
 		}
 
@@ -3952,9 +3953,9 @@ namespace Simple.Objects
 			this.OnPropertyValueChange(propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
 			this.Manager.PropertyValueIsChanged(this, propertyModel, value, oldValue, isChanged, changeContainer, context, requester);
 
-			IPropertyModel? objectSubTypePropertyModel = this.GetModel().ObjectSubTypePropertyModel;
+			IPropertyModel? objectSubTypePropertyModel = this.GetModel().SubTypePropertyModel;
 
-			if (objectSubTypePropertyModel != null && objectSubTypePropertyModel.PropertyIndex == propertyModel.PropertyIndex)
+			if (objectSubTypePropertyModel != null && propertyModel.PropertyIndex == objectSubTypePropertyModel.PropertyIndex)
 				this.RecalcImageName();
 		}
 

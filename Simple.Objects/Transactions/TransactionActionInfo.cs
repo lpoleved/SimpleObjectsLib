@@ -17,7 +17,7 @@ namespace Simple.Objects
 		{
 		}
 
-		public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, IList<PropertyIndexValuePair>? propertyIndexValueList)
+		public TransactionActionInfo(int tableId, long objectId, TransactionActionType actionType, IList<PropertyIndexValuePair>? propertyIndexValueList, SimpleObject? simpleObject = null)
 			//: this(tableId, objectId, actionType, propertyIndexValues: null)
 		{
 		//	this.propertyIndexValueList = propertyIndexValueList;
@@ -30,6 +30,7 @@ namespace Simple.Objects
 			this.ObjectId = objectId;
 			this.ActionType = actionType;
 			this.propertyIndexValueList = propertyIndexValueList;
+			this.SimpleObject = simpleObject;
 		}
 
 		public int TableId { get; protected set; }

@@ -39,7 +39,7 @@ namespace Simple.Objects.Controls
 		{
 			base.OnBindingObjectPropertyValueChange(e);
 
-			IPropertyModel objectSubTypePropertyModel = e.BindingObject.GetModel().ObjectSubTypePropertyModel;
+			IPropertyModel objectSubTypePropertyModel = e.BindingObject.GetModel().SubTypePropertyModel;
 
 			if (objectSubTypePropertyModel != null && e.PropertyModel?.PropertyIndex == objectSubTypePropertyModel.PropertyIndex)
 				this.RefreshObjectName();
@@ -50,12 +50,12 @@ namespace Simple.Objects.Controls
 			ISimpleObjectModel? objectModel = this.BindingObject?.GetModel();
 			string objectName = String.Empty;
 
-			if (this.BindingObject != null && objectModel?.ObjectSubTypes.Count > 0)
+			if (this.BindingObject != null && objectModel?.SubTypes.Count > 0)
 			{
-				int propertyIndex = this.BindingObject.GetPropertyValue<int>(objectModel.ObjectSubTypePropertyModel);
+				int propertyIndex = this.BindingObject.GetPropertyValue<int>(objectModel.SubTypePropertyModel);
 				IModelElement? modelElement;
 
-				if (objectModel.ObjectSubTypes.TryGetValue(propertyIndex, out modelElement))
+				if (objectModel.SubTypes.TryGetValue(propertyIndex, out modelElement))
 					objectName = modelElement.Caption;
 			}
 			else

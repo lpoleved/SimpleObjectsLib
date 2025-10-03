@@ -19,7 +19,7 @@ namespace Simple.Objects
 		IPropertyModel IdPropertyModel { get; }
 		IPropertyModel? NamePropertyModel { get; }
 		IPropertyModel? DescriptionPropertyModel { get; }
-		IPropertyModel? ObjectSubTypePropertyModel { get; }
+		IPropertyModel? SubTypePropertyModel { get; }
 		IPropertyModel? PreviousIdPropertyModel { get; }
 		IPropertyModel? OrderIndexPropertyModel { get; }
 		//IPropertyModel ActionSetOrderIndexPropertyModel { get; }
@@ -45,6 +45,8 @@ namespace Simple.Objects
 		//int TableId { get; }
 		//string TableName { get; }
 		TableInfo TableInfo { get; }
+		bool ReuseIds { get; }
+		long MinId { get; }
 		string ObjectCaption { get; }
 		bool IsStorable { get; }
 		//bool IsSortable { get; }
@@ -59,7 +61,7 @@ namespace Simple.Objects
 
 		// Consider remove this
 		int SortableOneToManyRelationKey { get; }
-		IDictionary<int, IModelElement> ObjectSubTypes { get; }
+		IDictionary<int, IModelElement> SubTypes { get; }
 		IObjectRelationModel RelationModel { get; }
 		//IList<GraphElementCreatedAction> GraphElementCreatedActions { get; }
 	}

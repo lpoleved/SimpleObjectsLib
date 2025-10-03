@@ -91,6 +91,8 @@ namespace Simple.Objects
 		private int sortableOneToManyRelationKey;
 		private bool mustHaveAtLeastOneGraphElement = false;
 		private int mustHaveGraphElementGraphKey = 0;
+		private bool reuseIds = true;
+		private long minId = 1;
 
 		//internal SerializationModel serializationModel;
 		//internal PropertySequence serializablePropertySequence = null;
@@ -148,8 +150,8 @@ namespace Simple.Objects
 					this.NamePropertyModel = propertyModel;
 				else if (propertyModel.PropertyName == SimpleObject.StringPropertyDescription)
 					this.DescriptionPropertyModel = propertyModel;
-				else if (propertyModel.PropertyName == SimpleObject.StringPropertyObjectSubType)
-					this.ObjectSubTypePropertyModel = propertyModel;
+				else if (propertyModel.PropertyName == SimpleObject.StringPropertySubType)
+					this.SubTypePropertyModel = propertyModel;
 
 				if (propertyModel.IsPreviousId)
 					this.PreviousIdPropertyModel = propertyModel;
@@ -273,7 +275,7 @@ namespace Simple.Objects
 		public IPropertyModel IdPropertyModel { get; set; }
 		public IPropertyModel? NamePropertyModel { get; set; }
 		public IPropertyModel? DescriptionPropertyModel { get; set; }
-		public IPropertyModel? ObjectSubTypePropertyModel { get; set; }
+		public IPropertyModel? SubTypePropertyModel { get; set; }
 		public IPropertyModel? PreviousIdPropertyModel { get; set; }
 		public IPropertyModel? OrderIndexPropertyModel { get; set; }
 		//public IPropertyModel ActionSetOrderIndexPropertyModel { get; set; }
@@ -282,6 +284,8 @@ namespace Simple.Objects
 		/// <summary>
 		/// Gets or Sets object relation model. SimpleObjectManager should be responsible for setting this value after relation object model discovery.
 		/// </summary>
+		public bool ReuseIds { get => this.reuseIds; set => this.reuseIds = value; }
+		public long MinId { get => this.minId; set => this.minId = value; }
 		public ObjectRelationModel RelationModel { get; set; }
 		public ModelDictionary<int, ModelElement> ObjectSubTypes { get; set; }
 		//public SimpleList<GraphElementCreatedAction> GraphElementCreatedActions { get; set; }
@@ -479,7 +483,7 @@ namespace Simple.Objects
 			}
 		}
 
-		IDictionary<int, IModelElement> ISimpleObjectModel.ObjectSubTypes
+		IDictionary<int, IModelElement> ISimpleObjectModel.SubTypes
 		{
 			get { return this.ObjectSubTypes.AsCustom<int, IModelElement>(); }
 		}

@@ -23,7 +23,7 @@ namespace Simple.Objects
 		public ServerObjectCache(SimpleObjectManager objectManager, ISimpleObjectModel objectModel, IList<long> objectIds)
 			: base (objectManager, objectModel)
 		{
-			this.idGenerator = new UniqueKeyGenerator<long>(objectIds, this.ObjectManager.MinObjectId, this.ObjectManager.ReuseObjectKeys);
+			this.idGenerator = new UniqueKeyGenerator<long>(objectIds, objectModel.MinId, objectModel.ReuseIds);
 		}
 
 		public ServerObjectCache(SimpleObjectManager objectManager, ISimpleObjectModel objectModel, IDataReader dataReader)
@@ -47,7 +47,7 @@ namespace Simple.Objects
 				simpleObject.AfterLoad();
 			}
 
-			this.idGenerator = new UniqueKeyGenerator<long>(objectIds, this.ObjectManager.MinObjectId, this.ObjectManager.ReuseObjectKeys);
+			this.idGenerator = new UniqueKeyGenerator<long>(objectIds, objectModel.MinId, objectModel.ReuseIds);
 		}
 
 		/// <summary>
@@ -224,10 +224,7 @@ namespace Simple.Objects
 			return objectIds;
 		}
 
-		protected override long CreateNewId()
-		{
-			return this.idGenerator.CreateKey();
-		}
+		protected override long CreateNewId() => this.idGenerator.CreateKey();
 
 		protected override void OnNewObjectAdded(SimpleObject simpleObject, ChangeContainer? changeContainer, object? requester)
 		{

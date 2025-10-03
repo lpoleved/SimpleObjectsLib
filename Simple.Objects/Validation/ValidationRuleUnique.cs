@@ -90,9 +90,12 @@ namespace Simple.Objects
             if (inputSimpleObject is null)
 				return new PropertyValidationResult(false, "Unique property validation failed: input object is null");
 
-			object ? inputSimpleObjectPropertyValue = (inputSimpleObject != null && this.PropertyModel != null && this.PropertyModel.PropertyName != "Name") ? inputSimpleObject[this.PropertyModel.PropertyName] 
-                                                                                                                                                             : inputSimpleObject?.GetName();
-            IEnumerable<IEnumerable<SimpleObject>>? targetMultipleCollections = null;
+			object? inputSimpleObjectPropertyValue = (inputSimpleObject != null && this.PropertyModel != null && this.PropertyModel.PropertyName != "Name") ? inputSimpleObject[this.PropertyModel.PropertyName] 
+                                                                                                                                                            : inputSimpleObject?.GetName();
+            if (inputSimpleObjectPropertyValue == null || (inputSimpleObjectPropertyValue is string text && text.Trim().Length == 0))
+                return validationResult; // If null or empty this existance related validation
+
+			IEnumerable<IEnumerable<SimpleObject>>? targetMultipleCollections = null;
 
             if (this.GetValidationMultipleCollection != null)
             {

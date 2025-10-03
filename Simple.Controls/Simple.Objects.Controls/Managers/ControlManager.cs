@@ -47,9 +47,9 @@ namespace Simple.Objects.Controls
 			if (simpleObject == null)
 				return result;
 
-			if (simpleObject.GetModel().ObjectSubTypePropertyModel != null)
+			if (simpleObject.GetModel().SubTypePropertyModel != null)
 			{
-				int objectSubType = (int)simpleObject.GetPropertyValue(simpleObject.GetModel().ObjectSubTypePropertyModel);
+				int objectSubType = (int)simpleObject.GetPropertyValue(simpleObject.GetModel().SubTypePropertyModel);
 
 				result = this.editPanelPolicyModels.FirstOrDefault(item => item.ObjectType == simpleObject.GetType() && item.ObjectSubTypes.Contains(objectSubType));
 

@@ -129,6 +129,19 @@ namespace Simple.Objects.Controls
             set { this.GraphController?.SetColumnEnableProperty(this.Index, value); }
         }
 
+		public bool ReadOnly
+		{
+			get
+			{
+				if (this.GraphController is not null)
+					return this.GraphController.GetColumnReadOnlyProperty(this.Index);
+
+				return false;
+			}
+
+			set { this.GraphController?.SetColumnReadOnlyProperty(this.Index, value); }
+		}
+
 		public bool Visible
 		{
 			get 

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.6.33927.249
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects", "Simple.Objects\Simple.Objects.csproj", "{FE4841FE-92EE-4CCA-9055-2D54372C3D5A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Core", "Simple.Core", "{A52138FF-3DDE-4897-B059-C82E3DDC2763}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simple.Core", "..\Simple.Core", "{A52138FF-3DDE-4897-B059-C82E3DDC2763}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "..\Simple.Core\Simple.Compression\Simple.Compression.csproj", "{47C61367-E18A-4F55-84F1-65BE270C0CE6}"
 EndProject

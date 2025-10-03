@@ -1,21 +1,18 @@
-﻿using System;
-using System.Collections;
+﻿using Simple;
+using Simple.Collections;
+using Simple.Compression;
+using Simple.Datastore;
+using Simple.Modeling;
+using Simple.Security;
+using Simple.Serialization;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Reflection;
-using System.Security.Cryptography;
 using System.Data;
 using System.Diagnostics;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
-using Simple;
-using Simple.Datastore;
-using Simple.Collections;
-using Simple.Modeling;
-using Simple.Serialization;
-using Simple.Compression;
-using Simple.Security;
-using ZLibNet;
 
 namespace Simple.Objects
 {
@@ -42,8 +39,8 @@ namespace Simple.Objects
 		private ObjectManagerWorkingMode workingMode = ObjectManagerWorkingMode.Server;
 		//private SimpleObjectKeyMode simpleObjectKeyMode = SimpleObjectKeyMode.WithoutCreatorServerId;
 		private bool deleteTransactionLogIfTransactionSucceeded = true;
-		private long minObjectId = 1;
-		private bool reuseObjectKeys = true;
+		//private long minObjectId = 1;
+		//private bool reuseObjectKeys = true;
 		private bool useCompressionForTransactionLogActionData = false;
 		private LocalDatastore? localDatastore = null;
 		private IVirtualDatastore datastore;
@@ -963,17 +960,17 @@ namespace Simple.Objects
 		}
 
 
-		public long MinObjectId
-		{
-			get { return this.minObjectId; }
-			set { this.minObjectId = value; }
-		}
+		//public long MinObjectId
+		//{
+		//	get { return this.minObjectId; }
+		//	set { this.minObjectId = value; }
+		//}
 
-		public bool ReuseObjectKeys
-		{
-			get { return this.reuseObjectKeys; }
-			set { this.reuseObjectKeys = value; }
-		}
+		//public bool ReuseObjectKeys
+		//{
+		//	get { return this.reuseObjectKeys; }
+		//	set { this.reuseObjectKeys = value; }
+		//}
 
 		public bool DeleteTransactionLogIfTransactionSucceeded
 		{
@@ -1120,10 +1117,7 @@ namespace Simple.Objects
 
 		#region |   Internal Properties   |
 
-		internal UniqueKeyGenerator<long> ClientTempObjectIdGenerator
-		{
-			get { return this.clientTempObjectIdGenerator; }
-		}
+		internal UniqueKeyGenerator<long> ClientTempObjectIdGenerator => this.clientTempObjectIdGenerator;
 
 		#endregion |   Internal Properties   |
 
@@ -1286,6 +1280,21 @@ namespace Simple.Objects
 				new Exception("You cannot set current authorized user only in Server working mode");
 				
 			this.currentUserId = userId;
+		}
+
+		public int GetGraphElementCountByGraphKey(int graphKey)
+		{
+			int count = 0;
+			var collection = this.graphElementObjectCache?.GetObjectCollection<GraphElement>();
+
+			if (collection != null)
+			{
+				foreach (GraphElement item in collection)
+					if (item.GraphKey == graphKey)
+						count++;
+			}
+
+			return count;
 		}
 
 		//public long GetUserId(string username)
@@ -5439,7 +5448,7 @@ namespace Simple.Objects
 					}
 				}
 
-				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); //, this.GetServerObjectModelInfo));
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues, simpleObject)); //, this.GetServerObjectModelInfo));
 			}
 
 			return result;
@@ -5471,7 +5480,7 @@ namespace Simple.Objects
 					propertyIndexValues = null;
 				}
 
-				result[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues); //, this.GetServerObjectModelInfo));
+				result[i] = new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues, simpleObject); //, this.GetServerObjectModelInfo));
 			}
 
 			return result;
@@ -5506,7 +5515,7 @@ namespace Simple.Objects
 					propertyIndexValues = null;
 				}
 
-				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); //, this.GetServerObjectModelInfo));
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues, simpleObject)); //, this.GetServerObjectModelInfo));
 			}
 
 			return result;
@@ -5571,7 +5580,7 @@ namespace Simple.Objects
 					propertyIndexValues = null;
 				}
 
-				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); ; //, this.GetServerObjectModelInfo));
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues, simpleObject)); ; //, this.GetServerObjectModelInfo));
 			}
 
 			return result;
@@ -5612,7 +5621,7 @@ namespace Simple.Objects
 					propertyIndexValues = simpleObject.GetNonDefaultPropertyIndexValuesInternal(propertySelector: propertyModel => propertyModel.IncludeInTransactionActionLog, getValue: propertyIndex => simpleObject.GetOldPropertyValue(propertyIndex)); ;
 				}
 
-				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues)); ; //, this.GetServerObjectModelInfo));
+				result.Add(new TransactionActionInfo(tableId, objectId, actionType, propertyIndexValues, simpleObject)); ; //, this.GetServerObjectModelInfo));
 			}
 
 			return result;
@@ -5646,7 +5655,7 @@ namespace Simple.Objects
 					transactionAction = TransactionActionType.Delete;
 				}
 
-				result.Add(new TransactionActionInfo(tableId, objectId, transactionAction, propertyIndexValues));
+				result.Add(new TransactionActionInfo(tableId, objectId, transactionAction, propertyIndexValues, simpleObject));
 			}
 
 			return result;

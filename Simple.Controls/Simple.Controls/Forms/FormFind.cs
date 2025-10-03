@@ -16,15 +16,18 @@ namespace Simple.Controls
 {
 	public partial class FormFind : XtraForm
 	{
+		private string originalFormText = String.Empty;
 		private string lastFoundedText = String.Empty;
 		private ITextFinder? textFinder = null;
 		private System.Timers.Timer actionInfoTimer = new System.Timers.Timer(7000);
-		private const string strFormCaprion = "Find";
+		//private bool isFirstFind = true;
+		//private const string strFormCaprion = "Find";
 
 		public FormFind()
 		{
 			InitializeComponent();
 
+			this.originalFormText = this.Text;
 			this.actionInfoTimer.Elapsed += new System.Timers.ElapsedEventHandler(actionInfoTimer_Elapsed);
 		}
 
@@ -39,33 +42,73 @@ namespace Simple.Controls
 			}
 		}
 
+		//private void buttonFindNext_Click(object sender, EventArgs e)
+		//{
+		//	if (this.TextFinder != null && this.editorFindWhat.Text != null && this.editorFindWhat.Text.Trim().Length > 0)
+		//	{
+		//		Cursor? currentCursor = Cursor.Current;
+		//		Cursor.Current = Cursors.WaitCursor;
+
+		//		this.actionInfoTimer.Stop();
+		//		this.Text = strFormCaprion;
+				
+		//		object startNode =  this.TextFinder.FocusedNode;
+		//		string textToFind = this.editorFindWhat.Text.Trim();
+				
+		//		bool isFind = this.TextFinder.FindNextText(startNode, textToFind, this.checkEditMatchCase.Checked);
+
+		//		if (isFind)
+		//		{
+		//			this.lastFoundedText = textToFind;
+		//			this.Text = strFormCaprion;
+		//		}
+		//		else
+		//		{
+		//			this.Text = strFormCaprion;
+		//			this.Text += (this.lastFoundedText == textToFind) ? ":  No more occurrences found" : ":  The specified text was not found";
+
+		//			this.lastFoundedText = String.Empty;
+		//			this.actionInfoTimer.Start();
+		//		}
+
+		//		Cursor.Current = currentCursor;
+		//	}
+		//}
+
 		private void buttonFindNext_Click(object sender, EventArgs e)
 		{
-			if (this.TextFinder != null && this.editorFindWhat.Text != null && this.editorFindWhat.Text.Trim().Length > 0)
+			this.Text = this.originalFormText;
+
+			if (this.textFinder != null && this.editorFindWhat.Text != null && this.editorFindWhat.Text.Trim().Length > 0)
 			{
 				Cursor? currentCursor = Cursor.Current;
+				object? startNode = this.textFinder.FocusedNode;
+
 				Cursor.Current = Cursors.WaitCursor;
+				this.originalFormText = this.Text;
 
-				this.actionInfoTimer.Stop();
-				this.Text = strFormCaprion;
-				
-				object startNode =  this.TextFinder.FocusedNode;
-				string textToFind = this.editorFindWhat.Text.Trim();
-				
-				bool isFind = this.TextFinder.FindNextText(startNode, textToFind, this.checkEditMatchCase.Checked);
-
-				if (isFind)
+				if (startNode != null)
 				{
-					this.lastFoundedText = textToFind;
-					this.Text = strFormCaprion;
-				}
-				else
-				{
-					this.Text = strFormCaprion;
-					this.Text += (this.lastFoundedText == textToFind) ? ":  No more occurrences found" : ":  The specified text was not found";
+					string textToFind = this.editorFindWhat.Text.Trim();
+					bool iFound = this.textFinder.FindNextText(startNode, textToFind, this.checkEditMatchCase.Checked);
 
-					this.lastFoundedText = String.Empty;
-					this.actionInfoTimer.Start();
+					//if (!iFound & this.isFirstFind)
+					//{
+					//	iFound = this.textFinder.FindNextText(startNode, textToFind, this.checkEditMatchCase.Checked);
+					//	this.isFirstFind = false;
+					//}
+
+					if (iFound)
+					{
+						this.lastFoundedText = textToFind;
+					}
+					else
+					{
+						this.Text = this.originalFormText + ((this.lastFoundedText == textToFind) ? ":  No more occurrences found" : ":  The specified text was not found");
+						this.lastFoundedText = String.Empty;
+						this.actionInfoTimer.Stop();
+						this.actionInfoTimer.Start();
+					}
 				}
 
 				Cursor.Current = currentCursor;
@@ -75,18 +118,14 @@ namespace Simple.Controls
 		private void actionInfoTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
 		{
 			if (this.InvokeRequired)
-			{
 				this.Invoke(new MethodInvoker(() => this.OnActionInfoTimer_Elapsed(e)));
-			}
 			else
-			{
 				this.OnActionInfoTimer_Elapsed(e);
-			}
 		}
 
 		private void OnActionInfoTimer_Elapsed(System.Timers.ElapsedEventArgs e)
 		{
-			this.Text = strFormCaprion;
+			this.Text = this.originalFormText;
 		}
 
 
@@ -95,7 +134,7 @@ namespace Simple.Controls
 		//	if (startNode != null)
 		//	{
 		//		textToFind = textToFind.Trim();
-				
+
 		//		for (int i = startColumnIndex; i < startNode.TreeList.Columns.Count; i++)
 		//		{
 		//			string columnText = startNode[i] as string;
@@ -168,7 +207,7 @@ namespace Simple.Controls
 		//	}
 		//}
 
-		
+
 	}
 
 	//public enum FindTextDirection

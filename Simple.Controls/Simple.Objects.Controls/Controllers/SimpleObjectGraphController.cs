@@ -16,6 +16,7 @@ using DevExpress.CodeParser.Diagnostics;
 using DevExpress.CodeParser;
 using DevExpress.XtraTreeList;
 using System.Reflection.Metadata.Ecma335;
+using System.Threading.Tasks;
 
 namespace Simple.Objects.Controls
 {
@@ -93,7 +94,8 @@ namespace Simple.Objects.Controls
         private bool isDisposed = false;
         private SimpleObject? bindingObject = null;
         private SimpleObject? changableBindingObjectControlFocusedSimpleObject = null;
-        private object lockChildNodeLoading = new object();
+		private int findTextProgressNodeCount = 0;
+		private object lockChildNodeLoading = new object();
 
 		#endregion |   Private Members   |
 
@@ -721,6 +723,9 @@ namespace Simple.Objects.Controls
 		protected internal abstract void GraphControlRemoveColumn(int columnIndex);
 		protected abstract bool GraphControlGetColumnEnableProperty(int columnIndex);
 		protected abstract void GraphControlSetColumnEnableProperty(int columnIndex, bool value);
+		protected abstract bool GraphControlGetColumnReadOnlyProperty(int columnIndex);
+		protected abstract void GraphControlSetColumnReadOnlyProperty(int columnIndex, bool value);
+
 		protected abstract bool GraphControlGetColumnVisibleProperty(int columnIndex);
 		protected abstract void GraphControlSetColumnVisibleProperty(int columnIndex, bool value);
 		protected abstract bool GraphControlGetColumnShowInCustomizationFormProperty(int columnIndex);
@@ -1200,6 +1205,16 @@ namespace Simple.Objects.Controls
         {
 			this.GraphControlSetColumnEnableProperty(columnIndex, value);
         }
+
+		public bool GetGraphColumnReadOnlyProperty(int columnIndex)
+		{
+			return this.GraphControlGetColumnReadOnlyProperty(columnIndex);
+		}
+
+		public void SetGraphColumnReadOnlyProperty(int columnIndex, bool value)
+		{
+			this.GraphControlSetColumnReadOnlyProperty(columnIndex, value);
+		}
 
 		public bool GetGraphColumnVisibleProperty(int columnIndex)
 		{
@@ -1720,7 +1735,7 @@ namespace Simple.Objects.Controls
 
 			while (node != null)
 			{
-				if (this.FindNextTextInAnyChildNodes(node, textToFind, matchCase))
+				if (this.FindNextTextInAnyChildNodes(node, textToFind, matchCase, new CancellationToken(), new Progress<int>()))
 					return true;
 
 				node = this.GetNextNode(node);
@@ -1728,6 +1743,53 @@ namespace Simple.Objects.Controls
 
 			this.findStartFromBegining = true;
 			
+			return false;
+		}
+
+		/// <summary>
+        /// Find the text starting from startNode. If startNode is null, search starts from beginning.
+        /// </summary>
+        /// <param name="startNode">The starting node of search</param>
+        /// <param name="textToFind">Text to search for</param>
+        /// <param name="matchCase">Mach axact case when searching text</param>
+        /// <returns></returns>
+        public bool FindNextText2(object? startNode, string textToFind, bool matchCase, CancellationToken cancellationToken, IProgress<int> progress)
+		{
+            object? node = startNode;
+            object? firstNode = null;
+			object[] childNodes = this.GraphControlGetChildNodes(null);
+
+            if (childNodes.Length > 0)
+				firstNode = childNodes[0];
+            else
+                return false; // no any node in graph
+
+            if (startNode is null)
+                node = firstNode;
+
+            this.findTextProgressNodeCount = 0;
+
+			while (node != null) // Find text from starting node to the end
+			{
+				if (this.FindNextTextInAnyChildNodes(node, textToFind, matchCase, cancellationToken, progress))
+					return true;
+
+				node = this.GetNextNode(node);
+			}
+
+            if (startNode != null) // End is reached and the text is not found, -> start searching from begining to the start node
+			{
+                node = firstNode;
+                
+                while (node != startNode && node != null) // if start node is reached, the search is completed
+				{
+					if (this.FindNextTextInAnyChildNodes(node, textToFind, matchCase, cancellationToken, progress))
+						return true;
+
+					node = this.GetNextNode(node);
+				}
+			}
+
 			return false;
 		}
 
@@ -1776,7 +1838,7 @@ namespace Simple.Objects.Controls
                     realParentGraphElement = args.ParentGraphElement;
 
 				if (args == null || args.Allow)
-					result = this.GraphControlTryAddNewObject(addButtonPolicy, realParentGraphElement);
+					result = this.GraphControlTryAddNewObject(addButtonPolicy, realParentGraphElement, requester: button);
 				else
 					result = new AddNewObjectResult(null, false);
 
@@ -1791,7 +1853,7 @@ namespace Simple.Objects.Controls
             return result;
         }
 
-		protected AddNewObjectResult GraphControlTryAddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement)
+		protected AddNewObjectResult GraphControlTryAddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement, object? requester)
         {
 			if (!this.IsActive)
 				return new AddNewObjectResult(null, false);
@@ -1807,7 +1869,7 @@ namespace Simple.Objects.Controls
 			}
 
 			if (validation)
-				result = this.AddNewObject(addButtonPolicy, parentGraphElement);
+				result = this.AddNewObject(addButtonPolicy, parentGraphElement, requester);
 			else
 				result = new AddNewObjectResult(null, false);
 
@@ -1925,10 +1987,15 @@ namespace Simple.Objects.Controls
 
         protected void GraphControlBeforeNodeIsExpanded(object node)
         {
-			this.LoadChildNodesIfNotLoaded(node);
-        }
+			Cursor? currentCursor = Cursor.Current;
+			Cursor.Current = Cursors.WaitCursor;
 
-        protected void GraphControlNodeIsExpanded(object node)
+			this.LoadChildNodesIfNotLoaded(node);
+
+			Cursor.Current = currentCursor;
+		}
+
+		protected void GraphControlNodeIsExpanded(object node)
         {
             GraphElement graphElement = this.GetGraphElement(node);
             string imageName = graphElement.GetImageName();
@@ -2235,7 +2302,7 @@ namespace Simple.Objects.Controls
 
         #region |   Private GraphControl Methods   |
 
-        private void LoadChildNodesIfNotLoaded(object node)
+        private void LoadChildNodesIfNotLoaded(object node, bool refreshChanges = true)
         {
             if (!this.LoadAllNodes)
             {
@@ -2258,16 +2325,16 @@ namespace Simple.Objects.Controls
                         //{
                         if (graphElement.HasChildren)
                         {
-                            Cursor? currentCursor = Cursor.Current;
-                            
-                            Cursor.Current = Cursors.WaitCursor;
+                            //Cursor? currentCursor = Cursor.Current;
+                            //Cursor.Current = Cursors.WaitCursor;
 							
                             var childGraphElements = this.ObjectManager!.GetGraphElements(this.GraphKey, parentGraphElementId: graphElement.Id);
 
 							this.isLoadingInProgress = true;
                             nodeTag.ChildrenNodesLoading = true;
                             
-                            this.BeginGraphUpdate();
+                            if (refreshChanges)
+                                this.BeginGraphUpdate();
 
                             for (int i = 0; i < childGraphElements.Count(); i++)
                             {
@@ -2302,10 +2369,11 @@ namespace Simple.Objects.Controls
                             this.isLoadingInProgress = false;
 						    nodeTag.ChildrenNodesLoading = false;
                             
-                            this.EndGraphUpdate();
+                            if (refreshChanges)
+                                this.EndGraphUpdate();
                             //this.BestFitGraphColumns();
 						
-                            Cursor.Current = currentCursor;
+                            //Cursor.Current = currentCursor;
                         }
 
 						nodeTag.ChildrenNodesLoaded = true;
@@ -2601,8 +2669,8 @@ namespace Simple.Objects.Controls
             if (!this.CheckDeleteValidationRules(graphElement.SimpleObject!))
                 return;
 
-            Cursor? currentCursor = Cursor.Current;
-            Cursor.Current = Cursors.WaitCursor;
+            //Cursor? currentCursor = Cursor.Current;
+            //Cursor.Current = Cursors.WaitCursor;
 
             //if (graphElement.SimpleObject != null)
             //{
@@ -2633,7 +2701,7 @@ namespace Simple.Objects.Controls
             }
             //}
 
-            Cursor.Current = currentCursor;
+            //Cursor.Current = currentCursor;
         }
 
         //protected void SetAddButtonPolicy(Component button, Type objectType)
@@ -3783,12 +3851,12 @@ namespace Simple.Objects.Controls
             }
         }
 
-		private AddNewObjectResult AddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement)
+		private AddNewObjectResult AddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement, object? requester)
         {
-			return this.AddNewObject(addButtonPolicy, parentGraphElement, this.Columns[0]!);
+			return this.AddNewObject(addButtonPolicy, parentGraphElement, this.Columns[0]!, requester);
         }
 
-		private AddNewObjectResult AddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement, GraphColumn focusedColumn)
+		private AddNewObjectResult AddNewObject(AddButtonPolicy<GraphElement> addButtonPolicy, GraphElement? parentGraphElement, GraphColumn focusedColumn, object? requester)
         {
             if (this.ObjectManager is null)
                 return new AddNewObjectResult(null, success: false);
@@ -3798,17 +3866,16 @@ namespace Simple.Objects.Controls
 
             if (canAdd)
             {
-             
                 // TODO: Raise event BeforeAddNewObjectByButtonClick
                 
                 ObjectActionContext context = ObjectActionContext.Client;
-				SimpleObject newSimpleObject = this.ObjectManager.CreateNewEmptyObject(addButtonPolicy.ObjectType, isNew: true, objectId: 0, context, requester: null); //Activator.CreateInstance(addButtonPolicy.ObjectType, this.ObjectManager) as SimpleObject;
+				SimpleObject newSimpleObject = this.ObjectManager.CreateNewEmptyObject(addButtonPolicy.ObjectType, isNew: true, objectId: 0, context, requester); //Activator.CreateInstance(addButtonPolicy.ObjectType, this.ObjectManager) as SimpleObject;
 
 				// Load child nodes if not loaded, so to add this node at the end. Otherwise this node will be added first, if parent is not loaded.
 				if (parentGraphElement != null && this.GetNode(parentGraphElement) is object parentNode)
 					this.LoadChildNodesIfNotLoaded(parentNode);
 
-				newGraphElement = new GraphElement(this.ObjectManager, this.GraphKey, newSimpleObject, parentGraphElement, context, requester: this);
+				newGraphElement = new GraphElement(this.ObjectManager, this.GraphKey, newSimpleObject, parentGraphElement, context, requester);
                 // When created new graph element ObjectManager fires event and create new node and add it to the graphElementNodeHashtable.
 
                 if (addButtonPolicy.ObjectAction != null)
@@ -4175,12 +4242,14 @@ namespace Simple.Objects.Controls
 
                 foreach (GraphColumn graphColumn in this.Columns)
                 {
-					bool columnEnabled = this.GetColumnEnableProperty(tableId, graphColumn.Index);
+					bool enable = this.GetColumnEnableProperty(tableId, graphColumn.Index);
+                    bool readOnly = this.GetColumnReadOnlyProperty(tableId, graphColumn.Index);
                     
-                    this.GraphControlSetColumnEnableProperty(graphColumn.Index, columnEnabled);
-                }
+                    this.GraphControlSetColumnEnableProperty(graphColumn.Index, enable);
+					this.GraphControlSetColumnReadOnlyProperty(graphColumn.Index, readOnly);
+				}
 
-                this.RaiseAfterSetGraphColumnsEnableProperty(graphElement);
+				this.RaiseAfterSetGraphColumnsEnableProperty(graphElement);
             }
             else
             {
@@ -4191,15 +4260,25 @@ namespace Simple.Objects.Controls
 
         private bool GetColumnEnableProperty(int tableId, int columnIndex)
         {
-            GraphColumnBindingPolicy? columnBindingPolicy = this.GetGraphColumnBindingPolicyByColumnIndex(tableId, columnIndex);
-
-			if (columnBindingPolicy != null)
-				return columnBindingPolicy.BindingOption == BindingOption.EnableEditing;
+            var policy = this.GetGraphColumnBindingPolicyByColumnIndex(tableId, columnIndex);
+                
+            if (policy != null)
+                return policy.BindingOption != BindingOption.DisableEditing;
 
             return false;
         }
 
-        private GraphElement? GetParentGraphElementForNewGraphInsertion(GraphElement? graphElementParentCandidate, AddButtonPolicy<GraphElement> addButtonPolicy)
+        private bool GetColumnReadOnlyProperty(int tableId, int columnIndex)
+        {
+            var policy = this.GetGraphColumnBindingPolicyByColumnIndex(tableId, columnIndex);
+                
+            if (policy != null)
+                return policy.BindingOption == BindingOption.ReadOnly;
+
+            return false;
+        }
+
+		private GraphElement? GetParentGraphElementForNewGraphInsertion(GraphElement? graphElementParentCandidate, AddButtonPolicy<GraphElement> addButtonPolicy)
         {
             GraphElement? anchorGraphElement = (graphElementParentCandidate != null) ? graphElementParentCandidate : this.anchorGraphElement;
             GraphElement? result = anchorGraphElement;
@@ -4583,18 +4662,26 @@ namespace Simple.Objects.Controls
             return result;
         }
 
-		private bool FindNextTextInAnyChildNodes(object startNode, string textToFind, bool matchCase)
+		private bool FindNextTextInAnyChildNodes(object startNode, string textToFind, bool matchCase, CancellationToken cancellationToken, IProgress<int> progress)
 		{
-			if (this.FindNextTextInSingleNode(startNode, textToFind, matchCase))
+            progress.Report(this.findTextProgressNodeCount++);
+
+            if (this.FindNextTextInSingleNode(startNode, textToFind, matchCase))
 			{
 				return true;
 			}
 			else
 			{
-				this.LoadChildNodesIfNotLoaded(startNode);
+				if (this.graphControl != null && this.graphControl.InvokeRequired)
+                    this.graphControl.Invoke(new MethodInvoker(() => this.LoadChildNodesIfNotLoaded(startNode, refreshChanges: false)));
+                else
+                    this.LoadChildNodesIfNotLoaded(startNode, refreshChanges: false);
 				
+                if (cancellationToken.IsCancellationRequested)
+                    return false;
+
 				foreach (object childNode in this.GraphControlGetChildNodes(startNode))
-					if (this.FindNextTextInAnyChildNodes(childNode, textToFind, matchCase))
+					if (this.FindNextTextInAnyChildNodes(childNode, textToFind, matchCase, cancellationToken, progress))
 						return true;
 			}
 
@@ -4629,13 +4716,20 @@ namespace Simple.Objects.Controls
 
 					if (startTextPosition >= 0)
 					{
-						//if (isFirstPass)
-						//	this.findColumnPosition = startTextPosition + textToFind.Length;
+                        //if (isFirstPass)
+                        //	this.findColumnPosition = startTextPosition + textToFind.Length;
+                        if (this.graphControl != null && this.graphControl.InvokeRequired)
+                        {
+                            this.graphControl.Invoke(new MethodInvoker(() =>
+                            {
+                                this.SeFocuseddAndHighlightCellText(node, graphColumn.Index, startTextPosition, textToFind.Length);
+                            }));
+                        }
+                        else
+                        {
+							this.SeFocuseddAndHighlightCellText(node, graphColumn.Index, startTextPosition, textToFind.Length);
+						}
 
-						this.GraphControlSetFocusedNode(node);
-						this.GraphControlSetFocusedColumn(graphColumn.Index);
-						this.GraphControlShowEditor();
-						this.GraphControlHighlightCellText(node, graphColumn.Index, startTextPosition, textToFind.Length);
 						this.findColumnPosition = startTextPosition + 1;
 
 						return true;
@@ -4650,6 +4744,14 @@ namespace Simple.Objects.Controls
 			this.findColumnPosition = 0;
 
 			return false;
+		}
+
+        private void SeFocuseddAndHighlightCellText(object node, int columnIndex, int startTextPosition, int textLength)
+        {
+			this.GraphControlSetFocusedNode(node);
+			this.GraphControlSetFocusedColumn(columnIndex);
+			this.GraphControlShowEditor();
+			this.GraphControlHighlightCellText(node, columnIndex, startTextPosition, textLength);
 		}
 
 		private object? GetNextNode(object node)
@@ -4804,6 +4906,16 @@ namespace Simple.Objects.Controls
 		void IGraphController.SetColumnEnableProperty(int columnIndex, bool value)
 		{
 			this.SetGraphColumnEnableProperty(columnIndex, value);
+		}
+
+		bool IGraphController.GetColumnReadOnlyProperty(int columnIndex)
+		{
+			return this.GetGraphColumnReadOnlyProperty(columnIndex);
+		}
+
+		void IGraphController.SetColumnReadOnlyProperty(int columnIndex, bool value)
+		{
+			this.SetGraphColumnReadOnlyProperty(columnIndex, value);
 		}
 
 		bool IGraphController.GetColumnVisibleProperty(int columnIndex)
@@ -5024,7 +5136,8 @@ namespace Simple.Objects.Controls
     public enum BindingOption
     {
         EnableEditing,
-        DisableEditing
+        DisableEditing,
+        ReadOnly
     }
 
     #endregion |   Enums   |

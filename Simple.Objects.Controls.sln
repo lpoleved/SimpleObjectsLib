@@ -5,11 +5,11 @@ VisualStudioVersion = 17.1.32414.318
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls", "Simple.Controls\Simple.Controls\Simple.Controls.csproj", "{5022CD46-56F9-407B-B64B-BB0B5D947F79}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "Simple.Core\Simple\Simple.csproj", "{A5006A31-99DD-4C62-8C3A-67940F3EDC87}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple", "..\Simple.Core\Simple\Simple.csproj", "{A5006A31-99DD-4C62-8C3A-67940F3EDC87}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "Simple.Core\Simple.Modeling\Simple.Modeling.csproj", "{84BB81C8-B874-4805-B25C-EFE40ADE428A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Modeling", "..\Simple.Core\Simple.Modeling\Simple.Modeling.csproj", "{84BB81C8-B874-4805-B25C-EFE40ADE428A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "Simple.Core\Simple.Collections\Simple.Collections.csproj", "{040A159C-A2A8-4767-A0AA-E208A723F09F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Collections", "..\Simple.Core\Simple.Collections\Simple.Collections.csproj", "{040A159C-A2A8-4767-A0AA-E208A723F09F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Controls.TreeList", "Simple.Controls\Simple.Controls.TreeList\Simple.Controls.TreeList.csproj", "{F59BE74E-3FFB-49A1-BB1A-B83363308591}"
 EndProject
@@ -17,17 +17,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects", "Simple.Ob
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Objects.Controls", "Simple.Controls\Simple.Objects.Controls\Simple.Objects.Controls.csproj", "{CC4260BD-3797-4602-8779-CC2F930EB355}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "Simple.Core\Simple.Compression\Simple.Compression.csproj", "{70A658C4-4E83-4CF3-A072-E0683B5E1D63}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Compression", "..\Simple.Core\Simple.Compression\Simple.Compression.csproj", "{70A658C4-4E83-4CF3-A072-E0683B5E1D63}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "Simple.Core\Simple.Security\Simple.Security.csproj", "{476735EC-9453-4D2D-8E44-54A1FE939478}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Security", "..\Simple.Core\Simple.Security\Simple.Security.csproj", "{476735EC-9453-4D2D-8E44-54A1FE939478}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "Simple.Core\Simple.Serialization\Simple.Serialization.csproj", "{FA451BC9-3BF5-4007-9C81-3AD68566FF27}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Serialization", "..\Simple.Core\Simple.Serialization\Simple.Serialization.csproj", "{FA451BC9-3BF5-4007-9C81-3AD68566FF27}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "Simple.Core\Simple.Datastore\Simple.Datastore.csproj", "{BD617DBF-9BE2-4ED2-8458-20A970F496AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Datastore", "..\Simple.Core\Simple.Datastore\Simple.Datastore.csproj", "{BD617DBF-9BE2-4ED2-8458-20A970F496AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "Simple.Core\Simple.Network\Simple.Network.csproj", "{B1A688B9-BCFA-4528-BA65-6A462571AF6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.Network", "..\Simple.Core\Simple.Network\Simple.Network.csproj", "{B1A688B9-BCFA-4528-BA65-6A462571AF6B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "Simple.Core\Simple.AppContext\Simple.AppContext.csproj", "{DCD5BCA9-4B55-4BD2-9446-1D5B19F5FB91}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simple.AppContext", "..\Simple.Core\Simple.AppContext\Simple.AppContext.csproj", "{DCD5BCA9-4B55-4BD2-9446-1D5B19F5FB91}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4BC73331-996C-4FD9-A725-E0DE74E32BF7}"
 	ProjectSection(SolutionItems) = preProject

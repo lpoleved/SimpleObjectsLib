@@ -144,7 +144,7 @@ namespace Simple.Objects.Controls
 
         private void changableBindingObjectControl_BindingObjectPropertyValueChange(object sender, ChangePropertyValueBindingObjectEventArgs e)
         {
-            if (e.BindingObject?.GetModel().ObjectSubTypePropertyModel is IPropertyModel objectSubTypePropertyModel && objectSubTypePropertyModel.PropertyIndex == e.PropertyModel?.PropertyIndex)
+            if (e.BindingObject?.GetModel().SubTypePropertyModel is IPropertyModel objectSubTypePropertyModel && objectSubTypePropertyModel.PropertyIndex == e.PropertyModel?.PropertyIndex)
 				this.SetActiveEditPanel(e.BindingObject.GetType(), e.BindingObject);
 
             if (this.activeEditPanel is IBindingSimpleEditPanel bindingSimpleEditPanel)
@@ -223,7 +223,7 @@ namespace Simple.Objects.Controls
 
         private void SetActiveEditPanel(Type? objectType, SimpleObject? bindingObject)
         {
-			IPropertyModel? objectSubTypePropertyModel = bindingObject?.GetModel().ObjectSubTypePropertyModel;
+			IPropertyModel? objectSubTypePropertyModel = bindingObject?.GetModel().SubTypePropertyModel;
 			IEditPanelPolicyModel? editPanelPolicyModel = null;
 			SimpleObjectEditPanel? editPanel = null;
 

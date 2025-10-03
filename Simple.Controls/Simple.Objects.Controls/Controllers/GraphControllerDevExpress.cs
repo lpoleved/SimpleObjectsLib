@@ -877,7 +877,7 @@ namespace Simple.Objects.Controls
 			{
 				barSubItem.ItemLinks.Clear();
 
-				foreach (var objectTypeModelItem in simpleObjectModel.ObjectSubTypes)
+				foreach (var objectTypeModelItem in simpleObjectModel.SubTypes)
 				{
 					BarButtonItem barButtonItem = new BarButtonItem();
 
@@ -888,7 +888,7 @@ namespace Simple.Objects.Controls
 
 					barSubItem.ItemLinks.Add(barButtonItem, objectTypeModelItem.Value.BeginGroup);
 
-                    this.SetAddButtonPolicy(simpleObjectModel.ObjectType, item => (item as GraphElement).SimpleObject.SetPropertyValue((item as GraphElement).SimpleObject.GetModel().ObjectSubTypePropertyModel, objectTypeModelItem.Key), barButtonItem);
+                    this.SetAddButtonPolicy(simpleObjectModel.ObjectType, item => (item as GraphElement).SimpleObject.SetPropertyValue((item as GraphElement).SimpleObject.GetModel().SubTypePropertyModel, objectTypeModelItem.Key), barButtonItem);
                 }
 
                 this.barSubItemList.Add(barSubItem);
@@ -1401,6 +1401,21 @@ namespace Simple.Objects.Controls
                 this.TreeList.Columns[columnIndex].OptionsColumn.AllowEdit = value;
         }
 
+		protected override bool GraphControlGetColumnReadOnlyProperty(int columnIndex)
+		{
+			if (this.TreeList is null)
+				return false;
+
+			return this.TreeList.Columns[columnIndex].OptionsColumn.ReadOnly;
+		}
+
+		protected override void GraphControlSetColumnReadOnlyProperty(int columnIndex, bool value)
+		{
+			if (this.TreeList is not null)
+				this.TreeList.Columns[columnIndex].OptionsColumn.ReadOnly = value;
+		}
+
+
 		protected override bool GraphControlGetColumnVisibleProperty(int columnIndex)
 		{
             if (this.TreeList is null)
@@ -1599,7 +1614,7 @@ namespace Simple.Objects.Controls
 			{
 				bool enabled = false;
 
-				if (graphElement != null && graphElement.SimpleObject != null && graphElement.SimpleObject.GetModel().ObjectSubTypes.Count > 1)
+				if (graphElement != null && graphElement.SimpleObject != null && graphElement.SimpleObject.GetModel().SubTypes.Count > 1)
 					enabled = true;
 
 				if (this.SubButtonChangeTo != null)
@@ -1973,9 +1988,9 @@ namespace Simple.Objects.Controls
 				ISimpleObjectModel simpleObjectModel = this.FocusedSimpleObject.GetModel();
 				barSubItem.ItemLinks.Clear();
 				
-				foreach (var objectTypeModelItem in simpleObjectModel.ObjectSubTypes)
+				foreach (var objectTypeModelItem in simpleObjectModel.SubTypes)
 				{
-					if (objectTypeModelItem.Key == this.FocusedSimpleObject.GetPropertyValue<int>(simpleObjectModel.ObjectSubTypePropertyModel))
+					if (objectTypeModelItem.Key == this.FocusedSimpleObject.GetPropertyValue<int>(simpleObjectModel.SubTypePropertyModel))
 						continue;
 					
 					BarButtonItem barButtonItem = new BarButtonItem();
@@ -1995,7 +2010,7 @@ namespace Simple.Objects.Controls
 		{
             if (this.FocusedSimpleObject != null)
             {
-                this.FocusedSimpleObject.SetPropertyValue(this.FocusedSimpleObject.GetModel().ObjectSubTypePropertyModel, Conversion.TryChangeType<int>(e.Item.Tag));
+                this.FocusedSimpleObject.SetPropertyValue(this.FocusedSimpleObject.GetModel().SubTypePropertyModel, Conversion.TryChangeType<int>(e.Item.Tag));
 
                 if (this.FocusedGraphElement != null)
                 {

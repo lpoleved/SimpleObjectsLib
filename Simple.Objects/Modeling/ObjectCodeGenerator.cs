@@ -416,6 +416,10 @@ namespace Simple.Objects
 				{
 					defaultFieldValue = " = String.Empty";
 				}
+				else if (propertyModel.PropertyType.IsNullable())
+				{
+					defaultFieldValue = " = null";
+				}
 
 				if (!usedPropertyInfos.Keys.Contains(propertyName)) // Avoid adding duplicate fields
 					strProtectedMembers += "        protected " + fieldTypeName + " " + fieldName + defaultFieldValue + ", " + oldFieldName + defaultFieldValue + ";\r\n";
